@@ -227,7 +227,7 @@ export function buildComprehensiveMasterPrompt(
   } else if (selection?.garmentStyle && selection.garmentStyle !== 'skip') {
     const fabric = selection?.garmentFabric ? ` made of ${selection.garmentFabric}` : '';
     outfitText = `, wearing traditional ${selection.garmentStyle}${fabric}`;
-  } else {
+  } else if (!selection?.garmentStyle) {
     outfitText = `, wearing elegant royal Burmese silk woven attire`;
   }
 
@@ -249,8 +249,9 @@ export function buildComprehensiveMasterPrompt(
 
   // 8. Location & Scenery Backdrop
   let locationText = '';
-  const locBase = selection?.location || 'heritage Myanmar temple backdrop';
-  locationText = `, set against ${locBase}`;
+  if (selection?.location && selection.location !== 'skip') {
+    locationText = `, set against ${selection.location}`;
+  }
   if (selection?.customLocationDetails && selection.customLocationDetails.trim()) {
     locationText += `, ${selection.customLocationDetails.trim()}`;
   }
@@ -260,8 +261,9 @@ export function buildComprehensiveMasterPrompt(
 
   // 9. Time, Lighting & Emotional Mood
   let lightingText = '';
-  const lightBase = selection?.timeAndLighting || 'golden hour warm sunlight';
-  lightingText = `, illuminated by ${lightBase}`;
+  if (selection?.timeAndLighting && selection.timeAndLighting !== 'skip') {
+    lightingText = `, illuminated by ${selection.timeAndLighting}`;
+  }
   if (selection?.customLightingDetails && selection.customLightingDetails.trim()) {
     lightingText += `, ${selection.customLightingDetails.trim()}`;
   }
@@ -281,7 +283,7 @@ export function buildComprehensiveMasterPrompt(
   }
 
   // 11. Optics, Camera Gear, Angle & Color Grade
-  const cameraBase = selection?.camera || 'Sony A7R V with 85mm f/1.2 lens';
+  const cameraBase = (selection?.camera && selection.camera !== 'skip') ? selection.camera : 'Sony A7R V with 85mm f/1.2 lens';
   let photoStyleText = `, shot on ${cameraBase}`;
 
   if (selection?.cameraAngle && selection.cameraAngle !== 'skip') {
@@ -295,7 +297,7 @@ export function buildComprehensiveMasterPrompt(
   }
 
   // 12. Quality Profile & Render Specifications
-  const qualityText = selection?.qualityProfile || '8k UHD resolution, masterpiece quality, fine skin pores texture, sharp focus, professional editorial photography';
+  const qualityText = (selection?.qualityProfile && selection.qualityProfile !== 'skip') ? selection.qualityProfile : '8k UHD resolution, masterpiece quality, fine skin pores texture, sharp focus, professional editorial photography';
 
   // 13. Additional Custom Instructions (User Prompt Text)
   let userInstructionText = '';

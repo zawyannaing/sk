@@ -50,6 +50,17 @@ interface DualControlFieldProps {
   placeholder?: string;
 }
 
+const scrollCarousel = (
+  containerRef: React.RefObject<HTMLDivElement | null>,
+  direction: 'left' | 'right',
+  amount = 220
+) => {
+  if (containerRef.current) {
+    const scrollAmount = direction === 'left' ? -amount : amount;
+    containerRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+  }
+};
+
 /**
  * Dual Control Component: Provides BOTH a Horizontal Carousel (ဘေးတိုက်ဆွဲကြည့်ရန်)
  * AND a Dropdown Menu (Dropdown ဖွင့်ကြည့်ရန်) with 100% two-way synchronization.
@@ -66,13 +77,7 @@ const DualControlField: React.FC<DualControlFieldProps> = ({
   placeholder,
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  const scroll = (direction: 'left' | 'right') => {
-    if (scrollRef.current) {
-      const scrollAmount = direction === 'left' ? -220 : 220;
-      scrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-    }
-  };
+  const handleScroll = (direction: 'left' | 'right') => scrollCarousel(scrollRef, direction, 220);
 
   // Color classes map
   const colorMap = {
@@ -161,7 +166,7 @@ const DualControlField: React.FC<DualControlFieldProps> = ({
           <div className="flex items-center gap-1">
             <button
               type="button"
-              onClick={() => scroll('left')}
+              onClick={() => handleScroll('left')}
               className={`p-1 rounded-md bg-slate-800 border border-slate-700 transition-all ${theme.btnHover}`}
               title="Scroll Left"
             >
@@ -169,7 +174,7 @@ const DualControlField: React.FC<DualControlFieldProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => scroll('right')}
+              onClick={() => handleScroll('right')}
               className={`p-1 rounded-md bg-slate-800 border border-slate-700 transition-all ${theme.btnHover}`}
               title="Scroll Right"
             >
@@ -268,13 +273,7 @@ const DualControlMultiSelect: React.FC<DualControlMultiSelectProps> = ({
   themeColor,
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  const scroll = (direction: 'left' | 'right') => {
-    if (scrollRef.current) {
-      const scrollAmount = direction === 'left' ? -200 : 200;
-      scrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-    }
-  };
+  const handleScroll = (direction: 'left' | 'right') => scrollCarousel(scrollRef, direction, 200);
 
   const isSelected = (text: string) => currentValue.includes(text);
 
@@ -346,14 +345,14 @@ const DualControlMultiSelect: React.FC<DualControlMultiSelectProps> = ({
           <div className="flex items-center gap-1">
             <button
               type="button"
-              onClick={() => scroll('left')}
+              onClick={() => handleScroll('left')}
               className={`p-1 rounded-md bg-slate-800 border border-slate-700 transition-all ${themeClasses.btnHover}`}
             >
               <ChevronLeft className="h-3 w-3" />
             </button>
             <button
               type="button"
-              onClick={() => scroll('right')}
+              onClick={() => handleScroll('right')}
               className={`p-1 rounded-md bg-slate-800 border border-slate-700 transition-all ${themeClasses.btnHover}`}
             >
               <ChevronRight className="h-3 w-3" />

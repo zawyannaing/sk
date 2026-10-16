@@ -154,7 +154,7 @@ export const PoseSelectionCarousel: React.FC<PoseSelectionCarouselProps> = ({
               <button
                 key={pose.id}
                 type="button"
-                onClick={() => onUpdateSelection({ poseExpression: pose.id })}
+                onClick={() => onUpdateSelection({ poseExpression: isSelected ? 'skip' : pose.id, customPoseDetails: isSelected ? '' : undefined })}
                 className={`snap-start shrink-0 min-w-[175px] max-w-[220px] p-2.5 rounded-xl border text-left transition-all relative flex flex-col justify-between gap-1.5 group cursor-pointer ${
                   isSelected
                     ? 'bg-violet-950/90 border-violet-400 text-violet-100 font-bold shadow-[0_0_15px_rgba(139,92,246,0.3)] ring-1 ring-violet-400/80'

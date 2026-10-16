@@ -141,7 +141,7 @@ export const GarmentSelectionCarousel: React.FC<GarmentSelectionCarouselProps> =
               <button
                 key={garm.id}
                 type="button"
-                onClick={() => onUpdateSelection({ garmentStyle: garm.id })}
+                onClick={() => onUpdateSelection({ garmentStyle: isSelected ? 'skip' : garm.id, garmentFabric: isSelected ? '' : undefined })}
                 className={`snap-start shrink-0 min-w-[175px] max-w-[220px] p-2.5 rounded-xl border text-left transition-all relative flex flex-col justify-between gap-1.5 group cursor-pointer ${
                   isSelected
                     ? 'bg-fuchsia-950/90 border-fuchsia-400 text-fuchsia-100 font-bold shadow-[0_0_15px_rgba(217,70,239,0.3)] ring-1 ring-fuchsia-400/80'

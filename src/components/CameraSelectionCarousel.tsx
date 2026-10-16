@@ -154,7 +154,7 @@ export const CameraSelectionCarousel: React.FC<CameraSelectionCarouselProps> = (
               <button
                 key={cam.id}
                 type="button"
-                onClick={() => onUpdateSelection({ camera: cam.id })}
+                onClick={() => onUpdateSelection({ camera: isSelected ? 'skip' : cam.id })}
                 className={`snap-start shrink-0 min-w-[200px] max-w-[250px] p-2.5 rounded-xl border text-left transition-all relative flex flex-col justify-between gap-1.5 group cursor-pointer ${
                   isSelected
                     ? 'bg-cyan-950/90 border-cyan-400 text-cyan-100 font-bold shadow-[0_0_15px_rgba(6,182,212,0.3)] ring-1 ring-cyan-400/80'

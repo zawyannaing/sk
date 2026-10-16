@@ -154,7 +154,7 @@ export const FilmColorSelectionCarousel: React.FC<FilmColorSelectionCarouselProp
               <button
                 key={cg.id}
                 type="button"
-                onClick={() => onUpdateSelection({ colorGrade: cg.id })}
+                onClick={() => onUpdateSelection({ colorGrade: isSelected ? 'skip' : cg.id })}
                 className={`snap-start shrink-0 min-w-[185px] max-w-[230px] p-2.5 rounded-xl border text-left transition-all relative flex flex-col justify-between gap-1.5 group cursor-pointer ${
                   isSelected
                     ? 'bg-amber-950/90 border-amber-400 text-amber-100 font-bold shadow-[0_0_15px_rgba(245,158,11,0.3)] ring-1 ring-amber-400/80'

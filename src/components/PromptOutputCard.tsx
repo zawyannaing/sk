@@ -946,7 +946,7 @@ ${rawPrompt}, aspect ratio ${ratio}, ultra-high resolution photography layer, na
           >
             <div className="flex items-center justify-between px-3 py-1">
               <h4 className="text-xs font-bold text-slate-200">
-                Show Ai Studio High-Res Preview
+                Show Prompt High-Res Preview
               </h4>
               <button
                 onClick={() => setImageModalOpen(false)}

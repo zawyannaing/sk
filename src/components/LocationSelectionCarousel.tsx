@@ -139,7 +139,7 @@ export const LocationSelectionCarousel: React.FC<LocationSelectionCarouselProps>
               <button
                 key={loc.id}
                 type="button"
-                onClick={() => onUpdateSelection({ location: loc.id })}
+                onClick={() => onUpdateSelection({ location: isSelected ? 'skip' : loc.id, customLocationDetails: isSelected ? '' : undefined })}
                 className={`snap-start shrink-0 min-w-[175px] max-w-[220px] p-2.5 rounded-xl border text-left transition-all relative flex flex-col justify-between gap-1.5 group cursor-pointer ${
                   isSelected
                     ? 'bg-purple-950/90 border-purple-400 text-purple-100 font-bold shadow-[0_0_15px_rgba(168,85,247,0.3)] ring-1 ring-purple-400/80'

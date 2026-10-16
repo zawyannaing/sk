@@ -150,7 +150,7 @@ export const MakeupSelectionCarousel: React.FC<MakeupSelectionCarouselProps> = (
               <button
                 key={m.id}
                 type="button"
-                onClick={() => onUpdateSelection({ makeup: m.id })}
+                onClick={() => onUpdateSelection({ makeup: isSelected ? 'skip' : m.id })}
                 className={`snap-start shrink-0 min-w-[185px] max-w-[230px] p-2.5 rounded-xl border text-left transition-all relative flex flex-col justify-between gap-1.5 group cursor-pointer ${
                   isSelected
                     ? 'bg-pink-950/90 border-pink-400 text-pink-100 font-bold shadow-[0_0_15px_rgba(236,72,153,0.3)] ring-1 ring-pink-400/80'

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { MatrixSelection, Language } from '../types';
-import { PillarId } from './ExecutiveMasterDetailStudio';
+
+export type PillarId = 'box1' | 'box2' | 'box3' | 'box4';
 import {
   X,
   Edit2,
@@ -83,38 +84,42 @@ export const SelectedOptionsSummaryModal: React.FC<SelectedOptionsSummaryModalPr
     // --- Box 1: Subject & Identity ---
     // 1. Subject Type
     const subOpt = SUBJECT_OPTIONS.find(s => s.id === selection.subject);
-    list.push({
-      id: 'subject',
-      pillarId: 'box1',
-      subMenuId: 'subject_type',
-      boxNumber: '1',
-      boxLabel: 'Box1',
-      categoryLabelMm: 'ဇာတ်ကောင် အမျိုးအစား',
-      categoryLabelEn: 'Subject Category',
-      valueLabelMm: subOpt?.labelMm || selection.subject,
-      valueLabelEn: subOpt?.labelEn || selection.subject,
-      emoji: subOpt?.emoji || '👤',
-      canDelete: selection.subject !== 'woman' || Boolean(selection.customSubjectDetails),
-      canEdit: true,
-      description: selection.customSubjectDetails ? `Custom: ${selection.customSubjectDetails}` : undefined
-    });
+    if (selection.subject && selection.subject !== 'skip') {
+      list.push({
+        id: 'subject',
+        pillarId: 'box1',
+        subMenuId: 'subject_type',
+        boxNumber: '1',
+        boxLabel: 'Box1',
+        categoryLabelMm: 'ဇာတ်ကောင် အမျိုးအစား',
+        categoryLabelEn: 'Subject Category',
+        valueLabelMm: subOpt?.labelMm || selection.subject,
+        valueLabelEn: subOpt?.labelEn || selection.subject,
+        emoji: subOpt?.emoji || '👤',
+        canDelete: true,
+        canEdit: true,
+        description: selection.customSubjectDetails ? `Custom: ${selection.customSubjectDetails}` : undefined
+      });
+    }
 
     // 2. Identity Lock
-    const lockOpt = IDENTITY_LOCK_OPTIONS.find(l => l.id === selection.identityLock);
-    list.push({
-      id: 'identityLock',
-      pillarId: 'box1',
-      subMenuId: 'identity_lock',
-      boxNumber: '1',
-      boxLabel: 'Box1',
-      categoryLabelMm: 'မျက်နှာထိန်းချုပ်မှု',
-      categoryLabelEn: 'Identity Lock',
-      valueLabelMm: lockOpt?.labelMm || '100% Face Lock',
-      valueLabelEn: lockOpt?.labelEn || '100% Face Lock',
-      emoji: lockOpt?.emoji || '🔒',
-      canDelete: selection.identityLock !== 'face_100',
-      canEdit: true
-    });
+    if (selection.identityLock && selection.identityLock !== 'skip' && selection.identityLock !== 'no_lock') {
+      const lockOpt = IDENTITY_LOCK_OPTIONS.find(l => l.id === selection.identityLock);
+      list.push({
+        id: 'identityLock',
+        pillarId: 'box1',
+        subMenuId: 'identity_lock',
+        boxNumber: '1',
+        boxLabel: 'Box1',
+        categoryLabelMm: 'မျက်နှာထိန်းချုပ်မှု',
+        categoryLabelEn: 'Identity Lock',
+        valueLabelMm: lockOpt?.labelMm || '100% Face Lock',
+        valueLabelEn: lockOpt?.labelEn || '100% Face Lock',
+        emoji: lockOpt?.emoji || '🔒',
+        canDelete: true,
+        canEdit: true
+      });
+    }
 
     // 3. Reference Image
     if (selection.referenceImage) {
@@ -135,7 +140,7 @@ export const SelectedOptionsSummaryModal: React.FC<SelectedOptionsSummaryModalPr
     }
 
     // 4. Ethnicity
-    if (selection.ethnicity) {
+    if (selection.ethnicity && selection.ethnicity !== 'skip') {
       const ethOpt = ETHNICITY_OPTIONS.find(e => e.id === selection.ethnicity);
       list.push({
         id: 'ethnicity',
@@ -148,13 +153,13 @@ export const SelectedOptionsSummaryModal: React.FC<SelectedOptionsSummaryModalPr
         valueLabelMm: ethOpt?.labelMm || selection.ethnicity,
         valueLabelEn: ethOpt?.labelEn || selection.ethnicity,
         emoji: ethOpt?.emoji || '🇲🇲',
-        canDelete: selection.ethnicity !== 'burmese',
+        canDelete: true,
         canEdit: true
       });
     }
 
     // 5. Pose & Expression
-    if (selection.poseExpression) {
+    if (selection.poseExpression && selection.poseExpression !== 'skip') {
       const poseOpt = POSE_EXPRESSION_OPTIONS.find(p => p.id === selection.poseExpression);
       list.push({
         id: 'pose',
@@ -167,7 +172,7 @@ export const SelectedOptionsSummaryModal: React.FC<SelectedOptionsSummaryModalPr
         valueLabelMm: poseOpt?.labelMm || selection.poseExpression,
         valueLabelEn: poseOpt?.labelEn || selection.poseExpression,
         emoji: poseOpt?.emoji || '🧘',
-        canDelete: selection.poseExpression !== 'looking_at_camera',
+        canDelete: true,
         canEdit: true
       });
     }
@@ -192,7 +197,7 @@ export const SelectedOptionsSummaryModal: React.FC<SelectedOptionsSummaryModalPr
 
     // --- Box 2: Wardrobe & Clothes ---
     // 7. Garment Style
-    if (selection.garmentStyle) {
+    if (selection.garmentStyle && selection.garmentStyle !== 'skip') {
       const gOpt = GARMENT_OPTIONS.find(g => g.id === selection.garmentStyle);
       list.push({
         id: 'garment',
@@ -205,13 +210,13 @@ export const SelectedOptionsSummaryModal: React.FC<SelectedOptionsSummaryModalPr
         valueLabelMm: gOpt?.labelMm || selection.garmentStyle,
         valueLabelEn: gOpt?.labelEn || selection.garmentStyle,
         emoji: gOpt?.emoji || '👗',
-        canDelete: selection.garmentStyle !== 'silk_longyi',
+        canDelete: true,
         canEdit: true
       });
     }
 
     // 8. Fabric Material
-    if (selection.garmentFabric) {
+    if (selection.garmentFabric && selection.garmentFabric !== 'skip') {
       list.push({
         id: 'fabric',
         pillarId: 'box2',
@@ -223,7 +228,7 @@ export const SelectedOptionsSummaryModal: React.FC<SelectedOptionsSummaryModalPr
         valueLabelMm: selection.garmentFabric,
         valueLabelEn: selection.garmentFabric,
         emoji: '🧵',
-        canDelete: selection.garmentFabric !== 'Woven Silk with Water Droplets',
+        canDelete: true,
         canEdit: true
       });
     }
@@ -266,7 +271,7 @@ export const SelectedOptionsSummaryModal: React.FC<SelectedOptionsSummaryModalPr
 
     // --- Box 3: Scene, Environment & Lighting ---
     // 11. Event / Festival
-    if (selection.event) {
+    if (selection.event && selection.event !== 'skip') {
       const evOpt = EVENT_OPTIONS.find(e => e.id === selection.event);
       list.push({
         id: 'event',
@@ -279,14 +284,14 @@ export const SelectedOptionsSummaryModal: React.FC<SelectedOptionsSummaryModalPr
         valueLabelMm: evOpt?.labelMm || selection.event,
         valueLabelEn: evOpt?.labelEn || selection.event,
         emoji: evOpt?.emoji || '🎉',
-        canDelete: selection.event !== 'thingyan' || Boolean(selection.customEventDetails),
+        canDelete: true,
         canEdit: true,
         description: selection.customEventDetails ? `Custom: ${selection.customEventDetails}` : undefined
       });
     }
 
     // 12. Location Backdrop
-    if (selection.location) {
+    if (selection.location && selection.location !== 'skip') {
       const locOpt = LOCATION_OPTIONS.find(l => l.id === selection.location);
       list.push({
         id: 'location',
@@ -299,14 +304,14 @@ export const SelectedOptionsSummaryModal: React.FC<SelectedOptionsSummaryModalPr
         valueLabelMm: locOpt?.labelMm || selection.location,
         valueLabelEn: locOpt?.labelEn || selection.location,
         emoji: locOpt?.emoji || '📍',
-        canDelete: selection.location !== 'cyber_yangon' || Boolean(selection.customLocationDetails),
+        canDelete: true,
         canEdit: true,
         description: selection.customLocationDetails ? `Custom: ${selection.customLocationDetails}` : undefined
       });
     }
 
     // 13. Studio Lighting
-    if (selection.timeAndLighting) {
+    if (selection.timeAndLighting && selection.timeAndLighting !== 'skip') {
       const litOpt = LIGHTING_OPTIONS.find(li => li.id === selection.timeAndLighting);
       list.push({
         id: 'lighting',
@@ -319,13 +324,13 @@ export const SelectedOptionsSummaryModal: React.FC<SelectedOptionsSummaryModalPr
         valueLabelMm: litOpt?.labelMm || selection.timeAndLighting,
         valueLabelEn: litOpt?.labelEn || selection.timeAndLighting,
         emoji: litOpt?.emoji || '💡',
-        canDelete: selection.timeAndLighting !== 'neon_midnight',
+        canDelete: true,
         canEdit: true
       });
     }
 
     // 14. Mood & Emotion
-    if (selection.moodEmotion) {
+    if (selection.moodEmotion && selection.moodEmotion !== 'skip') {
       const moodOpt = MOOD_OPTIONS.find(m => m.id === selection.moodEmotion);
       list.push({
         id: 'mood',
@@ -338,14 +343,14 @@ export const SelectedOptionsSummaryModal: React.FC<SelectedOptionsSummaryModalPr
         valueLabelMm: moodOpt?.labelMm || selection.moodEmotion,
         valueLabelEn: moodOpt?.labelEn || selection.moodEmotion,
         emoji: moodOpt?.emoji || '✨',
-        canDelete: selection.moodEmotion !== 'cinematic_dramatic',
+        canDelete: true,
         canEdit: true
       });
     }
 
     // --- Box 4: Camera & Optics Matrix ---
     // 15. Camera Body & Lens
-    if (selection.camera) {
+    if (selection.camera && selection.camera !== 'skip') {
       const camOpt = CAMERA_OPTIONS.find(c => c.id === selection.camera);
       list.push({
         id: 'camera',
@@ -358,13 +363,13 @@ export const SelectedOptionsSummaryModal: React.FC<SelectedOptionsSummaryModalPr
         valueLabelMm: camOpt?.label || selection.camera,
         valueLabelEn: camOpt?.label || selection.camera,
         emoji: '📷',
-        canDelete: selection.camera !== 'sony_a7rv',
+        canDelete: true,
         canEdit: true
       });
     }
 
     // 16. Camera Angle
-    if (selection.cameraAngle) {
+    if (selection.cameraAngle && selection.cameraAngle !== 'skip') {
       const angOpt = CAMERA_ANGLE_OPTIONS.find(a => a.id === selection.cameraAngle);
       list.push({
         id: 'cameraAngle',
@@ -377,13 +382,13 @@ export const SelectedOptionsSummaryModal: React.FC<SelectedOptionsSummaryModalPr
         valueLabelMm: angOpt?.labelMm || selection.cameraAngle,
         valueLabelEn: angOpt?.labelEn || selection.cameraAngle,
         emoji: angOpt?.emoji || '📐',
-        canDelete: selection.cameraAngle !== 'eye_level',
+        canDelete: true,
         canEdit: true
       });
     }
 
     // 17. Color Film / LUT
-    if (selection.colorGrade) {
+    if (selection.colorGrade && selection.colorGrade !== 'skip') {
       const colOpt = COLOR_GRADE_OPTIONS.find(c => c.id === selection.colorGrade);
       list.push({
         id: 'colorGrade',
@@ -396,13 +401,13 @@ export const SelectedOptionsSummaryModal: React.FC<SelectedOptionsSummaryModalPr
         valueLabelMm: colOpt?.labelMm || selection.colorGrade,
         valueLabelEn: colOpt?.labelEn || selection.colorGrade,
         emoji: '🎞️',
-        canDelete: selection.colorGrade !== 'cyber_neon',
+        canDelete: true,
         canEdit: true
       });
     }
 
     // 18. Skin Retouching
-    if (selection.retouching) {
+    if (selection.retouching && selection.retouching !== 'skip') {
       const retOpt = RETOUCH_OPTIONS.find(r => r.id === selection.retouching);
       list.push({
         id: 'retouching',
@@ -415,13 +420,13 @@ export const SelectedOptionsSummaryModal: React.FC<SelectedOptionsSummaryModalPr
         valueLabelMm: retOpt?.labelMm || selection.retouching,
         valueLabelEn: retOpt?.labelEn || selection.retouching,
         emoji: '✨',
-        canDelete: selection.retouching !== 'ultra_realism',
+        canDelete: true,
         canEdit: true
       });
     }
 
     // 19. Makeup
-    if (selection.makeup) {
+    if (selection.makeup && selection.makeup !== 'skip') {
       const makOpt = MAKEUP_OPTIONS.find(m => m.id === selection.makeup);
       list.push({
         id: 'makeup',
@@ -434,7 +439,7 @@ export const SelectedOptionsSummaryModal: React.FC<SelectedOptionsSummaryModalPr
         valueLabelMm: makOpt?.labelMm || selection.makeup,
         valueLabelEn: makOpt?.labelEn || selection.makeup,
         emoji: '💄',
-        canDelete: selection.makeup !== 'traditional_myanmar',
+        canDelete: true,
         canEdit: true
       });
     }
@@ -453,13 +458,13 @@ export const SelectedOptionsSummaryModal: React.FC<SelectedOptionsSummaryModalPr
         valueLabelMm: `${selection.aspectRatio} (${arOpt?.label || 'Portrait'})`,
         valueLabelEn: `${selection.aspectRatio} (${arOpt?.label || 'Portrait'})`,
         emoji: '📐',
-        canDelete: selection.aspectRatio !== '9:16',
+        canDelete: true,
         canEdit: true
       });
     }
 
     // 21. Quality Profile
-    if (selection.qualityProfile) {
+    if (selection.qualityProfile && selection.qualityProfile !== 'skip') {
       const qOpt = QUALITY_PROFILES.find(q => q.id === selection.qualityProfile);
       list.push({
         id: 'qualityProfile',
@@ -472,7 +477,7 @@ export const SelectedOptionsSummaryModal: React.FC<SelectedOptionsSummaryModalPr
         valueLabelMm: qOpt?.label || selection.qualityProfile,
         valueLabelEn: qOpt?.label || selection.qualityProfile,
         emoji: '⚡',
-        canDelete: selection.qualityProfile !== '8k_uhd',
+        canDelete: true,
         canEdit: true
       });
     }

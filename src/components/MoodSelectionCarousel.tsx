@@ -154,7 +154,7 @@ export const MoodSelectionCarousel: React.FC<MoodSelectionCarouselProps> = ({
               <button
                 key={m.id}
                 type="button"
-                onClick={() => onUpdateSelection({ moodEmotion: m.id })}
+                onClick={() => onUpdateSelection({ moodEmotion: isSelected ? 'skip' : m.id })}
                 className={`snap-start shrink-0 min-w-[195px] max-w-[240px] p-2.5 rounded-xl border text-left transition-all relative flex flex-col justify-between gap-1.5 group cursor-pointer ${
                   isSelected
                     ? 'bg-emerald-950/90 border-emerald-400 text-emerald-100 font-bold shadow-[0_0_15px_rgba(16,185,129,0.3)] ring-1 ring-emerald-400/80'

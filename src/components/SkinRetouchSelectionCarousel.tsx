@@ -150,7 +150,7 @@ export const SkinRetouchSelectionCarousel: React.FC<SkinRetouchSelectionCarousel
               <button
                 key={ret.id}
                 type="button"
-                onClick={() => onUpdateSelection({ retouching: ret.id })}
+                onClick={() => onUpdateSelection({ retouching: isSelected ? 'skip' : ret.id })}
                 className={`snap-start shrink-0 min-w-[200px] max-w-[240px] p-2.5 rounded-xl border text-left transition-all relative flex flex-col justify-between gap-1.5 group cursor-pointer ${
                   isSelected
                     ? 'bg-purple-950/90 border-purple-400 text-purple-100 font-bold shadow-[0_0_15px_rgba(168,85,247,0.3)] ring-1 ring-purple-400/80'

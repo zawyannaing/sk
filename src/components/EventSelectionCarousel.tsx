@@ -139,7 +139,7 @@ export const EventSelectionCarousel: React.FC<EventSelectionCarouselProps> = ({
               <button
                 key={evt.id}
                 type="button"
-                onClick={() => onUpdateSelection({ eventStyle: evt.id })}
+                onClick={() => onUpdateSelection({ event: isSelected ? 'skip' : evt.id, eventStyle: isSelected ? 'skip' : evt.id, customEventDetails: isSelected ? '' : undefined })}
                 className={`snap-start shrink-0 min-w-[175px] max-w-[220px] p-2.5 rounded-xl border text-left transition-all relative flex flex-col justify-between gap-1.5 group cursor-pointer ${
                   isSelected
                     ? 'bg-amber-950/90 border-amber-400 text-amber-100 font-bold shadow-[0_0_15px_rgba(251,191,36,0.3)] ring-1 ring-amber-400/80'

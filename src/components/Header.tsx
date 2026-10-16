@@ -37,7 +37,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div>
             <div className="flex items-center gap-1.5">
               <h1 className="bg-gradient-to-r from-pink-400 via-purple-300 to-cyan-400 bg-clip-text text-base sm:text-xl font-black tracking-tight text-transparent whitespace-nowrap">
-                Show Ai Studio.
+                Show Prompt
               </h1>
             </div>
           </div>
