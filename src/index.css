@@ -88,6 +88,7 @@ body {
   direction: ltr;
   -webkit-font-smoothing: antialiased;
   vertical-align: middle;
+  font-display: swap;
 }
 
 /* Custom scrollbars */

@@ -1,7 +1,10 @@
 import React from 'react';
 
 export type NavView =
+  | 'portal'
   | 'presentation-slides'
+  | 'video-prompt-studio'
+  | 'photo-prompt-studio'
   | 'studio-suite'
   | 'pro-workstation'
   | 'photo-to-text'
@@ -78,8 +81,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
 
-        {/* 0. Presentation & Guide Highlight Button */}
-        <div className="flex flex-col gap-1">
+        {/* 0. Portal & Presentation Highlight Buttons */}
+        <div className="flex flex-col gap-1.5">
+          <button
+            type="button"
+            onClick={() => onViewChange('portal')}
+            title={isCollapsed ? '3 Sections Portal' : undefined}
+            className={`flex items-center justify-between px-3 py-2 rounded-full transition-all text-left font-sans text-xs cursor-pointer ${
+              activeView === 'portal'
+                ? 'bg-[#1c1c1e] text-[#ffd02f] font-bold shadow-xs ring-2 ring-[#ffd02f]/50'
+                : 'bg-zinc-100 hover:bg-zinc-200 text-[#1c1c1e] font-bold border border-zinc-200'
+            } ${isCollapsed ? 'justify-center px-0' : ''}`}
+          >
+            <div className="flex items-center gap-2.5">
+              <span className={`material-symbols-outlined text-[19px] ${activeView === 'portal' ? 'text-[#ffd02f]' : 'text-zinc-700'}`}>
+                apps
+              </span>
+              {!isCollapsed && <span>3 Sections Hub</span>}
+            </div>
+            {!isCollapsed && (
+              <span className="text-[9px] px-1.5 py-0.2 rounded-full font-extrabold uppercase bg-[#ffd02f] text-black">
+                PORTAL
+              </span>
+            )}
+          </button>
+
           <button
             type="button"
             onClick={() => onViewChange('presentation-slides')}
@@ -113,6 +139,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
           <nav className="flex flex-col gap-1">
             {[
+              { id: 'video-prompt-studio' as NavView, icon: 'videocam', label: 'Video Prompt Studio', tag: 'VIDEO', tagColor: 'bg-[#ccff00] text-black font-extrabold' },
+              { id: 'photo-prompt-studio' as NavView, icon: 'photo_camera', label: 'Photo Prompt Studio', tag: 'PHOTO', tagColor: 'bg-[#ffd02f] text-black font-extrabold' },
               { id: 'studio-suite' as NavView, icon: 'grid_view', label: '8-Room Studio Suite', tag: 'Ajax Spec', tagColor: 'bg-[#1c1c1e] text-[#ffd02f]' },
               { id: 'pro-workstation' as NavView, icon: 'wb_iridescent', label: 'Pro Workstation', tag: 'Capture One', tagColor: 'bg-[#ffd02f] text-[#1c1c1e]' },
               { id: 'photo-to-text' as NavView, icon: 'auto_fix_normal', label: 'Photo to Text', tag: 'AI Reverse', tagColor: 'bg-[#ffd02f] text-[#1c1c1e]' },

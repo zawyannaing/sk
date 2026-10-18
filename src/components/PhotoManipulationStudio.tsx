@@ -535,6 +535,7 @@ export const PhotoManipulationStudio: React.FC<PhotoManipulationStudioProps> = (
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const multiFileInputRef = useRef<HTMLInputElement | null>(null);
+  const fileInputRef = multiFileInputRef;
   const targetRoleInputRef = useRef<HTMLInputElement | null>(null);
   const [uploadTargetRole, setUploadTargetRole] = useState<PhotoRole>('subject');
 
@@ -611,7 +612,7 @@ export const PhotoManipulationStudio: React.FC<PhotoManipulationStudioProps> = (
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    Array.from(files).forEach((file, index) => {
+    Array.from(files).forEach((file: File, index) => {
       if (file.type.startsWith('image/')) {
         let assignedRole: PhotoRole = 'subject';
         if (files.length > 1) {
@@ -631,7 +632,7 @@ export const PhotoManipulationStudio: React.FC<PhotoManipulationStudioProps> = (
   const handleTargetedUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    Array.from(files).forEach(file => {
+    Array.from(files).forEach((file: File) => {
       if (file.type.startsWith('image/')) {
         addLayerFromFile(file, uploadTargetRole);
       }
@@ -660,7 +661,7 @@ export const PhotoManipulationStudio: React.FC<PhotoManipulationStudioProps> = (
     const files = e.dataTransfer.files;
     if (!files || files.length === 0) return;
 
-    Array.from(files).forEach((file, index) => {
+    Array.from(files).forEach((file: File, index) => {
       if (file.type.startsWith('image/')) {
         let assignedRole: PhotoRole = 'subject';
         if (files.length > 1) {

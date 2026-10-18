@@ -13,6 +13,8 @@ interface TopNavbarProps {
   onOpenSlides?: () => void;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
+  activeMainSection?: 'portal' | 'video-prompt' | 'photo-prompt' | 'detail-burmese';
+  onSelectMainSection?: (section: 'portal' | 'video-prompt' | 'photo-prompt' | 'detail-burmese') => void;
 }
 
 export const TopNavbar: React.FC<TopNavbarProps> = ({
@@ -26,17 +28,21 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
   onOpenUserDashboard,
   onOpenSlides,
   isCollapsed = false,
-  onToggleCollapse
+  onToggleCollapse,
+  activeMainSection,
+  onSelectMainSection
 }) => {
+  const isPortalMode = activeMainSection === 'portal';
+
   return (
     <header
-      className={`fixed top-0 right-0 h-16 bg-[#ffffff]/95 backdrop-blur-md border-b border-[#e0e2e8] z-40 flex items-center justify-between px-4 sm:px-8 transition-all duration-300 ease-in-out ${
-        isCollapsed ? 'left-20' : 'left-64'
+      className={`fixed top-0 right-0 h-16 bg-[#ffffff]/95 backdrop-blur-md border-b border-[#e0e2e8] z-40 flex items-center justify-between px-3 sm:px-6 transition-all duration-300 ease-in-out ${
+        isPortalMode ? 'left-0' : `left-0 ${isCollapsed ? 'md:left-20' : 'md:left-64'}`
       }`}
     >
       {/* Left: Mobile/Sidebar toggle + Engine Selector */}
-      <div className="flex items-center gap-3">
-        {onToggleCollapse && (
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        {!isPortalMode && onToggleCollapse && (
           <button
             type="button"
             onClick={onToggleCollapse}
@@ -49,26 +55,76 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
           </button>
         )}
 
-        <div className="flex items-center bg-[#f7f8fa] border border-[#e0e2e8] rounded-full px-3 py-1 shadow-2xs">
-          <span className="material-symbols-outlined text-[15px] text-[#4262ff] mr-1.5">tune</span>
-          <span className="font-sans text-[11px] text-[#8e91a0] mr-1.5 font-medium">Model:</span>
+        {/* Portal Home Button */}
+        {onSelectMainSection && (
+          <button
+            type="button"
+            onClick={() => onSelectMainSection('portal')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#ffd02f] hover:bg-[#fcb900] text-black font-extrabold text-xs shadow-xs transition-transform hover:scale-105 active:scale-95 cursor-pointer shrink-0"
+            title="Go to 3-Section Hub Portal"
+          >
+            <span className="material-symbols-outlined text-[16px]">apps</span>
+            <span className="hidden sm:inline">3 Sections</span>
+          </button>
+        )}
+
+        <div className="hidden sm:flex items-center bg-[#f7f8fa] border border-[#e0e2e8] rounded-full px-2.5 py-1 shadow-2xs">
+          <span className="material-symbols-outlined text-[14px] text-[#4262ff] mr-1">tune</span>
           <select
             value={engine}
             onChange={(e) => onEngineChange(e.target.value)}
             className="bg-transparent font-sans text-xs text-[#1c1c1e] font-semibold focus:outline-none cursor-pointer pr-1"
           >
             <option value="midjourney-v6">Midjourney v6.1</option>
-            <option value="flux-1">Flux.1 Dev / Pro</option>
-            <option value="sdxl">Stable Diffusion XL</option>
-            <option value="dalle-3">DALL-E 3 Precision</option>
+            <option value="flux-1">Flux.1 Dev</option>
+            <option value="sdxl">SDXL 1.0</option>
           </select>
         </div>
-
-        <div className="hidden md:flex items-center bg-[#fff8e0] text-[#746019] border border-[#fcb900]/30 px-3 py-1 rounded-full font-sans text-[11px] font-bold">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#00b473] mr-1.5"></span>
-          <span>Archival Verified</span>
-        </div>
       </div>
+
+      {/* Center: 3 Section Navigation Switcher Pills */}
+      {onSelectMainSection && (
+        <div className="flex items-center gap-1 bg-[#f0f2f5] border border-[#e0e2e8] p-1 rounded-full shadow-inner max-w-[500px] overflow-x-auto scrollbar-none mx-2">
+          <button
+            type="button"
+            onClick={() => onSelectMainSection('video-prompt')}
+            className={`flex items-center gap-1 px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+              activeMainSection === 'video-prompt'
+                ? 'bg-[#121318] text-[#ccff00] font-bold shadow-[0_0_12px_rgba(204,255,0,0.3)]'
+                : 'text-zinc-600 hover:text-zinc-950 hover:bg-white/80'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[14px]">videocam</span>
+            <span>Video Prompt</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onSelectMainSection('photo-prompt')}
+            className={`flex items-center gap-1 px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+              activeMainSection === 'photo-prompt'
+                ? 'bg-[#121318] text-pink-400 font-bold shadow-[0_0_12px_rgba(236,72,153,0.3)]'
+                : 'text-zinc-600 hover:text-zinc-950 hover:bg-white/80'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[14px]">photo_camera</span>
+            <span>Photo Prompt</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onSelectMainSection('detail-burmese')}
+            className={`flex items-center gap-1 px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+              activeMainSection === 'detail-burmese'
+                ? 'bg-[#1c1c1e] text-[#ffd02f] font-bold shadow-[0_0_12px_rgba(255,208,47,0.3)]'
+                : 'text-zinc-600 hover:text-zinc-950 hover:bg-white/80'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[14px]">grid_view</span>
+            <span>Detail Burmese</span>
+          </button>
+        </div>
+      )}
 
       {/* Right: Actions, Language Switch & User Avatar */}
       <div className="flex items-center gap-3 sm:gap-4">

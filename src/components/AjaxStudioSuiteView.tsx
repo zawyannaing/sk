@@ -339,11 +339,11 @@ export const AjaxStudioSuiteView: React.FC<AjaxStudioSuiteViewProps> = ({
           {onNavigateView && (
             <button
               type="button"
-              onClick={() => onNavigateView('studio-desk')}
+              onClick={() => onNavigateView('prompt-builder')}
               className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#161d2b] hover:bg-[#20293d] border border-[#273248] text-xs font-bold text-white transition-colors cursor-pointer"
             >
-              <span className="material-symbols-outlined text-[16px] text-[#ffd02f]">desktop_windows</span>
-              <span>Studio Desk View</span>
+              <span className="material-symbols-outlined text-[16px] text-[#ffd02f]">auto_fix_high</span>
+              <span>{isMm ? 'Prompt Matrix သို့' : 'Prompt Matrix'}</span>
             </button>
           )}
 

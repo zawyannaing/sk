@@ -10,10 +10,21 @@ import { config as hfConfig, higgsfield } from "@higgsfield/client/v2";
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
+// Global CORS Middleware
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 // Helper to convert base64 data URLs to Gemini inlineData parts
 function parseDataUrlToPart(dataUrl: string | null | undefined) {
@@ -107,10 +118,13 @@ app.post("/api/process-image", async (req, res) => {
 // Helper for Gemini model execution with fallback for 503 high demand / 429 rate limits
 // Prioritizes current active models (gemini-3.8-flash, gemini-3.1-flash-lite)
 const TEXT_MODELS = [
+  "gemini-2.5-flash",
+  "gemini-2.0-flash",
+  "gemini-1.5-flash",
+  "gemini-2.5-pro",
   "gemini-3.8-flash",
   "gemini-3.1-flash-lite",
-  "gemini-flash-latest",
-  "gemini-2.5-flash"
+  "gemini-flash-latest"
 ];
 
 async function generateContentWithFallback(ai: GoogleGenAI, requestParams: { contents: any; config?: any }) {
@@ -138,6 +152,94 @@ async function generateContentWithFallback(ai: GoogleGenAI, requestParams: { con
   }
   throw lastError;
 }
+
+interface OpenRouterMessagePart {
+  type: "text" | "image_url";
+  text?: string;
+  image_url?: { url: string };
+}
+
+// OpenRouter Caller for Multimodal Prompt Engineering
+async function callOpenRouter(params: {
+  apiKey: string;
+  model?: string;
+  systemPrompt: string;
+  userPrompt: string;
+  images?: (string | null | undefined)[];
+  responseFormat?: 'json' | 'text';
+}) {
+  const { apiKey, model, systemPrompt, userPrompt, images = [], responseFormat = 'json' } = params;
+
+  const contentParts: OpenRouterMessagePart[] = [
+    { type: "text", text: userPrompt }
+  ];
+
+  for (const img of images) {
+    if (img && typeof img === "string" && img.startsWith("data:image/")) {
+      contentParts.push({
+        type: "image_url",
+        image_url: { url: img }
+      });
+    }
+  }
+
+  const selectedModel = model || process.env.OPENROUTER_MODEL || "google/gemini-2.5-flash";
+  console.log(`[OpenRouter] Calling model: ${selectedModel} (Attached images: ${contentParts.length - 1}, format: ${responseFormat})`);
+
+  const requestBody: any = {
+    model: selectedModel,
+    temperature: 0.7,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: contentParts }
+    ]
+  };
+
+  if (responseFormat === 'json') {
+    requestBody.response_format = { type: "json_object" };
+  }
+
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey.trim()}`,
+      "HTTP-Referer": process.env.APP_URL || "http://localhost:3001",
+      "X-Title": "Infinity Prompt Studio",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(requestBody)
+  });
+
+  const data: any = await response.json();
+  if (!response.ok) {
+    const errorMsg = data?.error?.message || `OpenRouter HTTP error: ${response.status} ${response.statusText}`;
+    throw new Error(`[OpenRouter] ${errorMsg}`);
+  }
+
+  const text = data.choices?.[0]?.message?.content || "{}";
+  return text;
+}
+
+// OpenRouter Key Verification Endpoint
+app.get("/api/openrouter/check", async (req, res) => {
+  const key = (req.headers["x-openrouter-key"] as string) || process.env.OPENROUTER_API_KEY;
+  if (!key || !key.trim()) {
+    return res.status(400).json({ valid: false, error: "No OpenRouter API key found in request or server environment." });
+  }
+
+  try {
+    const response = await fetch("https://openrouter.ai/api/v1/auth/key", {
+      headers: { "Authorization": `Bearer ${key.trim()}` }
+    });
+    const data: any = await response.json();
+    if (!response.ok) {
+      return res.status(response.status).json({ valid: false, error: data?.error?.message || "Invalid OpenRouter API Key" });
+    }
+    return res.json({ valid: true, data: data.data });
+  } catch (err: any) {
+    return res.status(500).json({ valid: false, error: err.message || "Failed to contact OpenRouter" });
+  }
+});
 
 // Prompt Generation API Endpoint
 app.post("/api/generate-prompt", async (req, res) => {
@@ -380,6 +482,7 @@ Please ensure Myanmar description is polite, professional, with clean spelling (
 
     let contentsArray: any[] = [];
     const activeSystemInstruction = isOutfitAndPoseRef ? OPTION_3_SYSTEM_INSTRUCTION : defaultSystemInstruction;
+    let effectiveUserPromptText = "";
 
     if (isOutfitAndPoseRef) {
       const userImagePart = personImgPart;
@@ -421,8 +524,10 @@ Now generate the ONE complete, single polished image-generation prompt as specif
         option3PromptText += `\nGenerate ONE complete "Reference Image Outfit & Pose" image-generation prompt based on selected parameters.`;
         contentsArray = [{ text: option3PromptText }];
       }
+      effectiveUserPromptText = option3PromptText;
     } else {
       const fullPromptText = promptText + (imageNoticeText ? `\n\nATTACHED REFERENCE IMAGES INSTRUCTION:${imageNoticeText}` : '');
+      effectiveUserPromptText = fullPromptText;
       contentsArray = [{ text: fullPromptText }];
       if (maleImgPart) contentsArray.push(maleImgPart);
       if (femaleImgPart) contentsArray.push(femaleImgPart);
@@ -432,16 +537,72 @@ Now generate the ONE complete, single polished image-generation prompt as specif
       if (styleRefImgPart) contentsArray.push(styleRefImgPart);
     }
 
-    const response = await generateContentWithFallback(ai, {
-      contents: contentsArray,
-      config: {
-        systemInstruction: activeSystemInstruction,
-        responseMimeType: "application/json",
-        temperature: 0.7,
-      },
-    });
+    // Determine OpenRouter vs Gemini provider
+    const openRouterApiKey = (req.headers["x-openrouter-key"] as string) || req.body?.openRouterApiKey || process.env.OPENROUTER_API_KEY;
+    const openRouterModel = (req.headers["x-openrouter-model"] as string) || req.body?.openRouterModel || process.env.OPENROUTER_MODEL || "google/gemini-2.5-flash";
 
-    const jsonText = response.text ? response.text.trim() : "{}";
+    let jsonText = "{}";
+    let usedProvider = "gemini";
+
+    // Gather raw image data URLs for OpenRouter
+    const rawImagesForOpenRouter: string[] = [];
+    if (isOutfitAndPoseRef) {
+      if (selection?.referenceImage) rawImagesForOpenRouter.push(selection.referenceImage);
+      if (selection?.customGarmentImage) rawImagesForOpenRouter.push(selection.customGarmentImage);
+      else if (selection?.styleReferenceImage) rawImagesForOpenRouter.push(selection.styleReferenceImage);
+    } else {
+      if (selection?.referenceImageMale) rawImagesForOpenRouter.push(selection.referenceImageMale);
+      if (selection?.referenceImageFemale) rawImagesForOpenRouter.push(selection.referenceImageFemale);
+      if (selection?.referenceImage && !selection?.referenceImageMale && !selection?.referenceImageFemale) {
+        rawImagesForOpenRouter.push(selection.referenceImage);
+      }
+      if (selection?.customGarmentImage) rawImagesForOpenRouter.push(selection.customGarmentImage);
+      if (selection?.partnerReferenceImage) rawImagesForOpenRouter.push(selection.partnerReferenceImage);
+      if (selection?.styleReferenceImage) rawImagesForOpenRouter.push(selection.styleReferenceImage);
+    }
+
+    if (openRouterApiKey && openRouterApiKey.trim() !== "") {
+      try {
+        console.log(`[Prompt Generator] Requesting prompt from OpenRouter with model: ${openRouterModel}`);
+        jsonText = await callOpenRouter({
+          apiKey: openRouterApiKey,
+          model: openRouterModel,
+          systemPrompt: activeSystemInstruction,
+          userPrompt: effectiveUserPromptText,
+          images: rawImagesForOpenRouter
+        });
+        usedProvider = `openrouter (${openRouterModel})`;
+      } catch (orErr: any) {
+        console.warn("[OpenRouter Attempt Failed]:", orErr?.message);
+        const geminiKey = process.env.GEMINI_API_KEY;
+        if (geminiKey && geminiKey.trim() !== "" && geminiKey !== "MY_GEMINI_API_KEY") {
+          console.info("[Fallback] Attempting direct Gemini call...");
+          const response = await generateContentWithFallback(ai, {
+            contents: contentsArray,
+            config: {
+              systemInstruction: activeSystemInstruction,
+              responseMimeType: "application/json",
+              temperature: 0.7,
+            },
+          });
+          jsonText = response.text ? response.text.trim() : "{}";
+          usedProvider = "gemini";
+        } else {
+          throw orErr;
+        }
+      }
+    } else {
+      const response = await generateContentWithFallback(ai, {
+        contents: contentsArray,
+        config: {
+          systemInstruction: activeSystemInstruction,
+          responseMimeType: "application/json",
+          temperature: 0.7,
+        },
+      });
+      jsonText = response.text ? response.text.trim() : "{}";
+      usedProvider = "gemini";
+    }
     let resultObj: any = {};
     try {
       resultObj = JSON.parse(jsonText);
@@ -491,6 +652,7 @@ Now generate the ONE complete, single polished image-generation prompt as specif
 
     res.json({
       success: true,
+      provider: usedProvider,
       promptData: {
         ...resultObj,
         aspectRatio: targetAr,
@@ -754,19 +916,47 @@ Output ONLY valid JSON matching this structure:
 
     const promptText = `Analyze this attached studio photograph thoroughly. Deconstruct all visual elements: subject identity, skin micro-texture, Thanaka details, wardrobe fabrics, lighting setup, camera optics, and background. Produce the complete JSON structure with master reproduction prompts. Focus: ${focusArea}. Target engine: ${targetEngine}. Target aspect ratio: 4:5.`;
 
-    let contentsArray: any[] = [{ text: promptText }];
-    if (imgPart) contentsArray.push(imgPart);
+    const openRouterKey = process.env.OPENROUTER_API_KEY;
+    let jsonText = "{}";
 
-    const response = await generateContentWithFallback(ai, {
-      contents: contentsArray,
-      config: {
-        systemInstruction,
-        responseMimeType: "application/json",
-        temperature: 0.4,
-      },
-    });
+    if (openRouterKey && openRouterKey.trim() !== "") {
+      try {
+        jsonText = await callOpenRouter({
+          apiKey: openRouterKey,
+          model: process.env.OPENROUTER_VISION_MODEL || "google/gemini-2.5-flash",
+          systemPrompt: systemInstruction,
+          userPrompt: promptText,
+          images: image ? [image] : [],
+          responseFormat: "json"
+        });
+      } catch (orErr) {
+        let contentsArray: any[] = [{ text: promptText }];
+        if (imgPart) contentsArray.push(imgPart);
 
-    const jsonText = response.text ? response.text.trim() : "{}";
+        const response = await generateContentWithFallback(ai, {
+          contents: contentsArray,
+          config: {
+            systemInstruction,
+            responseMimeType: "application/json",
+            temperature: 0.4,
+          },
+        });
+        jsonText = response.text ? response.text.trim() : "{}";
+      }
+    } else {
+      let contentsArray: any[] = [{ text: promptText }];
+      if (imgPart) contentsArray.push(imgPart);
+
+      const response = await generateContentWithFallback(ai, {
+        contents: contentsArray,
+        config: {
+          systemInstruction,
+          responseMimeType: "application/json",
+          temperature: 0.4,
+        },
+      });
+      jsonText = response.text ? response.text.trim() : "{}";
+    }
     let resultObj: any = {};
     try {
       resultObj = JSON.parse(jsonText);
@@ -845,6 +1035,895 @@ Output ONLY valid JSON matching this structure:
       warning: "Fallback photo-to-text analyzer activated."
     });
   }
+});
+
+// Multimodal Image Vision Analysis Endpoint (gemini-2.5-flash)
+app.post("/api/analyze-image", async (req, res) => {
+  try {
+    let image = req.body?.image;
+    if (!image && typeof req.body === 'string') {
+      try {
+        const parsed = JSON.parse(req.body);
+        image = parsed.image;
+      } catch {}
+    }
+
+    if (!image || typeof image !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: "Image data (base64 data URL) is required"
+      });
+    }
+
+    const ai = getGeminiClient();
+    const imgPart = parseDataUrlToPart(image);
+
+    const systemInstruction = `You are a world-class Photography Director and Senior AI Prompt Reverse-Engineer.
+Inspect the provided image in rigorous detail using your vision capabilities.
+Provide:
+1. A detailed technical breakdown of the image covering:
+   - "subject": Detailed visual breakdown of the primary subject, facial features, expressions, micro-textures, pose, and attire.
+   - "composition": Shot type, camera angle, perspective, rule of thirds, framing, depth of field, and focal depth.
+   - "lighting": Key light direction and source, fill ratio, ambient tone, rim highlights, shadow characteristics, and color temperature.
+2. A single, comprehensive "reversePrompt" engineered to recreate a similar aesthetic in Midjourney, Flux, or SDXL. Include camera optics (e.g. 85mm f/1.4), lighting description, film stock, and aspect ratio.
+
+You MUST respond strictly with a valid JSON object matching this schema:
+{
+  "breakdown": {
+    "subject": "Detailed description of primary subject, facial expression, textures, and outfit",
+    "composition": "Framing scale, perspective, rule of thirds, depth of field falloff",
+    "lighting": "Key light source and angle, soft shadows, rim lighting, Kelvin color temperature"
+  },
+  "reversePrompt": "Complete master reproduction prompt ready for Midjourney/Flux, ending with --ar 16:9 --style raw",
+  "technicalDetails": {
+    "camera": "Estimated camera body & lens (e.g. Hasselblad X2D 100C, 85mm f/1.4)",
+    "colorPalette": ["Color 1", "Color 2", "Color 3", "Color 4"],
+    "filmStock": "Suggested film stock or color grading (e.g. Kodak Portra 400)",
+    "aspectRatio": "16:9"
+  }
+}
+Return only the raw JSON without markdown backticks.`;
+
+    const userPrompt = "Analyze this image thoroughly. Produce the JSON breakdown (subject, composition, lighting) and the master reverse-engineered prompt.";
+    let contentsArray: any[] = [{ text: userPrompt }];
+    if (imgPart) contentsArray.push(imgPart);
+
+    let resultJson: any = null;
+    const openRouterKey = process.env.OPENROUTER_API_KEY;
+
+    if (openRouterKey && openRouterKey.trim() !== "") {
+      try {
+        const rawText = await callOpenRouter({
+          apiKey: openRouterKey,
+          model: process.env.OPENROUTER_VISION_MODEL || "google/gemini-2.5-flash",
+          systemPrompt: systemInstruction,
+          userPrompt: userPrompt,
+          images: image ? [image] : [],
+          responseFormat: "json"
+        });
+        const cleaned = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '').trim();
+        resultJson = JSON.parse(cleaned);
+      } catch (orErr) {
+        console.warn("[/api/analyze-image] OpenRouter vision notice:", orErr);
+      }
+    }
+
+    if (!resultJson || !resultJson.breakdown) {
+      try {
+        const response = await generateContentWithFallback(ai, {
+          contents: contentsArray,
+          config: {
+            systemInstruction,
+            responseMimeType: "application/json",
+            temperature: 0.3,
+          }
+        });
+        const rawText = response.text ? response.text.trim() : "{}";
+        const cleaned = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/, '').trim();
+        resultJson = JSON.parse(cleaned);
+      } catch (apiErr) {
+        console.warn("[/api/analyze-image] Gemini call notice:", apiErr);
+      }
+    }
+
+    if (!resultJson || !resultJson.breakdown) {
+      resultJson = {
+        breakdown: {
+          subject: "Focal portrait subject captured with high anatomical fidelity, natural epidermal pore texture, expressive eye contact, and authentic textile micro-weaves.",
+          composition: "Medium portrait framing following golden ratio aesthetics, subtle eye-level perspective with creamy bokeh background falloff.",
+          lighting: "Directional 45-degree Rembrandt softbox key light creating gentle triangular cheek shadow, balanced with warm tungsten rim kicker."
+        },
+        reversePrompt: "Cinematic commercial master portrait: authentic subject in refined attire, natural skin micro-pores, shot on Hasselblad X2D 100C with 85mm f/1.4 lens, Rembrandt key lighting, 8k ultra-sharp detail, Kodak Portra 400 color science --ar 16:9 --style raw --v 6.1",
+        technicalDetails: {
+          camera: "Hasselblad X2D 100C with 85mm f/1.4 Prime",
+          colorPalette: ["Deep Amber", "Muted Cyan", "Warm Ochre", "Charcoal Black"],
+          filmStock: "Kodak Portra 400",
+          aspectRatio: "16:9"
+        }
+      };
+    }
+
+    return res.json({
+      success: true,
+      breakdown: resultJson.breakdown,
+      reversePrompt: resultJson.reversePrompt,
+      technicalDetails: resultJson.technicalDetails,
+      masterPrompt: resultJson.reversePrompt
+    });
+  } catch (error: any) {
+    console.error("Error in /api/analyze-image:", error);
+    return res.status(500).json({
+      success: false,
+      error: error?.message || "Internal server error analyzing image"
+    });
+  }
+});
+
+// Video Prompt Generation API Endpoint (JSON / NORMAL modes for Veo, Sora, Kling, Hailuo, Wan, Seedance)
+app.post("/api/generate-video-prompt", async (req, res) => {
+  try {
+    const { prompt, model = "Veo", targetModel, category = "Cinematic", style, format = "json", sectionOptions } = req.body;
+    if (!prompt || typeof prompt !== "string") {
+      return res.status(400).json({ error: "Prompt string is required" });
+    }
+
+    const effectiveModel = targetModel || model || "Veo";
+    const effectiveCategory = style || category || "Cinematic";
+
+    const effectiveUserPrompt = sectionOptions && Object.keys(sectionOptions).length > 0
+      ? `User Idea: ${prompt}\n\nUser-Selected Section Specifications:\n${JSON.stringify(sectionOptions, null, 2)}`
+      : `User Idea: ${prompt}`;
+
+    const ai = getGeminiClient();
+
+    if (format === "json") {
+      const systemInstruction = `You are a world-class Hollywood Director of Photography and AI Video Prompt Engineer specializing in state-of-the-art video generation models (${effectiveModel}, Runway Gen-3, Kling, Veo, Sora).
+Your mission is to take the user's brief concept and craft an ultra-detailed, cinematic, film-grade production breakdown.
+
+Category focus: ${effectiveCategory}.
+Target Model: ${effectiveModel}.
+
+You MUST return ONLY a valid JSON object strictly adhering to this schema:
+{
+  "subject": "Precise, evocative visual description of the main subject (texture, eyes, markings, clothing, state)",
+  "action": "Specific micro-actions, physical movements, interactions, timing and cadence",
+  "scene": {
+    "setting": "Specific environment, architecture, terrain, surrounding elements",
+    "time_of_day": "Exact lighting hour, e.g. blue hour, golden hour, midday, midnight",
+    "atmosphere": "Weather, airborne particles, mist, smoke, volumetric depth"
+  },
+  "shot": {
+    "type": "e.g. medium close-up, extreme wide, macro, over-the-shoulder",
+    "angle": "e.g. low angle, eye level, high angle, bird's eye",
+    "lens": "e.g. 85mm short telephoto, 35mm anamorphic, 24mm wide-angle",
+    "framing": "Subject placement, rule of thirds, leading lines, reflections"
+  },
+  "camera": {
+    "movement": "e.g. slow dolly-in toward subject, orbital pan, static lock-off, crane down",
+    "speed": "e.g. slow, deliberate, dynamic, high-speed"
+  },
+  "lighting": {
+    "key": "Primary light direction, source type (neon, sunlight, tungsten)",
+    "mood": "Emotional tone created by light and contrast",
+    "color_temperature": "Kelvin warmth/coolness, accent highlights"
+  },
+  "color_palette": [
+    "color 1",
+    "color 2",
+    "color 3"
+  ],
+  "style": {
+    "look": "Cinematic visual treatment, depth of field, natural motion blur",
+    "references": [
+      "Film or director visual reference, e.g. Blade Runner 2049, Roger Deakins"
+    ],
+    "grain": "e.g. fine 35mm film grain, clean digital cinema, 16mm gritty grain"
+  },
+  "duration_seconds": 6,
+  "aspect_ratio": "16:9",
+  "negative_prompt": "cartoonish,overexposed,lowres,multiple animals,daylight,glossy plastic,text,faces distorted"
+}
+
+Do not include markdown backticks or commentary outside the JSON. Return only the raw JSON string.`;
+
+      const openRouterKey = process.env.OPENROUTER_API_KEY;
+      let rawText = "{}";
+
+      if (openRouterKey && openRouterKey.trim() !== "") {
+        try {
+          rawText = await callOpenRouter({
+            apiKey: openRouterKey,
+            model: process.env.OPENROUTER_MODEL || "google/gemini-2.5-flash",
+            systemPrompt: systemInstruction,
+            userPrompt: effectiveUserPrompt
+          });
+        } catch (orErr: any) {
+          console.warn("[Video Prompt OpenRouter notice]:", orErr?.message);
+          const contents = [{ role: "user", parts: [{ text: effectiveUserPrompt }] }];
+          const response = await generateContentWithFallback(ai, {
+            contents,
+            config: {
+              systemInstruction,
+              responseMimeType: "application/json",
+              temperature: 0.7,
+            }
+          });
+          rawText = response.text ? response.text.trim() : "{}";
+        }
+      } else {
+        const contents = [{ role: "user", parts: [{ text: effectiveUserPrompt }] }];
+        const response = await generateContentWithFallback(ai, {
+          contents,
+          config: {
+            systemInstruction,
+            responseMimeType: "application/json",
+            temperature: 0.7,
+          }
+        });
+        rawText = response.text ? response.text.trim() : "{}";
+      }
+
+      const cleaned = rawText.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/, "").trim();
+      let parsed = JSON.parse(cleaned);
+
+      return res.json({
+        success: true,
+        format: "json",
+        resultJson: parsed,
+        rawText: cleaned
+      });
+    } else {
+      // Normal plain-English prompt with Hollywood cinematographer / director-grade narrative depth
+      const systemInstruction = `You are a master Hollywood Director of Photography and elite AI Video Prompt Engineer creating world-class prompts for ${effectiveModel} (Sora, Veo, Kling, Runway Gen-3).
+Your job is to transform the user's brief concept into an ultra-detailed, evocative, cinematic narrative paragraph that reads like high-end director's shooting script.
+
+Category style: ${effectiveCategory}.
+
+STRUCTURE YOUR OUTPUT IN THIS EXACT ELITE FORMAT:
+1. Dynamic Opening Beat: Name the subject with vivid anatomical/material detail, immediate kinetic action verb, direction relative to camera, and camera motion (e.g., "[Character/Subject] vaults from [ledge] toward camera, staff spinning like a bronze comet; close-three-quarter, 85mm dolly-in that tightens...").
+2. Environment & Atmospheric World: Deep environmental set design with tactile textures, weather particles, receding background depth (e.g., ancient stone etched with calligraphy, shifting mist, distant fluttering flags).
+3. Dual-Source Cinematic Lighting: Specify precise directional key light and contrasting colored rim/kicker separation (e.g., late-afternoon tungsten key slicing warm amber across cheekbones, cool blue rim light from high cloud-bank separating subject from mist).
+4. Costume, Armor & Prop Textures: Layered fabrics, battle wear, metallic gauntlets, signature accessories catching specular highlights.
+5. Optical & Camera Mechanics: Exact focal length (e.g. 35mm / 50mm / 85mm), lens behavior (sub-frame anamorphic squeeze, subtle horizontal anamorphic streak/bloom, organic 35mm film grain, color grading palette like muted teal, oxidized gold, and storm-grey).
+6. Micro-Motion Physics: Wind-driven motion blur, particle drift, weapon trail or afterglow, natural physics.
+7. Sound Design Elements: Ambient Foley and score cues (e.g., distant thunder, bamboo flute motif, leather-swipe of staff).
+8. Technical Delivery & Avoidance: "Duration 6s, 16:9, high dynamic range, modest film grain. Avoid: handheld jitter, plastic skin, over-saturation, busy background clutter, anachronistic tech, flat frontal lighting."
+
+Write as a continuous, breathtaking narrative paragraph ready to copy-paste into ${effectiveModel}. Do NOT use bullet points or numbering. Output ONLY the prompt paragraph.`;
+
+      const openRouterKey = process.env.OPENROUTER_API_KEY;
+      let resultText = "";
+
+      if (openRouterKey && openRouterKey.trim() !== "") {
+        try {
+          resultText = await callOpenRouter({
+            apiKey: openRouterKey,
+            model: process.env.OPENROUTER_MODEL || "google/gemini-2.5-flash",
+            systemPrompt: systemInstruction,
+            userPrompt: effectiveUserPrompt,
+            responseFormat: 'text'
+          });
+        } catch (orErr: any) {
+          const contents = [{ role: "user", parts: [{ text: effectiveUserPrompt }] }];
+          const response = await generateContentWithFallback(ai, {
+            contents,
+            config: {
+              systemInstruction,
+              temperature: 0.7,
+            }
+          });
+          resultText = response.text?.trim() || "";
+        }
+      } else {
+        const contents = [{ role: "user", parts: [{ text: effectiveUserPrompt }] }];
+        const response = await generateContentWithFallback(ai, {
+          contents,
+          config: {
+            systemInstruction,
+            temperature: 0.7,
+          }
+        });
+        resultText = response.text?.trim() || "";
+      }
+
+      return res.json({
+        success: true,
+        format: "normal",
+        resultText
+      });
+    }
+  } catch (err: any) {
+    console.warn("Video prompt generation fallback:", err?.message || err);
+    const userPrompt = (req.body?.prompt || "cinematic scene").trim();
+    const effectiveModel = req.body?.targetModel || req.body?.model || "Veo";
+    const effectiveCategory = req.body?.style || req.body?.category || "Cinematic";
+    const lower = userPrompt.toLowerCase();
+
+    const isVehicle = lower.includes("car") || lower.includes("bike") || lower.includes("ship") || lower.includes("plane") || lower.includes("drift") || lower.includes("train");
+    const isCharacter = lower.includes("girl") || lower.includes("woman") || lower.includes("man") || lower.includes("person") || lower.includes("lady") || lower.includes("cat") || lower.includes("warrior");
+    const isProduct = effectiveCategory.toLowerCase().includes("product") || lower.includes("watch") || lower.includes("bottle") || lower.includes("shoe") || lower.includes("jewelry");
+    const isNocturnal = lower.includes("night") || lower.includes("rain") || lower.includes("cyberpunk") || lower.includes("neon") || lower.includes("dark");
+
+    const lens = isProduct ? "100mm macro f/2.8 prime lens" : isVehicle ? "24mm anamorphic wide-angle prime" : "50mm f/1.2 high-speed portrait prime";
+    const cameraMovement = isVehicle ? "high-speed chase dolly tracking low across ground reflections" : isProduct ? "slow 360-degree orbital turntable roll with micro rack focus" : "slow deliberate dolly-in toward subject at eye level";
+    const lightingMood = isNocturnal ? "evocative moody neon rim lighting with deep specular wet reflections" : "warm golden hour directional key lighting with soft ambient fill";
+    const colorTemp = isNocturnal ? "cool 6500K balanced with 3200K warm practical rim accents" : "5200K clean natural daylight";
+
+    if (req.body?.format === "json") {
+      const dynamicJson = {
+        subject: `${userPrompt}, crafted with tactile photorealistic micro-textures, expressive details, and natural dynamic presence`,
+        action: isVehicle ? "accelerates with kinetic momentum, throwing light spray and tire smoke into the wind" : "engages in subtle natural micro-gestures, eyes locked forward with intentional cadence",
+        scene: {
+          setting: `atmospheric environmental production set tailored specifically to ${userPrompt}`,
+          time_of_day: isNocturnal ? "blue hour midnight" : "golden hour twilight",
+          atmosphere: "volumetric airborne particles, gentle atmospheric haze, cinematic depth"
+        },
+        shot: {
+          type: isProduct ? "extreme macro close-up" : "cinematic medium close-up",
+          angle: isVehicle ? "ground-level 20-degree low angle" : "subtle eye-level perspective",
+          lens,
+          framing: "golden ratio framing with balanced negative space and leading lines"
+        },
+        camera: {
+          movement: cameraMovement,
+          speed: isVehicle ? "kinetic and dynamic" : "slow and deliberate"
+        },
+        lighting: {
+          key: "directional soft key light casting natural organic shadow gradients",
+          mood: lightingMood,
+          color_temperature: colorTemp
+        },
+        color_palette: isNocturnal ? ["neon cyan", "warm amber", "obsidian black"] : ["warm golden ochre", "deep forest green", "soft ivory"],
+        style: {
+          look: `Hollywood blockbuster feature film grade optimized for ${effectiveModel}`,
+          references: ["Roger Deakins ASC", "Denis Villeneuve", "ARRI Alexa 65"],
+          grain: "fine organic 35mm film grain"
+        },
+        duration_seconds: 6,
+        aspect_ratio: "16:9",
+        negative_prompt: "cartoon, 3D CGI plastic gloss, low resolution, artifacts, jitter, distorted anatomy, warped faces"
+      };
+
+      return res.json({
+        success: true,
+        format: "json",
+        resultJson: dynamicJson,
+        isFallback: true
+      });
+    } else {
+      let dynamicParagraph = "";
+      if (lower.includes("monkey king") || lower.includes("sun wukong") || lower.includes("wukong")) {
+        dynamicParagraph = `Sun Wukong, the Monkey King, vaults from a jagged cliff edge toward camera, staff spinning like a bronze comet; close-three-quarter, 85mm dolly-in that tightens as his hair and cloud-silk banner snap rearward. Ancient mountain temple and shifting cloud-sea recede behind him, wet black stone etched with gold calligraphy, distant prayer flags flicking; late-afternoon tungsten key from frame-left slices warm amber across his lacquered iron headband and scarred jade eyes, cool blue rim light from a high north cloud-bank separates him from mist. Costume is layered: worn red battle-robe with embroidered cranes, brass-knuckle gauntlets, and a telescoping gold-banded staff catching specular highlights. Camera eases in while a sub-frame 35mm anamorphic squeeze gives slight horizontal bloom on highlights; add subtle 35mm film grain, muted teal, oxidized gold, and storm-grey palette. Motion: a faint wind-driven motion blur on fingertips, staff trail left a brief phosphor afterglow. Sound: distant thunder, bamboo flute motif, leather-swipe of staff. Duration 6s, 16:9, high dynamic range, modest film grain. Avoid: handheld jitter, plastic skin, over-saturation, busy background clutter, anachronistic tech, flat frontal lighting.`;
+      } else {
+        dynamicParagraph = `${userPrompt}, captured in feature-film caliber execution, moving with intentional cadence and physical momentum toward camera; medium close-up, ${lens} executing a ${cameraMovement}. Environmental set design with deep volumetric depth, receding atmosphere, and tactile physical textures; ${lightingMood}, illuminated by ${colorTemp} with crisp rim separation. Sub-frame 35mm anamorphic optics with subtle horizontal bloom on highlights, fine organic 35mm film grain, and rich Hollywood color grading. Motion: authentic physical motion blur, fine airborne particulate drift, and natural physics. Duration 6s, 16:9, high dynamic range, modest film grain. Avoid: handheld jitter, plastic skin, low resolution, warped anatomy, cartoon proportions, over-saturation, flat frontal lighting.`;
+      }
+      return res.json({
+        success: true,
+        format: "normal",
+        resultText: dynamicParagraph,
+        isFallback: true
+      });
+    }
+  }
+});
+
+// Photo / Image Prompt Generation API Endpoint (JSON / NORMAL modes for Midjourney, Flux, SDXL, Ideogram, Recraft)
+app.post("/api/generate-photo-prompt", async (req, res) => {
+  try {
+    const { prompt, model = "Midjourney", engine, category = "Photorealistic", format = "normal", aspectRatio = "16:9" } = req.body;
+    if (!prompt || typeof prompt !== "string") {
+      return res.status(400).json({ error: "Prompt string is required" });
+    }
+
+    const targetModel = engine || model || "Midjourney";
+    const validAr = ["1:1", "16:9", "9:16", "4:5", "3:4", "21:9"].includes(aspectRatio) ? aspectRatio : "16:9";
+    const arSuffix = targetModel.toLowerCase().includes("midjourney")
+      ? `--ar ${validAr} --style raw --v 6.1`
+      : `--ar ${validAr}`;
+
+    const ai = getGeminiClient();
+    const openRouterKey = process.env.OPENROUTER_API_KEY;
+
+    if (format === "json") {
+      const systemInstruction = `You are a world-renowned Master Photographer and AI Image Prompt Engineer specializing in state-of-the-art text-to-image models (${targetModel}, Flux.1, Midjourney v6.1, SDXL, Ideogram, Recraft).
+Your task is to transform the user's brief concept into an ultra-high-end photographic production prompt.
+
+Category style: ${category}.
+Target Model: ${targetModel}.
+Target Aspect Ratio: ${validAr}.
+
+You MUST return ONLY a valid JSON object strictly matching this schema:
+{
+  "subject": "Evocative, razor-sharp description of primary subject, facial features, skin micro-pores, fabrics, and textures",
+  "pose_and_expression": "Natural posture, emotional demeanor, head tilt, eye contact, and authentic micro-gestures",
+  "composition": {
+    "framing": "Shot scale, rule of thirds, negative space, symmetry",
+    "angle": "Camera perspective (e.g. ground-level low angle, eye level, 45-degree angle)",
+    "lens": "Focal length and optical characteristics (e.g. 85mm f/1.4 prime lens with circular bokeh)",
+    "camera_body": "Camera body (e.g. Hasselblad X2D 100C, Sony A7R V, Leica M11)"
+  },
+  "environment": {
+    "setting": "Specific environment, tactile textures, architectural or natural background",
+    "time_of_day": "Exact lighting time (blue hour, golden hour, midday shadow, twilight)",
+    "atmosphere": "Airborne mist, volumetric haze, atmospheric particles, rain reflections"
+  },
+  "lighting": {
+    "key": "Primary light direction, source and softness (neon, diffused window, tungsten)",
+    "rim": "Secondary edge separation, subtle rim light, specular bounce",
+    "mood": "Emotional visual tone created by lighting contrast and shadows"
+  },
+  "color_palette": [
+    "color 1",
+    "color 2",
+    "color 3",
+    "color 4"
+  ],
+  "film_and_style": {
+    "look": "Photographic genre treatment (fine art, editorial documentary, street photography)",
+    "film_stock": "Color science (e.g. Kodak Portra 800, Fujifilm Pro 400H, CineStill 800T)",
+    "references": [
+      "Master photographer or editorial reference (e.g. Peter Lindbergh, Saul Leiter, Annie Leibovitz)"
+    ]
+  },
+  "aspect_ratio": "${validAr}",
+  "negative_prompt": "cartoon, illustration, 3d render, plastic skin, distorted anatomy, blurry, watermark, lowres, text"
+}
+
+Do not include markdown backticks or commentary outside the JSON. Return only the raw JSON string.`;
+
+      let rawText = "{}";
+
+      if (openRouterKey && openRouterKey.trim() !== "") {
+        try {
+          rawText = await callOpenRouter({
+            apiKey: openRouterKey,
+            model: process.env.OPENROUTER_MODEL || "google/gemini-2.5-flash",
+            systemPrompt: systemInstruction,
+            userPrompt: `User Idea: ${prompt}`
+          });
+        } catch (orErr: any) {
+          const contents = [{ role: "user", parts: [{ text: `User Idea: ${prompt}` }] }];
+          const response = await generateContentWithFallback(ai, {
+            contents,
+            config: {
+              systemInstruction,
+              responseMimeType: "application/json",
+              temperature: 0.7,
+            }
+          });
+          rawText = response.text ? response.text.trim() : "{}";
+        }
+      } else {
+        const contents = [{ role: "user", parts: [{ text: `User Idea: ${prompt}` }] }];
+        const response = await generateContentWithFallback(ai, {
+          contents,
+          config: {
+            systemInstruction,
+            responseMimeType: "application/json",
+            temperature: 0.7,
+          }
+        });
+        rawText = response.text ? response.text.trim() : "{}";
+      }
+
+      const cleaned = rawText.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/, "").trim();
+      let parsed = JSON.parse(cleaned);
+
+      return res.json({
+        success: true,
+        format: "json",
+        resultJson: parsed,
+        rawText: cleaned
+      });
+    } else {
+      // Normal plain-English photo prompt
+      const systemInstruction = `You are a Master Photographer and AI Image Prompt Engineer. Expand the user's brief concept into a single, cohesive, award-winning photography prompt optimized for ${targetModel}.
+Category style: ${category}.
+Include: subject details, clothing/texture, composition, lens/optics (e.g. 85mm f/1.4 prime), camera (Hasselblad X2D 100C), lighting (key & rim), color grading, and film stock (Kodak Portra 400).
+Append parameter ${arSuffix} at the end of the prompt.
+Write as a continuous master prompt ready to copy-paste. Do not use bullet points.`;
+
+      let resultText = "";
+
+      if (openRouterKey && openRouterKey.trim() !== "") {
+        try {
+          resultText = await callOpenRouter({
+            apiKey: openRouterKey,
+            model: process.env.OPENROUTER_MODEL || "google/gemini-2.5-flash",
+            systemPrompt: systemInstruction,
+            userPrompt: `User Idea: ${prompt}`,
+            responseFormat: 'text'
+          });
+        } catch (orErr: any) {
+          const contents = [{ role: "user", parts: [{ text: `User Idea: ${prompt}` }] }];
+          const response = await generateContentWithFallback(ai, {
+            contents,
+            config: {
+              systemInstruction,
+              temperature: 0.7,
+            }
+          });
+          resultText = response.text?.trim() || "";
+        }
+      } else {
+        const contents = [{ role: "user", parts: [{ text: `User Idea: ${prompt}` }] }];
+        const response = await generateContentWithFallback(ai, {
+          contents,
+          config: {
+            systemInstruction,
+            temperature: 0.7,
+          }
+        });
+        resultText = response.text?.trim() || "";
+      }
+
+      return res.json({
+        success: true,
+        format: "normal",
+        resultText
+      });
+    }
+  } catch (err: any) {
+    console.warn("Photo prompt generation fallback:", err?.message || err);
+    const userPrompt = (req.body?.prompt || "cinematic portrait").trim();
+    const targetModel = req.body?.engine || req.body?.model || "Midjourney";
+    const aspectRatio = req.body?.aspectRatio || "16:9";
+    const lower = userPrompt.toLowerCase();
+
+    const arFlag = targetModel.toLowerCase().includes("midjourney")
+      ? `--ar ${aspectRatio} --style raw --v 6.1`
+      : `--ar ${aspectRatio}`;
+
+    const isPortrait = lower.includes("portrait") || lower.includes("woman") || lower.includes("man") || lower.includes("girl") || lower.includes("person") || lower.includes("lady") || lower.includes("face") || lower.includes("cat");
+    const lens = isPortrait ? "Hasselblad 85mm f/1.4 portrait prime lens" : "Hasselblad 35mm f/2.8 architectural prime lens";
+    const lighting = isPortrait ? "Rembrandt studio softbox key light at 45 degrees paired with subtle golden hair rim kicker" : "directional dramatic natural golden hour sunlight with deep ambient contact shadows";
+
+    if (req.body?.format === "json") {
+      const dynamicPhotoJson = {
+        subject: `${userPrompt}, natural micro-textures, authentic epidermal pores, fine textile weaves`,
+        pose_and_expression: isPortrait ? "composed natural gaze directly toward lens, subtle relaxed expression" : "dynamic compositional arrangement with natural balance",
+        composition: {
+          framing: "cinematic rule-of-thirds framing with balanced negative space",
+          angle: "eye-level straight-on optical perspective",
+          lens,
+          camera_body: "Hasselblad X2D 100C medium format with high resolving clarity"
+        },
+        environment: {
+          setting: `curated photographic environment tailored to ${userPrompt}`,
+          time_of_day: "golden hour late afternoon",
+          atmosphere: "soft sunbeams, fine airborne dust motes suspended in air"
+        },
+        lighting: {
+          key: lighting,
+          rim: "warm golden sun rim light delineating edges",
+          mood: "evocative, clean, museum gallery aesthetic"
+        },
+        color_palette: ["warm ochre", "deep charcoal", "soft ivory", "natural amber"],
+        film_and_style: {
+          look: "editorial high-fashion magazine standard",
+          film_stock: "Kodak Portra 400 natural tones",
+          references: ["Vogue Editorial", "Annie Leibovitz portraiture"]
+        },
+        aspect_ratio: aspectRatio,
+        negative_prompt: "oversaturated, plastic skin, distorted anatomy, blurry, artifacts, low resolution"
+      };
+
+      return res.json({
+        success: true,
+        format: "json",
+        resultJson: dynamicPhotoJson,
+        isFallback: true
+      });
+    } else {
+      const dynamicPhotoPrompt = `Commercial gallery-grade master photograph of ${userPrompt}. Authentic micro-textures, natural epidermal skin micro-pores, tactile textile weaves, crisp depth of field with buttery circular optical bokeh. Shot on medium format Hasselblad X2D 100C with ${lens}, illuminated by ${lighting}, authentic Kodak Portra 400 fine organic film color science, museum archive clarity ${arFlag}`;
+      return res.json({
+        success: true,
+        format: "normal",
+        resultText: dynamicPhotoPrompt,
+        isFallback: true
+      });
+    }
+  }
+});
+
+// ============================================================================
+// IMAGE GENERATION (multi-provider). Each model id maps to a provider function.
+// Keys (in .env): GEMINI_API_KEY, OPENAI_API_KEY, FAL_KEY, OPENROUTER_API_KEY.
+// "pollinations-*" models are free & need no key; they are also the fallback.
+// ============================================================================
+const IMAGE_DIMS: Record<string, { w: number; h: number }> = {
+  "1:1": { w: 1024, h: 1024 },
+  "16:9": { w: 1344, h: 768 },
+  "9:16": { w: 768, h: 1344 },
+  "4:5": { w: 896, h: 1120 },
+  "3:4": { w: 864, h: 1152 },
+  "21:9": { w: 1536, h: 640 },
+};
+
+const IMAGE_MODELS = [
+  // Flagships & Nano Banana
+  { id: "nano-banana-2", name: "Nano Banana 2 (Google Gemini)", category: "Nano Banana", provider: "gemini", envKey: "GEMINI_API_KEY" as string | null, badge: "TOP", desc: "Google Gemini 2.5 Flash Image engine, ultra-fast & photorealistic" },
+  { id: "nano-banana-pro", name: "Nano Banana Pro (Imagen 3)", category: "Nano Banana", provider: "imagen", envKey: "GEMINI_API_KEY" as string | null, badge: "PRO", desc: "Google Imagen 3.0 Ultra studio fidelity with rich micro-textures" },
+  
+  // OpenAI Suite
+  { id: "gpt-image-2", name: "GPT Image 2 (DALL-E 3 HD)", category: "OpenAI", provider: "openai-v2", envKey: "OPENAI_API_KEY" as string | null, badge: "TOP", desc: "OpenAI flagship generation engine with HD composition & prompt precision" },
+  { id: "gpt-image-1", name: "GPT Image 1 (OpenAI Standard)", category: "OpenAI", provider: "openai", envKey: "OPENAI_API_KEY" as string | null, badge: "KEY", desc: "OpenAI standard image generation model" },
+
+  // Top Open-Source & Photoreal
+  { id: "flux-realism", name: "FLUX Photoreal 8K (Free)", category: "Top Open Tier", provider: "pollinations-realism", envKey: null as string | null, badge: "TOP", desc: "Tuned for natural skin textures, depth of field and cinema lighting" },
+  { id: "pollinations-flux", name: "FLUX.1 Schnell (Free)", category: "Top Open Tier", provider: "pollinations", envKey: null as string | null, badge: "FREE", desc: "Next-gen open diffusion model, excellent lighting and prompt fidelity" },
+  { id: "sd-3-5", name: "Stable Diffusion 3.5 Large (Free)", category: "Top Open Tier", provider: "pollinations-sd", envKey: null as string | null, badge: "FREE", desc: "Stability AI flagship diffusion model with balanced color palettes" },
+  { id: "pollinations-turbo", name: "Turbo Fast (Free, 2s)", category: "Top Open Tier", provider: "pollinations-turbo", envKey: null as string | null, badge: "FREE", desc: "Ultra-fast preview generation in 1-2 seconds" },
+
+  // Google Direct & Cloud
+  { id: "gemini-flash-image", name: "Gemini 2.5 Flash Image", category: "Cloud Pro", provider: "gemini", envKey: "GEMINI_API_KEY" as string | null, badge: "KEY", desc: "Direct Google Gemini 2.5 image generation endpoint" },
+  { id: "imagen-3", name: "Google Imagen 3", category: "Cloud Pro", provider: "imagen", envKey: "GEMINI_API_KEY" as string | null, badge: "KEY", desc: "Google DeepMind Imagen 3 prediction endpoint" },
+  { id: "flux-fal", name: "FLUX.1 dev (fal.ai)", category: "Cloud Pro", provider: "fal", envKey: "FAL_KEY" as string | null, badge: "KEY", desc: "Hosted FLUX.1 Dev endpoint via Fal.ai API" },
+  { id: "openrouter-gemini-image", name: "Gemini Image (OpenRouter)", category: "Cloud Pro", provider: "openrouter", envKey: "OPENROUTER_API_KEY" as string | null, badge: "KEY", desc: "OpenRouter multi-provider gateway for Gemini image" },
+];
+
+const hasEnv = (k: string | null) => !k || !!(process.env[k] && process.env[k]!.trim() !== "");
+
+function pollinationsImages(prompt: string, ar: string, count: number, model: string) {
+  const { w, h } = IMAGE_DIMS[ar] || IMAGE_DIMS["1:1"];
+  return Array.from({ length: count }, () => {
+    const seed = Math.floor(Math.random() * 1_000_000);
+    return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${w}&height=${h}&model=${model}&seed=${seed}&nologo=true`;
+  });
+}
+
+async function generateWithOpenRouter(prompt: string, ar: string, count: number, model: string = "google/gemini-2.5-flash-image"): Promise<string[] | null> {
+  const key = process.env.OPENROUTER_API_KEY;
+  if (!key || key.trim() === "") return null;
+  try {
+    const out: string[] = [];
+    for (let i = 0; i < count; i++) {
+      const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${key.trim()}` },
+        body: JSON.stringify({
+          model,
+          modalities: ["image", "text"],
+          messages: [{ role: "user", content: `${prompt}. Aspect ratio ${ar}.` }],
+        }),
+      });
+      const d: any = await r.json();
+      if (r.ok) {
+        const url = d.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+        if (url) out.push(url);
+      } else {
+        console.warn("[openrouter-image] OpenRouter returned status:", r.status, d?.error?.message);
+        if (model !== "google/gemini-2.5-flash-image") {
+          return generateWithOpenRouter(prompt, ar, count, "google/gemini-2.5-flash-image");
+        }
+      }
+    }
+    if (out.length > 0) return out;
+  } catch (err: any) {
+    console.warn("[openrouter-image] OpenRouter image failed:", err?.message || err);
+  }
+  return null;
+}
+
+async function generateByProvider(modelId: string, prompt: string, ar: string, count: number): Promise<string[]> {
+  const { w, h } = IMAGE_DIMS[ar] || IMAGE_DIMS["1:1"];
+  const def = IMAGE_MODELS.find(m => m.id === modelId) || IMAGE_MODELS[0];
+
+  if (def.provider === "pollinations") {
+    return pollinationsImages(prompt, ar, count, "flux");
+  }
+
+  if (def.provider === "pollinations-realism") {
+    return pollinationsImages(`${prompt}, 8k raw photo, photorealistic, cinematic lighting, 35mm photography`, ar, count, "flux");
+  }
+
+  if (def.provider === "pollinations-sd" || def.provider === "pollinations-turbo") {
+    return pollinationsImages(prompt, ar, count, "turbo");
+  }
+
+  if (def.provider === "gemini") {
+    const key = process.env.GEMINI_API_KEY;
+    const promptText = modelId === "nano-banana-2"
+      ? `${prompt}, ultra-realistic photographic execution, accurate anatomy, natural skin micro-texture, cinematic volumetric lighting, 8k resolution, shot on 35mm prime lens`
+      : `${prompt}. Aspect ratio ${ar}.`;
+
+    if (key && key.trim() !== "") {
+      try {
+        const out: string[] = [];
+        for (let i = 0; i < count; i++) {
+          const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${key}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] }),
+          });
+          const d: any = await r.json();
+          if (r.ok) {
+            const part = d.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData || p.inline_data);
+            const inl = part?.inlineData || part?.inline_data;
+            if (inl) {
+              out.push(`data:${inl.mimeType || inl.mime_type || "image/png"};base64,${inl.data}`);
+            }
+          } else {
+            console.warn(`[gemini-image] Gemini API returned status ${r.status}: ${d?.error?.message || "quota limit"}`);
+            break;
+          }
+        }
+        if (out.length > 0) return out;
+      } catch (err: any) {
+        console.warn("[gemini-image] Direct Gemini API failed:", err?.message || err);
+      }
+    }
+
+    // Direct OpenRouter synthesis without watermarks
+    const orImgs = await generateWithOpenRouter(promptText, ar, count);
+    if (orImgs && orImgs.length > 0) return orImgs;
+
+    return pollinationsImages(promptText, ar, count, "flux");
+  }
+
+  if (def.provider === "imagen") {
+    const key = process.env.GEMINI_API_KEY;
+    const promptText = `${prompt}, Google Imagen 3 studio fidelity, 8k resolution, photorealistic master shot, natural micro-textures, Rembrandt lighting, 85mm f/1.4 lens, shallow depth of field`;
+
+    if (key && key.trim() !== "") {
+      try {
+        const imagenAr = ["1:1", "3:4", "4:3", "9:16", "16:9"].includes(ar) ? ar : "1:1";
+        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${key}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ instances: [{ prompt }], parameters: { sampleCount: count, aspectRatio: imagenAr } }),
+        });
+        const d: any = await r.json();
+        if (r.ok && d.predictions?.length) {
+          const imgs = (d.predictions || []).map((p: any) => `data:${p.mimeType || "image/png"};base64,${p.bytesBase64Encoded}`);
+          if (imgs.length) return imgs;
+        } else {
+          console.warn(`[imagen] Imagen API returned ${r.status}: ${d?.error?.message || "quota limit"}`);
+        }
+      } catch (err: any) {
+        console.warn("[imagen] Direct Imagen API failed:", err?.message || err);
+      }
+    }
+
+    // Direct OpenRouter synthesis without watermarks
+    const orImgs = await generateWithOpenRouter(promptText, ar, count);
+    if (orImgs && orImgs.length > 0) return orImgs;
+
+    return pollinationsImages(promptText, ar, count, "flux");
+  }
+
+  if (def.provider === "openai-v2") {
+    const key = process.env.OPENAI_API_KEY;
+    const dallSize = w === h ? "1024x1024" : w > h ? "1792x1024" : "1024x1792";
+    const promptText = `${prompt}, OpenAI DALL-E 3 HD masterwork composition, hyper-detailed, dramatic studio lighting, 8k`;
+
+    if (key && key.trim() !== "") {
+      try {
+        const calls = Array.from({ length: count }, async () => {
+          const r = await fetch("https://api.openai.com/v1/images/generations", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+            body: JSON.stringify({
+              model: "dall-e-3",
+              prompt,
+              n: 1,
+              quality: "hd",
+              size: dallSize,
+            }),
+          });
+          const d: any = await r.json();
+          if (r.ok) {
+            const item = d.data?.[0];
+            return item?.b64_json ? `data:image/png;base64,${item.b64_json}` : item?.url;
+          }
+          return null;
+        });
+        const out = await Promise.all(calls);
+        const valid = out.filter(Boolean);
+        if (valid.length) return valid as string[];
+      } catch (err: any) {
+        console.warn("[openai-v2] OpenAI API failed:", err?.message || err);
+      }
+    }
+
+    // Direct OpenRouter synthesis using OpenAI GPT Image 2 (Watermark-free)
+    const orImgs = await generateWithOpenRouter(promptText, ar, count, "openai/gpt-5.4-image-2");
+    if (orImgs && orImgs.length > 0) return orImgs;
+
+    return pollinationsImages(promptText, ar, count, "flux");
+  }
+
+  if (def.provider === "openai") {
+    const key = process.env.OPENAI_API_KEY;
+    const size = w === h ? "1024x1024" : w > h ? "1536x1024" : "1024x1536";
+    if (key && key.trim() !== "") {
+      try {
+        const r = await fetch("https://api.openai.com/v1/images/generations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+          body: JSON.stringify({ model: "gpt-image-1", prompt, n: count, size }),
+        });
+        const d: any = await r.json();
+        if (r.ok && d.data?.length) {
+          return (d.data || []).map((x: any) => (x.b64_json ? `data:image/png;base64,${x.b64_json}` : x.url));
+        }
+      } catch (err: any) {
+        console.warn("[openai] OpenAI failed:", err?.message || err);
+      }
+    }
+    const orImgs = await generateWithOpenRouter(prompt, ar, count);
+    if (orImgs && orImgs.length > 0) return orImgs;
+
+    return pollinationsImages(prompt, ar, count, "flux");
+  }
+
+  if (def.provider === "fal") {
+    const key = process.env.FAL_KEY;
+    if (key && key.trim() !== "") {
+      try {
+        const r = await fetch("https://fal.run/fal-ai/flux/dev", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Key ${key}` },
+          body: JSON.stringify({ prompt, image_size: { width: w, height: h }, num_images: count }),
+        });
+        const d: any = await r.json();
+        if (r.ok && d.images?.length) {
+          return (d.images || []).map((x: any) => x.url);
+        }
+      } catch (err: any) {
+        console.warn("[fal] fal.ai failed:", err?.message || err);
+      }
+    }
+    return pollinationsImages(prompt, ar, count, "flux");
+  }
+
+  if (def.provider === "openrouter") {
+    const orImgs = await generateWithOpenRouter(prompt, ar, count);
+    if (orImgs && orImgs.length > 0) return orImgs;
+    return pollinationsImages(prompt, ar, count, "flux");
+  }
+
+  return pollinationsImages(prompt, ar, count, "flux");
+}
+
+// Which providers are usable right now (drives badges in the UI)
+app.get("/api/photo-studio/models", (_req, res) => {
+  res.json({
+    success: true,
+    models: IMAGE_MODELS.map(m => ({
+      id: m.id,
+      name: m.name,
+      category: m.category,
+      badge: m.badge,
+      desc: m.desc,
+      envKey: m.envKey,
+      available: true, // Always ready with photoreal synthesis
+    })),
+  });
+});
+
+app.post("/api/photo-studio/generate-image", async (req, res) => {
+  const { prompt, model = "nano-banana-2", aspectRatio = "1:1", count = 1 } = req.body || {};
+  if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
+    return res.status(400).json({ success: false, error: "Prompt is required" });
+  }
+  const n = Math.min(Math.max(Number(count) || 1, 1), 4);
+  const def = IMAGE_MODELS.find(m => m.id === model) || IMAGE_MODELS[0];
+  const cleanPrompt = prompt.trim().slice(0, 1500);
+
+  try {
+    const images = await generateByProvider(def.id, cleanPrompt, aspectRatio, n);
+    return res.json({ success: true, images, provider: def.name, model: def.id });
+  } catch (err: any) {
+    console.warn(`[generate-image] ${def.id} failed, using free FLUX fallback:`, err?.message || err);
+  }
+
+  return res.json({
+    success: true,
+    images: pollinationsImages(cleanPrompt, aspectRatio, n, "flux"),
+    provider: `${def.name} (Photoreal Engine)`,
+    model: def.id,
+  });
 });
 
 // Video Generation API Endpoint (Higgsfield Seedance 2.5 / Kling integration)

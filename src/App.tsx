@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Language, UserProfile, MatrixSelection } from './types';
-import { Sidebar, NavView } from './components/Sidebar';
-import { TopNavbar } from './components/TopNavbar';
+import type { NavView } from './components/Sidebar';
 import { BurmesePromptMatrix } from './components/BurmesePromptMatrix';
 import { AjaxStudioSuiteView } from './components/AjaxStudioSuiteView';
 import { ProfessionalStudioWorkstation } from './components/ProfessionalStudioWorkstation';
@@ -16,6 +15,10 @@ import { PresetLibraryView } from './components/PresetLibraryView';
 import { SavedPromptsView, SavedPromptItem } from './components/SavedPromptsView';
 import { UserDashboardModal } from './components/dashboard/UserDashboardModal';
 import { MyanmarPresentationSlides } from './components/MyanmarPresentationSlides';
+import { VideoPromptStudio } from './components/VideoPromptStudio';
+import { PhotoPromptStudio } from './components/PhotoPromptStudio';
+import { MainPortalHub, MainSectionType } from './components/MainPortalHub';
+import { DetailBurmeseHub, DetailBurmeseRoom } from './components/DetailBurmeseHub';
 import { StorageService } from './utils/storageService';
 
 const DEFAULT_SELECTION: MatrixSelection = {
@@ -93,7 +96,9 @@ const CLEAN_RESET_SELECTION: MatrixSelection = {
 };
 
 export default function App() {
-  const [activeView, setActiveView] = useState<NavView>('studio-suite');
+  const [activeMainSection, setActiveMainSection] = useState<'portal' | 'video-prompt' | 'photo-prompt' | 'detail-burmese'>('portal');
+  const [detailBurmeseRoom, setDetailBurmeseRoom] = useState<DetailBurmeseRoom>('studio-suite');
+  const [activeView, setActiveView] = useState<NavView>('portal');
   const [engine, setEngine] = useState<string>('midjourney-v6');
   const [language, setLanguage] = useState<Language>('en');
   const [selection, setSelection] = useState<MatrixSelection>(DEFAULT_SELECTION);
@@ -101,6 +106,22 @@ export default function App() {
   const [isUserDashboardOpen, setIsUserDashboardOpen] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<UserProfile>(StorageService.getCurrentUser());
   const [photoToTextImage, setPhotoToTextImage] = useState<string | null>(null);
+
+  const handleNavViewChange = (view: NavView) => {
+    setActiveView(view);
+    if (view === 'portal') {
+      setActiveMainSection('portal');
+    } else if (view === 'video-prompt-studio') {
+      setActiveMainSection('video-prompt');
+    } else if (view === 'photo-prompt-studio') {
+      setActiveMainSection('photo-prompt');
+    } else if (view === 'presentation-slides') {
+      // Presentation slides overlay
+    } else {
+      setActiveMainSection('detail-burmese');
+      setDetailBurmeseRoom(view as DetailBurmeseRoom);
+    }
+  };
 
   // Saved prompts collection
   const [savedPrompts, setSavedPrompts] = useState<SavedPromptItem[]>([
@@ -172,7 +193,15 @@ export default function App() {
       if (response.ok) {
         const data = await response.json();
         if (data && data.promptData) {
-          // Success response
+          const generatedMaster = data.promptData.masterPrompt || data.promptData.midjourneyFormat;
+          if (generatedMaster) {
+            handleUpdateSelection({ customInstruction: generatedMaster });
+            handleSavePrompt(generatedMaster, {
+              archetype: selection.customSubjectDetails || selection.subject || 'Burmese Portrait',
+              setting: selection.location || 'Heritage Setting',
+              ratio: selection.aspectRatio || '16:9'
+            });
+          }
         }
       }
     } catch (err) {
@@ -202,185 +231,101 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
-
   return (
-    <div className="min-h-screen bg-[#fafbfc] text-[#1c1c1e] font-sans antialiased selection:bg-[#ffd02f] selection:text-[#1c1c1e]">
-      
-      {/* 🌟 1. FIXED LEFT SIDEBAR */}
-      <Sidebar
-        activeView={activeView}
-        onViewChange={setActiveView}
-        savedPromptsCount={savedPrompts.length}
-        isCollapsed={isSidebarCollapsed}
-        onToggleCollapse={() => setIsSidebarCollapsed(prev => !prev)}
-      />
-
-      {/* 🌟 2. OFFSET WRAPPER */}
-      <div className={`transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'pl-20' : 'pl-64'}`}>
-        
-        {/* Fixed Top Header */}
-        <TopNavbar
-          engine={engine}
-          onEngineChange={setEngine}
-          language={language}
-          onLanguageChange={setLanguage}
-          onGenerate={() => handleGeneratePrompt('Generate master prompt')}
-          isGenerating={isGenerating}
-          onExport={handleExportPrompt}
-          onOpenUserDashboard={() => setIsUserDashboardOpen(true)}
-          onOpenSlides={() => setActiveView('presentation-slides')}
-          isCollapsed={isSidebarCollapsed}
-          onToggleCollapse={() => setIsSidebarCollapsed(prev => !prev)}
-        />
-
-        {/* Main Workspace Body with Miro Canvas Dots */}
-        <main className="relative pt-16 bg-[#fafbfc] min-h-screen pb-16">
+    <div className="min-h-screen bg-[#090a0f] text-[#1c1c1e] font-sans antialiased selection:bg-[#ffd02f] selection:text-[#1c1c1e]">
+      <div>
+        <main className="relative min-h-screen w-full overflow-x-hidden">
           
-          {/* VIEW: Myanmar Presentation Slides & Interactive Section Guides */}
+          {/* VIEW: Myanmar Presentation Slides */}
           {activeView === 'presentation-slides' && (
-            <MyanmarPresentationSlides
-              onNavigateToSection={(targetView) => setActiveView(targetView)}
+            <div className="min-h-screen bg-[#fafbfc]">
+              <div className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-[#e0e2e8] px-3 sm:px-6 py-2.5">
+                <button
+                  type="button"
+                  onClick={() => handleNavViewChange('portal')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#f4f5f8] hover:bg-[#e9ebf0] text-zinc-800 text-xs font-semibold border border-zinc-300/80 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[15px]">arrow_back</span>
+                  <span>3 Sections</span>
+                </button>
+              </div>
+              <MyanmarPresentationSlides
+                onNavigateToSection={(targetView) => handleNavViewChange(targetView)}
+              />
+            </div>
+          )}
+
+          {/* SECTION 0: Portal Entry Hub (3 Animated Buttons) */}
+          {activeView !== 'presentation-slides' && activeMainSection === 'portal' && (
+            <MainPortalHub
+              onSelectSection={(sec) => {
+                setActiveMainSection(sec);
+                if (sec === 'video-prompt') setActiveView('video-prompt-studio');
+                else if (sec === 'photo-prompt') setActiveView('photo-prompt-studio');
+                else {
+                  setActiveView('prompt-builder');
+                  setDetailBurmeseRoom('prompt-builder');
+                }
+              }}
+              onOpenSlides={() => setActiveView('presentation-slides')}
             />
           )}
 
-          {/* VIEW: Pro Studio Workstation (Capture One & Lightroom Level) */}
-          {activeView === 'pro-workstation' && (
-            <ProfessionalStudioWorkstation
-              language={language}
-              onSendToMatrix={handleLoadPromptToMatrix}
-              onSavePrompt={handleSavePrompt}
-              engine={engine}
+          {/* SECTION 1: Video Prompt Studio */}
+          {activeView !== 'presentation-slides' && activeMainSection === 'video-prompt' && (
+            <VideoPromptStudio
+              onBackToMatrix={() => {
+                setActiveMainSection('detail-burmese');
+                setDetailBurmeseRoom('prompt-builder');
+                setActiveView('prompt-builder');
+              }}
+              onBackToPortal={() => {
+                setActiveMainSection('portal');
+                setActiveView('portal');
+              }}
+            />
+          )}
+
+          {/* SECTION 2: Photo Prompt Studio */}
+          {activeView !== 'presentation-slides' && activeMainSection === 'photo-prompt' && (
+            <PhotoPromptStudio
               onNavigateView={(view, photo) => {
                 if (photo) setPhotoToTextImage(photo);
-                setActiveView(view);
+                handleNavViewChange(view);
               }}
-              initialPhoto={photoToTextImage || undefined}
-            />
-          )}
-
-          {/* VIEW: 8-Room Studio Master Suite (Official Ajax Click AI Studio Specs) */}
-          {activeView === 'studio-suite' && (
-            <AjaxStudioSuiteView
-              language={language}
-              onSendToMatrix={handleLoadPromptToMatrix}
-              onSavePrompt={handleSavePrompt}
-              engine={engine}
-              onNavigateView={(view, photo) => {
-                if (photo) setPhotoToTextImage(photo);
-                setActiveView(view);
+              onBackToMatrix={() => {
+                setActiveMainSection('detail-burmese');
+                setDetailBurmeseRoom('prompt-builder');
+                setActiveView('prompt-builder');
+              }}
+              onBackToPortal={() => {
+                setActiveMainSection('portal');
+                setActiveView('portal');
               }}
             />
           )}
 
-          {/* VIEW: Photo to Text Generator & Reverse Prompt Studio */}
-          {activeView === 'photo-to-text' && (
-            <PhotoToTextGeneratorView
+          {/* SECTION 3: Detail Burmese (8-Room Studio Suite & Prompt Utilities) */}
+          {activeView !== 'presentation-slides' && activeMainSection === 'detail-burmese' && (
+            <DetailBurmeseHub
               language={language}
-              onSendToMatrix={handleLoadPromptToMatrix}
-              onSendToStudioDesk={() => {
-                setActiveView('studio-suite');
-              }}
-              onSavePrompt={handleSavePrompt}
               engine={engine}
-              initialImage={photoToTextImage}
-            />
-          )}
-
-          {/* VIEW: Composite Harmonizer (Background Change & Contact Shadows) */}
-          {activeView === 'composite-harmonizer' && (
-            <CompositeHarmonizerStudio
-              language={language}
-              onSendToMatrix={handleLoadPromptToMatrix}
-              onSavePrompt={handleSavePrompt}
-              engine={engine}
-            />
-          )}
-
-          {/* VIEW: Photo Manipulation Studio (Custom Upload & Creative Style Presets) */}
-          {activeView === 'photo-manipulation' && (
-            <PhotoManipulationStudio
-              language={language}
-              onSendToMatrix={handleLoadPromptToMatrix}
-              onSavePrompt={handleSavePrompt}
-              engine={engine}
-            />
-          )}
-
-          {/* VIEW: Baby Studio (12 Milestone Theme Packages) */}
-          {activeView === 'baby-studio' && (
-            <BabyStudioView
-              language={language}
-              onSendToMatrix={handleLoadPromptToMatrix}
-              onSavePrompt={handleSavePrompt}
-              engine={engine}
-            />
-          )}
-
-          {/* VIEW 1: Prompt Builder (Burmese Prompt Matrix) */}
-          {activeView === 'prompt-builder' && (
-            <BurmesePromptMatrix
-              language={language}
+              onEngineChange={setEngine}
               selection={selection}
               onUpdateSelection={handleUpdateSelection}
               onResetAll={handleResetAll}
               onGeneratePrompt={handleGeneratePrompt}
-              isGeneratingPrompt={isGenerating}
+              isGenerating={isGenerating}
               onSavePrompt={handleSavePrompt}
-              engine={engine}
-              onEngineChange={setEngine}
-              onNavigateView={setActiveView}
-            />
-          )}
-
-          {/* VIEW: Old Photo to New Photo Studio (AI Restoration & 8K Modernization) */}
-          {activeView === 'old-to-new' && (
-            <OldPhotoToNewPhotoStudio
-              language={language}
-              onSendToMatrix={handleLoadPromptToMatrix}
-              onSavePrompt={handleSavePrompt}
-              engine={engine}
-            />
-          )}
-
-          {/* VIEW: Photo Edit Studio (Clothes Swap, BG Replace, Relighting, Headshot) */}
-          {activeView === 'photo-edit' && (
-            <PhotoEditStudio
-              language={language}
-              onSendToMatrix={handleLoadPromptToMatrix}
-              onSavePrompt={handleSavePrompt}
-              engine={engine}
-            />
-          )}
-
-          {/* VIEW: Prompt Utility Suite (Secret Keywords, Negative Matrix, Batch, Lens Guide) */}
-          {activeView === 'prompt-utility' && (
-            <PromptUtilitySuite
-              language={language}
-              onSendToMatrix={handleLoadPromptToMatrix}
-              onSavePrompt={handleSavePrompt}
-              engine={engine}
-            />
-          )}
-
-          {/* VIEW 2: Preset Library */}
-          {activeView === 'preset-library' && (
-            <PresetLibraryView
-              language={language}
-              onSelectPreset={handleLoadPromptToMatrix}
-            />
-          )}
-
-
-
-          {/* VIEW 5: Saved Prompts */}
-          {activeView === 'saved-prompts' && (
-            <SavedPromptsView
-              language={language}
               savedPrompts={savedPrompts}
-              onDeletePrompt={handleDeleteSavedPrompt}
-              onLoadPrompt={handleLoadPromptToMatrix}
-              onClearAll={handleClearAllSaved}
+              onDeleteSavedPrompt={handleDeleteSavedPrompt}
+              onClearAllSaved={handleClearAllSaved}
+              onLoadPromptToMatrix={handleLoadPromptToMatrix}
+              onBackToPortal={() => {
+                setActiveMainSection('portal');
+                setActiveView('portal');
+              }}
+              initialRoom={detailBurmeseRoom}
             />
           )}
 
