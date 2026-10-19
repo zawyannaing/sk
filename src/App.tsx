@@ -20,6 +20,8 @@ import { PhotoPromptStudio } from './components/PhotoPromptStudio';
 import { MainPortalHub, MainSectionType } from './components/MainPortalHub';
 import { DetailBurmeseHub, DetailBurmeseRoom } from './components/DetailBurmeseHub';
 import { StorageService } from './utils/storageService';
+import { SupabaseCloudHub } from './components/SupabaseCloudHub';
+import { SupabaseService } from './utils/supabaseClient';
 
 const DEFAULT_SELECTION: MatrixSelection = {
   subject: 'woman',
@@ -175,32 +177,45 @@ export default function App() {
     setActiveView('prompt-builder');
   };
 
-  // Generate Prompt Action via backend / API
+  // Generate Prompt Action via backend / API & save to Supabase Cloud
   const handleGeneratePrompt = async (promptText: string) => {
     setIsGenerating(true);
     try {
+      if (SupabaseService.isConfigured() && SupabaseService.getSession()) {
+        await SupabaseService.deductCredits(1, 'prompt_generation', 'Burmese Detail Master Prompt Generation');
+      }
+
       const response = await fetch('/api/generate-prompt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          selection: {
-            ...selection,
-            customInstruction: promptText
-          },
+          selection,
+          customInstruction: selection.customInstruction || '',
           language
         })
       });
       if (response.ok) {
         const data = await response.json();
         if (data && data.promptData) {
-          const generatedMaster = data.promptData.masterPrompt || data.promptData.midjourneyFormat;
+          const generatedMaster = data.promptData.masterPrompt || data.promptData.midjourneyFormat || promptText;
           if (generatedMaster) {
-            handleUpdateSelection({ customInstruction: generatedMaster });
             handleSavePrompt(generatedMaster, {
               archetype: selection.customSubjectDetails || selection.subject || 'Burmese Portrait',
               setting: selection.location || 'Heritage Setting',
               ratio: selection.aspectRatio || '16:9'
             });
+            if (SupabaseService.isConfigured() && SupabaseService.getSession()) {
+              await SupabaseService.saveHistoryRecord({
+                mode: 'burmese-detail',
+                masterPrompt: generatedMaster,
+                negativePrompt: data.promptData.negativePrompt || '',
+                burmeseExplanation: data.promptData.burmeseExplanation || '',
+                aspectRatio: selection.aspectRatio || '16:9',
+                folder: 'Portraits',
+                creditsUsed: 1
+              });
+              window.dispatchEvent(new Event('supabase-cloud-refresh'));
+            }
           }
         }
       }
@@ -232,116 +247,118 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#090a0f] text-[#1c1c1e] font-sans antialiased selection:bg-[#ffd02f] selection:text-[#1c1c1e]">
-      <div>
-        <main className="relative min-h-screen w-full overflow-x-hidden">
-          
-          {/* VIEW: Myanmar Presentation Slides */}
-          {activeView === 'presentation-slides' && (
-            <div className="min-h-screen bg-[#fafbfc]">
-              <div className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-[#e0e2e8] px-3 sm:px-6 py-2.5">
-                <button
-                  type="button"
-                  onClick={() => handleNavViewChange('portal')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#f4f5f8] hover:bg-[#e9ebf0] text-zinc-800 text-xs font-semibold border border-zinc-300/80 cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-[15px]">arrow_back</span>
-                  <span>3 Sections</span>
-                </button>
+    <SupabaseCloudHub currentUser={currentUser} onUserChange={setCurrentUser}>
+      <div className="min-h-screen bg-[#090a0f] text-[#1c1c1e] font-sans antialiased selection:bg-[#ffd02f] selection:text-[#1c1c1e]">
+        <div>
+          <main className="relative min-h-screen w-full overflow-x-hidden">
+            
+            {/* VIEW: Myanmar Presentation Slides */}
+            {activeView === 'presentation-slides' && (
+              <div className="min-h-screen bg-[#fafbfc]">
+                <div className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-[#e0e2e8] px-3 sm:px-6 py-2.5">
+                  <button
+                    type="button"
+                    onClick={() => handleNavViewChange('portal')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#f4f5f8] hover:bg-[#e9ebf0] text-zinc-800 text-xs font-semibold border border-zinc-300/80 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[15px]">arrow_back</span>
+                    <span>3 Sections</span>
+                  </button>
+                </div>
+                <MyanmarPresentationSlides
+                  onNavigateToSection={(targetView) => handleNavViewChange(targetView)}
+                />
               </div>
-              <MyanmarPresentationSlides
-                onNavigateToSection={(targetView) => handleNavViewChange(targetView)}
+            )}
+
+            {/* SECTION 0: Portal Entry Hub (3 Animated Buttons) */}
+            {activeView !== 'presentation-slides' && activeMainSection === 'portal' && (
+              <MainPortalHub
+                onSelectSection={(sec) => {
+                  setActiveMainSection(sec);
+                  if (sec === 'video-prompt') setActiveView('video-prompt-studio');
+                  else if (sec === 'photo-prompt') setActiveView('photo-prompt-studio');
+                  else {
+                    setActiveView('prompt-builder');
+                    setDetailBurmeseRoom('prompt-builder');
+                  }
+                }}
+                onOpenSlides={() => setActiveView('presentation-slides')}
               />
-            </div>
-          )}
+            )}
 
-          {/* SECTION 0: Portal Entry Hub (3 Animated Buttons) */}
-          {activeView !== 'presentation-slides' && activeMainSection === 'portal' && (
-            <MainPortalHub
-              onSelectSection={(sec) => {
-                setActiveMainSection(sec);
-                if (sec === 'video-prompt') setActiveView('video-prompt-studio');
-                else if (sec === 'photo-prompt') setActiveView('photo-prompt-studio');
-                else {
-                  setActiveView('prompt-builder');
+            {/* SECTION 1: Video Prompt Studio */}
+            {activeView !== 'presentation-slides' && activeMainSection === 'video-prompt' && (
+              <VideoPromptStudio
+                onBackToMatrix={() => {
+                  setActiveMainSection('detail-burmese');
                   setDetailBurmeseRoom('prompt-builder');
-                }
-              }}
-              onOpenSlides={() => setActiveView('presentation-slides')}
-            />
-          )}
+                  setActiveView('prompt-builder');
+                }}
+                onBackToPortal={() => {
+                  setActiveMainSection('portal');
+                  setActiveView('portal');
+                }}
+              />
+            )}
 
-          {/* SECTION 1: Video Prompt Studio */}
-          {activeView !== 'presentation-slides' && activeMainSection === 'video-prompt' && (
-            <VideoPromptStudio
-              onBackToMatrix={() => {
-                setActiveMainSection('detail-burmese');
-                setDetailBurmeseRoom('prompt-builder');
-                setActiveView('prompt-builder');
-              }}
-              onBackToPortal={() => {
-                setActiveMainSection('portal');
-                setActiveView('portal');
-              }}
-            />
-          )}
+            {/* SECTION 2: Photo Prompt Studio */}
+            {activeView !== 'presentation-slides' && activeMainSection === 'photo-prompt' && (
+              <PhotoPromptStudio
+                onNavigateView={(view, photo) => {
+                  if (photo) setPhotoToTextImage(photo);
+                  handleNavViewChange(view);
+                }}
+                onBackToMatrix={() => {
+                  setActiveMainSection('detail-burmese');
+                  setDetailBurmeseRoom('prompt-builder');
+                  setActiveView('prompt-builder');
+                }}
+                onBackToPortal={() => {
+                  setActiveMainSection('portal');
+                  setActiveView('portal');
+                }}
+              />
+            )}
 
-          {/* SECTION 2: Photo Prompt Studio */}
-          {activeView !== 'presentation-slides' && activeMainSection === 'photo-prompt' && (
-            <PhotoPromptStudio
-              onNavigateView={(view, photo) => {
-                if (photo) setPhotoToTextImage(photo);
-                handleNavViewChange(view);
-              }}
-              onBackToMatrix={() => {
-                setActiveMainSection('detail-burmese');
-                setDetailBurmeseRoom('prompt-builder');
-                setActiveView('prompt-builder');
-              }}
-              onBackToPortal={() => {
-                setActiveMainSection('portal');
-                setActiveView('portal');
-              }}
-            />
-          )}
+            {/* SECTION 3: Detail Burmese (8-Room Studio Suite & Prompt Utilities) */}
+            {activeView !== 'presentation-slides' && activeMainSection === 'detail-burmese' && (
+              <DetailBurmeseHub
+                language={language}
+                engine={engine}
+                onEngineChange={setEngine}
+                selection={selection}
+                onUpdateSelection={handleUpdateSelection}
+                onResetAll={handleResetAll}
+                onGeneratePrompt={handleGeneratePrompt}
+                isGenerating={isGenerating}
+                onSavePrompt={handleSavePrompt}
+                savedPrompts={savedPrompts}
+                onDeleteSavedPrompt={handleDeleteSavedPrompt}
+                onClearAllSaved={handleClearAllSaved}
+                onLoadPromptToMatrix={handleLoadPromptToMatrix}
+                onBackToPortal={() => {
+                  setActiveMainSection('portal');
+                  setActiveView('portal');
+                }}
+                initialRoom={detailBurmeseRoom}
+              />
+            )}
 
-          {/* SECTION 3: Detail Burmese (8-Room Studio Suite & Prompt Utilities) */}
-          {activeView !== 'presentation-slides' && activeMainSection === 'detail-burmese' && (
-            <DetailBurmeseHub
-              language={language}
-              engine={engine}
-              onEngineChange={setEngine}
-              selection={selection}
-              onUpdateSelection={handleUpdateSelection}
-              onResetAll={handleResetAll}
-              onGeneratePrompt={handleGeneratePrompt}
-              isGenerating={isGenerating}
-              onSavePrompt={handleSavePrompt}
-              savedPrompts={savedPrompts}
-              onDeleteSavedPrompt={handleDeleteSavedPrompt}
-              onClearAllSaved={handleClearAllSaved}
-              onLoadPromptToMatrix={handleLoadPromptToMatrix}
-              onBackToPortal={() => {
-                setActiveMainSection('portal');
-                setActiveView('portal');
-              }}
-              initialRoom={detailBurmeseRoom}
-            />
-          )}
+          </main>
+        </div>
 
-        </main>
+        {/* User Dashboard Modal */}
+        <UserDashboardModal
+          isOpen={isUserDashboardOpen}
+          onClose={() => setIsUserDashboardOpen(false)}
+          currentUser={currentUser}
+          onUserUpdate={setCurrentUser}
+          language={language}
+          onSelectPromptToUse={handleLoadPromptToMatrix}
+        />
+
       </div>
-
-      {/* User Dashboard Modal */}
-      <UserDashboardModal
-        isOpen={isUserDashboardOpen}
-        onClose={() => setIsUserDashboardOpen(false)}
-        currentUser={currentUser}
-        onUserUpdate={setCurrentUser}
-        language={language}
-        onSelectPromptToUse={handleLoadPromptToMatrix}
-      />
-
-    </div>
+    </SupabaseCloudHub>
   );
 }

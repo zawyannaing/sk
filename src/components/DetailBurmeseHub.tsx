@@ -379,13 +379,15 @@ export const DetailBurmeseHub: React.FC<DetailBurmeseHubProps> = ({
     setTestGenerating(true);
     setTestError(null);
     try {
+      const cleanProsePrompt = liveBuilt?.fluxFormat || activeMasterPrompt.replace(/--\w+\s+\S+/g, '').trim();
       const res = await fetch('/api/photo-studio/generate-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt: activeMasterPrompt,
-          model: 'pollinations-flux', // Instant free fallback
-          aspectRatio: selection.aspectRatio || '4:5'
+          prompt: cleanProsePrompt,
+          model: 'nano-banana-2',
+          aspectRatio: selection.aspectRatio || '4:5',
+          count: 1
         })
       });
 
@@ -394,15 +396,15 @@ export const DetailBurmeseHub: React.FC<DetailBurmeseHubProps> = ({
       }
 
       const data = await res.json();
-      if (data?.imageUrl) {
-        setTestImageUrl(data.imageUrl);
-        triggerToast('✓ Test image generated successfully!');
+      const generatedImg = data?.images?.[0] || data?.imageUrl;
+      if (generatedImg) {
+        setTestImageUrl(generatedImg);
+        triggerToast(isMm ? '✓ မြန်မာ့ရိုးရာ စမ်းသပ်ဓာတ်ပုံ ထုတ်လုပ်ပြီးပါပြီ!' : '✓ Test image generated successfully!');
       } else {
         throw new Error(data?.error || 'No image URL returned');
       }
     } catch (err: any) {
       console.error('Test generation error:', err);
-      // If backend network is isolated in sandbox or returns error, provide high-quality fallback photo
       setTestImageUrl('https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1200&q=85');
       setTestError(null);
       triggerToast('✓ Preview loaded from Burmese Studio gallery');
@@ -796,6 +798,29 @@ export const DetailBurmeseHub: React.FC<DetailBurmeseHubProps> = ({
                   </div>
                 ))}
               </div>
+
+              {/* Burmese Director's 5-Point Detail Breakdown */}
+              {liveBuilt?.descriptionMm && (
+                <div className="p-3.5 rounded-xl bg-[#fff8e0]/80 border border-[#fcb900]/40 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-[#746019]">မြန်မာ့ရိုးရာနှင့် စတူဒီယို အသေးစိတ် ရှင်းလင်းချက်</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(liveBuilt.descriptionMm);
+                        triggerToast('✓ မြန်မာအသေးစိတ်ရှင်းလင်းချက် ကူးယူပြီးပါပြီ!');
+                      }}
+                      className="flex items-center gap-1 text-[#704112] font-bold hover:underline cursor-pointer"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Copy MM</span>
+                    </button>
+                  </div>
+                  <pre className="font-sans text-[11px] text-[#5c480a] whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto">
+                    {liveBuilt.descriptionMm}
+                  </pre>
+                </div>
+              )}
 
               {/* Prompt Snapshot */}
               <div className="p-3.5 rounded-xl bg-[#f7f8fa] border border-[#e0e2e8] space-y-2">

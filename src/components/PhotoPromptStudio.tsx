@@ -6,6 +6,7 @@ import {
   Search, Tag, Eye, Edit3, SlidersHorizontal, Clock, Bookmark
 } from 'lucide-react';
 import type { NavView } from './Sidebar';
+import { SupabaseService } from '../utils/supabaseClient';
 
 interface PhotoPromptStudioProps {
   onNavigateView?: (view: NavView, photoUrl?: string) => void;
@@ -23,6 +24,12 @@ interface ModelInfo {
   desc?: string;
   envKey: string | null;
   available: boolean;
+}
+
+interface UploadedRefPhoto {
+  id: string;
+  url: string;
+  name: string;
 }
 
 interface ResultImage {
@@ -168,22 +175,52 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
   const [notice, setNotice] = useState<{ type: 'info' | 'warn' | 'error'; text: string } | null>(null);
   const [promptCopied, setPromptCopied] = useState(false);
 
-  // Photo → Prompt modal
+  // Prompt box inline reference images upload (Unlimited photos supported)
+  const [uploadedRefImages, setUploadedRefImages] = useState<UploadedRefPhoto[]>([]);
+  const [activeRefId, setActiveRefId] = useState<string | null>(null);
+  const [useAllRefImages, setUseAllRefImages] = useState<boolean>(true);
+  const [isExtractingRef, setIsExtractingRef] = useState(false);
+  const promptImageInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Photo → Prompt modal (Unlimited photos supported)
   const [p2pOpen, setP2pOpen] = useState(false);
-  const [p2pImage, setP2pImage] = useState<string | null>(null);
+  const [p2pImages, setP2pImages] = useState<UploadedRefPhoto[]>([]);
+  const [p2pActiveId, setP2pActiveId] = useState<string | null>(null);
   const [p2pBusy, setP2pBusy] = useState(false);
   const [p2pPrompt, setP2pPrompt] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   const selected = models.find(m => m.id === modelId) || models[0];
+  const activeRefPhoto = uploadedRefImages.find(img => img.id === activeRefId) || uploadedRefImages[0] || null;
+  const activeP2pPhoto = p2pImages.find(img => img.id === p2pActiveId) || p2pImages[0] || null;
 
-  // Refresh available models from server
+  // Refresh available models from server & load user cloud library from Supabase
   useEffect(() => {
     fetch('/api/photo-studio/models')
       .then(r => r.json())
       .then(d => { if (d?.models?.length) setModels(d.models); })
       .catch(() => { /* keep defaults */ });
+
+    if (SupabaseService.isConfigured() && SupabaseService.getSession()) {
+      SupabaseService.fetchUserHistory().then(rows => {
+        if (rows && rows.length > 0) {
+          const cloudItems: LibraryPhotoItem[] = rows
+            .filter(r => r.generated_image_url)
+            .map(r => ({
+              id: r.id,
+              url: r.generated_image_url || '',
+              prompt: r.master_prompt,
+              provider: r.provider || 'Nano Banana 2',
+              ratio: r.aspect_ratio || '1:1',
+              folder: r.folder || 'General',
+              createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+              favorite: !!r.is_favorite
+            }));
+          setLibraryItems(cloudItems);
+        }
+      });
+    }
   }, []);
 
   const flash = (type: 'info' | 'warn' | 'error', text: string, ms = 5000) => {
@@ -209,9 +246,116 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
     }
   };
 
+  // ---- Upload Unlimited Reference Images directly inside Prompt Box ----
+  const handlePromptImageUpload = async (fileList: FileList | File[]) => {
+    const files = Array.from(fileList).filter(f => f.type.startsWith('image/'));
+    if (files.length === 0) {
+      flash('error', 'Please select valid image file(s).');
+      return;
+    }
+
+    const readPromises = files.map((file, idx) =>
+      new Promise<UploadedRefPhoto | null>(resolve => {
+        const reader = new FileReader();
+        reader.onload = e => {
+          const dataUrl = e.target?.result as string;
+          if (dataUrl) {
+            resolve({
+              id: `${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 7)}`,
+              url: dataUrl,
+              name: file.name || `Photo ${idx + 1}`
+            });
+          } else {
+            resolve(null);
+          }
+        };
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(file);
+      })
+    );
+
+    const loaded = (await Promise.all(readPromises)).filter(Boolean) as UploadedRefPhoto[];
+    if (loaded.length > 0) {
+      setUploadedRefImages(prev => {
+        const next = [...prev, ...loaded];
+        return next;
+      });
+      setActiveRefId(loaded[loaded.length - 1].id);
+      flash(
+        'info',
+        `📸 Added ${loaded.length} photo${loaded.length > 1 ? 's' : ''}! Total attached: ${uploadedRefImages.length + loaded.length} (Unlimited upload active).`,
+        4000
+      );
+    }
+  };
+
+  const handleRemoveRefPhoto = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setUploadedRefImages(prev => {
+      const next = prev.filter(item => item.id !== id);
+      if (activeRefId === id) {
+        setActiveRefId(next[0]?.id || null);
+      }
+      return next;
+    });
+  };
+
+  const handleClearAllRefPhotos = () => {
+    setUploadedRefImages([]);
+    setActiveRefId(null);
+    flash('info', 'Cleared all attached reference photos.', 2500);
+  };
+
+  // ---- Extract Prompt from attached Reference Image(s) ----
+  const handleExtractFromRefImage = async (specificPhotoUrl?: string) => {
+    const targetImages = specificPhotoUrl
+      ? [specificPhotoUrl]
+      : useAllRefImages
+      ? uploadedRefImages.map(x => x.url)
+      : activeRefPhoto
+      ? [activeRefPhoto.url]
+      : [];
+
+    if (targetImages.length === 0 || isExtractingRef) return;
+    setIsExtractingRef(true);
+    try {
+      const res = await fetch('/api/photo-to-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          image: targetImages[0],
+          images: targetImages,
+          targetEngine: 'flux',
+          language: 'en'
+        })
+      });
+      const data = await res.json();
+      const a = data?.analysis;
+      const extracted = cleanForImage(a?.masterPrompt || a?.fluxPrompt || a?.midjourneyPrompt || '');
+      if (extracted) {
+        setPrompt(extracted);
+        flash(
+          'info',
+          `✨ Extracted detailed master prompt from ${targetImages.length > 1 ? `${targetImages.length} reference photos` : 'uploaded photo'}!`,
+          3500
+        );
+      } else {
+        flash('warn', 'Could not extract prompt from image.');
+      }
+    } catch {
+      flash('error', 'Failed to analyze attached image(s).');
+    } finally {
+      setIsExtractingRef(false);
+    }
+  };
+
   // ---- Enhance prompt with AI ----
   const handleEnhance = async () => {
-    if (!prompt.trim() || isEnhancing) return;
+    if ((!prompt.trim() && uploadedRefImages.length === 0) || isEnhancing) return;
+    if (!prompt.trim() && uploadedRefImages.length > 0) {
+      await handleExtractFromRefImage();
+      return;
+    }
     setIsEnhancing(true);
     try {
       const res = await fetch('/api/generate-photo-prompt', {
@@ -231,42 +375,92 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
     }
   };
 
-  // ---- Generate photos with Auto-Save into Section Library ----
+  // ---- Generate photos with Auto-Save into Supabase Cloud & Section Library ----
   const handleGenerate = async () => {
-    if (!prompt.trim() || isGenerating) return;
+    if ((!prompt.trim() && uploadedRefImages.length === 0) || isGenerating) return;
     setIsGenerating(true);
     setNotice(null);
     try {
-      let finalPrompt = cleanForImage(prompt);
+      const creditCost = 5 * count;
+      if (SupabaseService.isConfigured() && SupabaseService.getSession()) {
+        const creditRes = await SupabaseService.deductCredits(
+          creditCost,
+          'photo_generation',
+          `Generated ${count} photo(s) via ${selected.name}`
+        );
+        if (!creditRes.success) {
+          throw new Error(creditRes.error || `Insufficient credits (Requires ${creditCost} Credits)`);
+        }
+      }
+
+      let finalPrompt = cleanForImage(prompt.trim() || 'Ultra-detailed photorealistic studio portrait preserving exact subject identity, lighting, and aesthetics from the reference image');
       if (polish && finalPrompt.length < 160) {
         finalPrompt += ', professional photography, highly detailed, sharp focus, natural lighting, 8k';
       }
+      const refUrls = useAllRefImages
+        ? uploadedRefImages.map(x => x.url)
+        : activeRefPhoto
+        ? [activeRefPhoto.url]
+        : [];
+
       const res = await fetch('/api/photo-studio/generate-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: finalPrompt, model: modelId, aspectRatio: ratio, count })
+        body: JSON.stringify({
+          prompt: finalPrompt,
+          model: modelId,
+          aspectRatio: ratio,
+          count,
+          referenceImage: activeRefPhoto?.url || refUrls[0] || null,
+          referenceImages: refUrls
+        })
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data?.error || 'Generation failed');
 
       const batchTime = Date.now();
       const assignedFolder = targetFolder || 'General';
+      const providerName = data.provider || selected.name;
 
-      const batch: ResultImage[] = (data.images as string[]).map((url, i) => ({
-        id: `${batchTime}-${i}`,
-        url,
-        prompt: finalPrompt,
-        provider: data.provider || selected.name,
-        ratio,
-        folder: assignedFolder,
-        createdAt: batchTime,
-        favorite: false
-      }));
+      // Save each generated photo to Supabase Storage + user_history if authenticated
+      const batch: ResultImage[] = [];
+      for (let i = 0; i < (data.images as string[]).length; i++) {
+        const rawUrl = data.images[i];
+        let finalId = `${batchTime}-${i}`;
+        let finalUrl = rawUrl;
+
+        if (SupabaseService.isConfigured() && SupabaseService.getSession()) {
+          const savedRow = await SupabaseService.saveHistoryRecord({
+            mode: 'photo-studio',
+            masterPrompt: finalPrompt,
+            imageUrl: rawUrl,
+            provider: providerName,
+            aspectRatio: ratio,
+            folder: assignedFolder,
+            creditsUsed: 5
+          });
+          if (savedRow) {
+            finalId = savedRow.id;
+            finalUrl = savedRow.generated_image_url || rawUrl;
+          }
+        }
+
+        batch.push({
+          id: finalId,
+          url: finalUrl,
+          prompt: finalPrompt,
+          provider: providerName,
+          ratio,
+          folder: assignedFolder,
+          createdAt: batchTime,
+          favorite: false
+        });
+      }
 
       // 1. Update Live Session
       setResults(prev => [...batch, ...prev].slice(0, 24));
 
-      // 2. Auto-Save to Section Library (localStorage)
+      // 2. Update Studio Library
       const newLibItems: LibraryPhotoItem[] = batch.map(b => ({
         id: b.id,
         url: b.url,
@@ -284,7 +478,8 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
         return updated;
       });
 
-      flash('info', `✨ Generated & auto-saved ${count} photo(s) to Library folder "${assignedFolder}"!`, 4000);
+      window.dispatchEvent(new Event('supabase-cloud-refresh'));
+      flash('info', `✨ Generated & saved ${count} photo(s) to Supabase Cloud folder "${assignedFolder}" (-${creditCost} Credits)!`, 4000);
     } catch (e: any) {
       flash('error', e?.message || 'Generation failed. Try again.');
     } finally {
@@ -337,15 +532,23 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
 
   const handleToggleFavorite = (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    let nextFav = false;
     setLibraryItems(prev => {
-      const updated = prev.map(item =>
-        item.id === id ? { ...item, favorite: !item.favorite } : item
-      );
+      const updated = prev.map(item => {
+        if (item.id === id) {
+          nextFav = !item.favorite;
+          return { ...item, favorite: nextFav };
+        }
+        return item;
+      });
       safeSaveLibrary(updated);
       return updated;
     });
     if (lightboxItem && lightboxItem.id === id) {
       setLightboxItem(prev => (prev ? { ...prev, favorite: !prev.favorite } : null));
+    }
+    if (SupabaseService.isConfigured() && SupabaseService.getSession()) {
+      SupabaseService.updateHistoryRecord(id, { is_favorite: nextFav });
     }
   };
 
@@ -359,6 +562,9 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
     });
     if (lightboxItem && lightboxItem.id === id) {
       setLightboxItem(prev => (prev ? { ...prev, folder: newFolder } : null));
+    }
+    if (SupabaseService.isConfigured() && SupabaseService.getSession()) {
+      SupabaseService.updateHistoryRecord(id, { folder: newFolder });
     }
     setMoveFolderModal(null);
     flash('info', `Moved photo to "📁 ${newFolder}".`);
@@ -375,6 +581,9 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
     if (lightboxItem && lightboxItem.id === id) {
       setLightboxItem(null);
     }
+    if (SupabaseService.isConfigured() && SupabaseService.getSession()) {
+      SupabaseService.deleteHistoryRecord(id);
+    }
     flash('info', 'Photo removed from Library.');
   };
 
@@ -389,35 +598,62 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
     flash('info', 'Loaded prompt and settings into generator! ✨', 2500);
   };
 
-  // ---- Photo → Prompt (vision) ----
-  const analyzeFile = (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      flash('error', 'Please upload an image file.');
+  // ---- Photo → Prompt (vision) Unlimited Upload & Analysis ----
+  const runP2pAnalysis = async (urls: string[]) => {
+    if (urls.length === 0) return;
+    setP2pPrompt('');
+    setP2pBusy(true);
+    try {
+      const res = await fetch('/api/photo-to-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: urls[0], images: urls, targetEngine: 'flux', language: 'en' })
+      });
+      const data = await res.json();
+      const a = data?.analysis;
+      setP2pPrompt(cleanForImage(a?.masterPrompt || a?.fluxPrompt || a?.midjourneyPrompt || ''));
+      if (data?.warning) flash('warn', 'Vision AI key not set — showing a generic result. Add GEMINI_API_KEY for real analysis.', 7000);
+    } catch {
+      flash('error', 'Could not analyze the image(s).');
+    } finally {
+      setP2pBusy(false);
+    }
+  };
+
+  const analyzeFiles = async (fileList: FileList | File[]) => {
+    const files = Array.from(fileList).filter(f => f.type.startsWith('image/'));
+    if (files.length === 0) {
+      flash('error', 'Please upload valid image file(s).');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = async e => {
-      const dataUrl = e.target?.result as string;
-      setP2pImage(dataUrl);
-      setP2pPrompt('');
-      setP2pBusy(true);
-      try {
-        const res = await fetch('/api/photo-to-text', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: dataUrl, targetEngine: 'flux', language: 'en' })
-        });
-        const data = await res.json();
-        const a = data?.analysis;
-        setP2pPrompt(cleanForImage(a?.masterPrompt || a?.fluxPrompt || a?.midjourneyPrompt || ''));
-        if (data?.warning) flash('warn', 'Vision AI key not set — showing a generic result. Add GEMINI_API_KEY for real analysis.', 7000);
-      } catch {
-        flash('error', 'Could not analyze the image.');
-      } finally {
-        setP2pBusy(false);
-      }
-    };
-    reader.readAsDataURL(file);
+    const loaded = (await Promise.all(
+      files.map((file, idx) =>
+        new Promise<UploadedRefPhoto | null>(resolve => {
+          const reader = new FileReader();
+          reader.onload = e => {
+            const dataUrl = e.target?.result as string;
+            resolve(
+              dataUrl
+                ? {
+                    id: `${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 7)}`,
+                    url: dataUrl,
+                    name: file.name || `Photo ${idx + 1}`
+                  }
+                : null
+            );
+          };
+          reader.onerror = () => resolve(null);
+          reader.readAsDataURL(file);
+        })
+      )
+    )).filter(Boolean) as UploadedRefPhoto[];
+
+    if (loaded.length > 0) {
+      const combined = [...p2pImages, ...loaded];
+      setP2pImages(combined);
+      setP2pActiveId(loaded[loaded.length - 1].id);
+      await runP2pAnalysis(loaded.map(x => x.url));
+    }
   };
 
   const noticeStyles = {
@@ -426,7 +662,7 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
     error: 'bg-red-500/10 border-red-500/30 text-red-200'
   } as const;
 
-  const canGenerate = prompt.trim().length > 0 && !isGenerating;
+  const canGenerate = (prompt.trim().length > 0 || uploadedRefImages.length > 0) && !isGenerating;
 
   // Filtered Library Items
   const filteredLibrary = libraryItems.filter(item => {
@@ -637,28 +873,188 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
             )}
           </div>
 
-          {/* Prompt input */}
-          <div className="rounded-2xl border border-zinc-800 bg-[#14161d] focus-within:border-pink-500/50 transition-colors">
+          {/* Prompt input (Supports Unlimited Multi-Photo Upload & Drag-and-Drop) */}
+          <div
+            onDragOver={e => { e.preventDefault(); }}
+            onDrop={e => {
+              e.preventDefault();
+              if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                handlePromptImageUpload(e.dataTransfer.files);
+              }
+            }}
+            className="rounded-2xl border border-zinc-800 bg-[#14161d] focus-within:border-pink-500/50 transition-colors overflow-hidden"
+          >
+            {/* Hidden file input for prompt box Unlimited Upload Image button */}
+            <input
+              ref={promptImageInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={e => {
+                if (e.target.files && e.target.files.length > 0) {
+                  handlePromptImageUpload(e.target.files);
+                }
+                e.target.value = '';
+              }}
+            />
+
+            {/* Attached Reference Photos Gallery Tray inside Prompt Box */}
+            {uploadedRefImages.length > 0 && (
+              <div className="mx-3 mt-3 p-3 rounded-xl bg-zinc-900/95 border border-pink-500/30 space-y-2.5">
+                {/* Tray Header */}
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                    <span className="text-xs font-semibold text-pink-200 truncate">
+                      Reference Photos ({uploadedRefImages.length})
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded bg-pink-500/15 border border-pink-500/30 text-[9px] font-mono text-pink-300 uppercase">
+                      Unlimited
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {uploadedRefImages.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setUseAllRefImages(v => !v)}
+                        title="Toggle between using all uploaded photos or only the active selected photo"
+                        className={`px-2 py-1 rounded-lg border text-[10px] font-mono font-semibold transition-colors ${
+                          useAllRefImages
+                            ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                            : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:text-white'
+                        }`}
+                      >
+                        {useAllRefImages ? `Use All (${uploadedRefImages.length})` : 'Selected Only (1)'}
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => handleExtractFromRefImage()}
+                      disabled={isExtractingRef}
+                      title="Extract master prompt from attached reference photo(s)"
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-pink-500/20 hover:bg-pink-500/30 border border-pink-500/40 text-pink-200 text-[11px] font-semibold transition-colors disabled:opacity-50"
+                    >
+                      {isExtractingRef ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-3 h-3 text-pink-400" />
+                      )}
+                      <span>{isExtractingRef ? 'Reading…' : 'Photo → Text'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleClearAllRefPhotos}
+                      title="Remove all attached photos"
+                      className="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-red-500/20 text-zinc-400 hover:text-red-300 text-[10px] font-semibold transition-colors"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                </div>
+
+                {/* Multi-Photo Scrollable Thumbnail Strip */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-0.5 scrollbar-thin">
+                  {uploadedRefImages.map((img, idx) => {
+                    const isSelected = activeRefPhoto?.id === img.id;
+                    return (
+                      <div
+                        key={img.id}
+                        onClick={() => setActiveRefId(img.id)}
+                        className={`group relative w-14 h-14 rounded-lg overflow-hidden shrink-0 cursor-pointer border-2 transition-all ${
+                          isSelected
+                            ? 'border-pink-400 ring-2 ring-pink-500/30 scale-[1.02]'
+                            : 'border-zinc-700/80 hover:border-pink-500/50 opacity-85 hover:opacity-100'
+                        }`}
+                      >
+                        <img
+                          src={img.url}
+                          alt={img.name}
+                          className="w-full h-full object-cover"
+                        />
+                        <span className="absolute bottom-0.5 left-0.5 px-1 rounded bg-black/75 text-[9px] font-mono text-zinc-200">
+                          #{idx + 1}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={e => handleRemoveRefPhoto(img.id, e)}
+                          title="Remove this photo"
+                          className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/80 hover:bg-red-500 text-zinc-200 hover:text-white flex items-center justify-center transition-colors"
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      </div>
+                    );
+                  })}
+
+                  {/* + Add More Unlimited Photos Tile */}
+                  <button
+                    type="button"
+                    onClick={() => promptImageInputRef.current?.click()}
+                    title="Upload more photos (Unlimited)"
+                    className="w-14 h-14 rounded-lg border-2 border-dashed border-zinc-700 hover:border-pink-400/70 bg-zinc-950/60 hover:bg-pink-500/10 flex flex-col items-center justify-center gap-0.5 text-zinc-400 hover:text-pink-300 shrink-0 transition-colors"
+                  >
+                    <Upload className="w-3.5 h-3.5 text-pink-400" />
+                    <span className="text-[9px] font-semibold leading-none">+ Add</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between text-[10px] text-zinc-400">
+                  <span className="truncate">
+                    {useAllRefImages && uploadedRefImages.length > 1
+                      ? `All ${uploadedRefImages.length} photos active for Face/Style Reference & Prompt Extraction`
+                      : `Active focus: ${activeRefPhoto?.name || 'Photo #1'} (Click any thumbnail to switch)`}
+                  </span>
+                </div>
+              </div>
+            )}
+
             <textarea
               value={prompt}
               onChange={e => setPrompt(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleGenerate(); }}
-              placeholder="Describe the photo you want to create…"
+              placeholder={
+                uploadedRefImages.length > 0
+                  ? `Add custom instructions for your ${uploadedRefImages.length} uploaded photo(s), or click Enhance / Generate…`
+                  : "Describe the photo you want to create, or click Upload Image (supports unlimited photos)…"
+              }
               rows={4}
               maxLength={1500}
               className="w-full bg-transparent px-4 pt-3.5 text-sm placeholder-zinc-600 focus:outline-none resize-none leading-relaxed"
             />
-            <div className="flex items-center justify-between gap-2 px-3 pb-3">
-              <div className="flex items-center gap-1.5">
+            <div className="flex items-center justify-between gap-2 px-3 pb-3 flex-wrap">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <button
                   type="button"
                   onClick={handleEnhance}
-                  disabled={!prompt.trim() || isEnhancing}
+                  disabled={(!prompt.trim() && uploadedRefImages.length === 0) || isEnhancing || isExtractingRef}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-800 hover:bg-pink-500/20 hover:text-pink-300 disabled:opacity-40 disabled:hover:bg-zinc-800 disabled:hover:text-inherit text-xs font-medium transition-colors"
                 >
-                  {isEnhancing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+                  {isEnhancing || isExtractingRef ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
                   Enhance
                 </button>
+
+                {/* Unlimited Upload Image Button right beside Enhance button */}
+                <button
+                  type="button"
+                  onClick={() => promptImageInputRef.current?.click()}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
+                    uploadedRefImages.length > 0
+                      ? 'bg-pink-500/20 border-pink-500/50 text-pink-200 hover:bg-pink-500/30'
+                      : 'bg-zinc-800 border-zinc-700/80 hover:bg-pink-500/20 hover:border-pink-500/40 hover:text-pink-300 text-zinc-200'
+                  }`}
+                >
+                  <Upload className="w-3.5 h-3.5 text-pink-400" />
+                  <span>
+                    {uploadedRefImages.length > 0
+                      ? `+ Upload More (${uploadedRefImages.length})`
+                      : 'Upload Image'}
+                  </span>
+                </button>
+
                 {prompt && (
                   <>
                     <button
@@ -1579,7 +1975,7 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
         </div>
       )}
 
-      {/* ========== PHOTO → PROMPT MODAL ========== */}
+      {/* ========== PHOTO → PROMPT MODAL (UNLIMITED MULTI-PHOTO UPLOAD) ========== */}
       {p2pOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm p-0 sm:p-4" onClick={() => setP2pOpen(false)}>
           <div
@@ -1588,80 +1984,180 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
           >
             <div className="sticky top-0 bg-[#101218] z-10 flex items-center justify-between px-5 py-4 border-b border-zinc-800">
               <div>
-                <h3 className="font-bold text-base">Photo to Prompt</h3>
-                <p className="text-xs text-zinc-500">Vision AI reverse-engineers a master prompt from any photo</p>
+                <h3 className="font-bold text-base flex items-center gap-2">
+                  <span>Photo to Prompt</span>
+                  <span className="px-2 py-0.5 rounded-full bg-pink-500/15 border border-pink-500/30 text-[10px] font-mono text-pink-300">
+                    Unlimited Photos
+                  </span>
+                </h3>
+                <p className="text-xs text-zinc-500">Vision AI reverse-engineers a master prompt from single or unlimited reference photos</p>
               </div>
               <button type="button" onClick={() => setP2pOpen(false)} className="w-9 h-9 rounded-full bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="p-5 space-y-4">
               <input
                 ref={fileRef}
                 type="file"
                 accept="image/*"
+                multiple
                 className="hidden"
-                onChange={e => { const f = e.target.files?.[0]; if (f) analyzeFile(f); e.target.value = ''; }}
+                onChange={e => {
+                  if (e.target.files && e.target.files.length > 0) {
+                    analyzeFiles(e.target.files);
+                  }
+                  e.target.value = '';
+                }}
               />
 
-              {/* Upload */}
-              <div
-                onClick={() => fileRef.current?.click()}
-                onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files?.[0]; if (f) analyzeFile(f); }}
-                className={`relative rounded-2xl border-2 border-dashed cursor-pointer min-h-[220px] sm:min-h-[320px] flex items-center justify-center overflow-hidden transition-colors ${
-                  dragOver ? 'border-pink-400 bg-pink-500/10' : 'border-zinc-700 hover:border-pink-500/60 bg-zinc-900/50'
-                }`}
-              >
-                {p2pImage ? (
-                  <img src={p2pImage} alt="Uploaded" className="absolute inset-0 w-full h-full object-contain" />
-                ) : (
-                  <div className="text-center p-6 text-zinc-400">
-                    <Upload className="w-8 h-8 mx-auto mb-2 text-pink-400" />
-                    <p className="text-sm font-medium">Drop a photo or tap to upload</p>
-                    <p className="text-xs text-zinc-600 mt-1">JPG, PNG, WEBP</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Output */}
-              <div className="rounded-2xl bg-zinc-900/60 border border-zinc-800 p-3 flex flex-col min-h-[220px] sm:min-h-[320px]">
-                {p2pBusy ? (
-                  <div className="flex-1 flex flex-col items-center justify-center gap-3 text-zinc-400 text-sm">
-                    <Loader2 className="w-7 h-7 text-pink-400 animate-spin" />
-                    Analyzing photo…
-                  </div>
-                ) : p2pPrompt ? (
-                  <>
-                    <textarea
-                      value={p2pPrompt}
-                      onChange={e => setP2pPrompt(e.target.value)}
-                      className="flex-1 min-h-[160px] w-full bg-transparent text-xs sm:text-sm leading-relaxed focus:outline-none resize-none"
-                    />
-                    <div className="flex gap-2 pt-2">
+              {/* Multi-Photo Strip inside Modal */}
+              {p2pImages.length > 0 && (
+                <div className="p-3 rounded-2xl bg-zinc-900/80 border border-zinc-800 space-y-2">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <span className="text-xs font-semibold text-pink-200">
+                      Uploaded Photos ({p2pImages.length})
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {p2pImages.length > 1 && (
+                        <button
+                          type="button"
+                          disabled={p2pBusy}
+                          onClick={() => runP2pAnalysis(p2pImages.map(x => x.url))}
+                          className="px-2.5 py-1 rounded-lg bg-pink-500/20 hover:bg-pink-500/30 border border-pink-500/40 text-pink-200 text-[11px] font-semibold transition-colors disabled:opacity-50"
+                        >
+                          Analyze All ({p2pImages.length})
+                        </button>
+                      )}
                       <button
                         type="button"
-                        onClick={() => copyText(p2pPrompt)}
-                        className="flex-1 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold flex items-center justify-center gap-1.5"
+                        onClick={() => fileRef.current?.click()}
+                        className="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-[11px] font-semibold transition-colors"
                       >
-                        <Copy className="w-3.5 h-3.5" /> Copy
+                        + Add More Photos
                       </button>
                       <button
                         type="button"
-                        onClick={() => { setPrompt(p2pPrompt); setP2pOpen(false); }}
-                        className="flex-1 py-2.5 rounded-xl bg-pink-500 hover:bg-pink-400 text-white text-xs font-bold flex items-center justify-center gap-1.5"
+                        onClick={() => { setP2pImages([]); setP2pActiveId(null); setP2pPrompt(''); }}
+                        className="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-red-500/20 text-zinc-400 hover:text-red-300 text-[11px] font-semibold transition-colors"
                       >
-                        <Sparkles className="w-3.5 h-3.5" /> Use prompt
+                        Clear All
                       </button>
                     </div>
-                  </>
-                ) : (
-                  <div className="flex-1 flex items-center justify-center text-center text-sm text-zinc-600 p-4">
-                    The generated prompt will appear here.
                   </div>
-                )}
+
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                    {p2pImages.map((img, idx) => {
+                      const isAct = activeP2pPhoto?.id === img.id;
+                      return (
+                        <div
+                          key={img.id}
+                          onClick={() => {
+                            setP2pActiveId(img.id);
+                            runP2pAnalysis([img.url]);
+                          }}
+                          className={`relative w-14 h-14 rounded-lg overflow-hidden shrink-0 cursor-pointer border-2 transition-all ${
+                            isAct ? 'border-pink-400 ring-2 ring-pink-500/30' : 'border-zinc-700 opacity-80 hover:opacity-100'
+                          }`}
+                        >
+                          <img src={img.url} alt={img.name} className="w-full h-full object-cover" />
+                          <span className="absolute bottom-0.5 left-0.5 px-1 rounded bg-black/75 text-[9px] font-mono text-zinc-200">
+                            #{idx + 1}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={e => {
+                              e.stopPropagation();
+                              setP2pImages(prev => {
+                                const next = prev.filter(x => x.id !== img.id);
+                                if (p2pActiveId === img.id) setP2pActiveId(next[0]?.id || null);
+                                return next;
+                              });
+                            }}
+                            className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/80 hover:bg-red-500 text-zinc-200 flex items-center justify-center"
+                          >
+                            <X className="w-2.5 h-2.5" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Upload / Active Preview */}
+                <div
+                  onClick={() => fileRef.current?.click()}
+                  onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={e => {
+                    e.preventDefault();
+                    setDragOver(false);
+                    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                      analyzeFiles(e.dataTransfer.files);
+                    }
+                  }}
+                  className={`relative rounded-2xl border-2 border-dashed cursor-pointer min-h-[220px] sm:min-h-[320px] flex items-center justify-center overflow-hidden transition-colors ${
+                    dragOver ? 'border-pink-400 bg-pink-500/10' : 'border-zinc-700 hover:border-pink-500/60 bg-zinc-900/50'
+                  }`}
+                >
+                  {activeP2pPhoto ? (
+                    <img src={activeP2pPhoto.url} alt={activeP2pPhoto.name} className="absolute inset-0 w-full h-full object-contain" />
+                  ) : (
+                    <div className="text-center p-6 text-zinc-400">
+                      <Upload className="w-8 h-8 mx-auto mb-2 text-pink-400" />
+                      <p className="text-sm font-medium">Drop unlimited photos or tap to upload</p>
+                      <p className="text-xs text-zinc-600 mt-1">Select 1 or multiple JPG, PNG, WEBP files</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Output */}
+                <div className="rounded-2xl bg-zinc-900/60 border border-zinc-800 p-3 flex flex-col min-h-[220px] sm:min-h-[320px]">
+                  {p2pBusy ? (
+                    <div className="flex-1 flex flex-col items-center justify-center gap-3 text-zinc-400 text-sm">
+                      <Loader2 className="w-7 h-7 text-pink-400 animate-spin" />
+                      Analyzing {p2pImages.length > 1 ? `${p2pImages.length} photos…` : 'photo…'}
+                    </div>
+                  ) : p2pPrompt ? (
+                    <>
+                      <textarea
+                        value={p2pPrompt}
+                        onChange={e => setP2pPrompt(e.target.value)}
+                        className="flex-1 min-h-[160px] w-full bg-transparent text-xs sm:text-sm leading-relaxed focus:outline-none resize-none"
+                      />
+                      <div className="flex gap-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => copyText(p2pPrompt)}
+                          className="flex-1 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold flex items-center justify-center gap-1.5"
+                        >
+                          <Copy className="w-3.5 h-3.5" /> Copy
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPrompt(p2pPrompt);
+                            if (p2pImages.length > 0) {
+                              setUploadedRefImages(prev => [...prev, ...p2pImages]);
+                              setActiveRefId(p2pImages[p2pImages.length - 1].id);
+                            }
+                            setP2pOpen(false);
+                          }}
+                          className="flex-1 py-2.5 rounded-xl bg-pink-500 hover:bg-pink-400 text-white text-xs font-bold flex items-center justify-center gap-1.5"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" /> Use prompt & photos
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex-1 flex items-center justify-center text-center text-sm text-zinc-600 p-4">
+                      The generated prompt will appear here.
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

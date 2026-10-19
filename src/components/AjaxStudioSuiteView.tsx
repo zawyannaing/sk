@@ -195,37 +195,79 @@ export const AjaxStudioSuiteView: React.FC<AjaxStudioSuiteViewProps> = ({
     reader.readAsDataURL(file);
   };
 
+  // Multi-format tab & AI synthesis states for the 8 rooms
+  const [roomFormatTab, setRoomFormatTab] = useState<'midjourney' | 'flux' | 'burmese' | 'negative'>('midjourney');
+  const [aiRoomData, setAiRoomData] = useState<any | null>(null);
+  const [isSynthesizingRoomAi, setIsSynthesizingRoomAi] = useState<boolean>(false);
+  const [isGeneratingRoomPhoto, setIsGeneratingRoomPhoto] = useState<boolean>(false);
+
+  // Clear AI room override when room or parameters change
+  React.useEffect(() => {
+    setAiRoomData(null);
+  }, [
+    activeRoomId,
+    personaGender,
+    clientName,
+    aspectRatio,
+    expression,
+    gazeAngle,
+    identityStrength,
+    hairStyle,
+    thanakaStyle,
+    lipColor,
+    garmentEra,
+    silkPattern,
+    jewelrySet,
+    settingAtmosphere,
+    lightingRig,
+    cameraOptics,
+    poreSharpness,
+    thanakaFlakeRealism,
+    subsurfaceScattering,
+    eventType,
+    faceCount,
+    groupDepthFocus
+  ]);
+
   // Generate Master Prompt specific to active room
   const activeRoomPrompt = React.useMemo(() => {
+    if (aiRoomData?.masterPrompt) {
+      return aiRoomData.masterPrompt;
+    }
+
     const baseSubject = personaGender === 'woman'
       ? 'authentic Burmese noblewoman, graceful regal poise, honey-olive skin with real micro-pores'
       : 'authentic Burmese heritage gentleman, noble aristocratic stature, warm olive complexion';
+
+    const safeCrefUrl = activePhoto.startsWith('data:image')
+      ? '[Uploaded_Client_Face_Reference_100%_Locked]'
+      : activePhoto;
 
     let promptBody = '';
 
     switch (activeRoomId) {
       case 'album-studio':
-        promptBody = `Commercial studio album fine art photograph for high-end printed portfolio: ${baseSubject}, client heirloom series '${clientName}', styled in luxurious handwoven Acheik silk, Fuji Crystal Archival print grading, Hasselblad X2D 100C medium format 100mm f/1.4 lens, 300 DPI museum fidelity, neutral warm grey studio background --ar ${aspectRatio} --style raw --v 6.1`;
+        promptBody = `Commercial studio album fine art photograph for high-end printed portfolio: ${baseSubject}, client heirloom series '${clientName}', styled in luxurious handwoven Mandalay Luntaya Acheik silk, Fuji Crystal Archival print grading, Hasselblad X2D 100C medium format 100mm f/1.4 lens, 300 DPI museum fidelity, neutral warm grey studio background --ar ${aspectRatio} --style raw --v 6.1`;
         break;
 
       case 'persona':
-        promptBody = `Master character persona portrait: ${baseSubject}, expression '${expression}', gaze '${gazeAngle}', 100% facial structure preservation with natural bone geometry, authentic subsurface scattering, zero artificial plastic smoothing, shot on 85mm prime portrait lens, softbox catchlights in irises --cref ${activePhoto} --cw ${identityStrength} --ar ${aspectRatio} --style raw --v 6.1`;
+        promptBody = `Master character persona portrait: ${baseSubject}, expression '${expression}', gaze '${gazeAngle}', 100% facial structure preservation with natural bone geometry, authentic subsurface scattering, zero artificial plastic smoothing, shot on 85mm prime portrait lens, softbox catchlights in irises --cref ${safeCrefUrl} --cw ${identityStrength} --ar ${aspectRatio} --style raw --v 6.1`;
         break;
 
       case 'beauty':
-        promptBody = `Macro studio beauty portrait: ${baseSubject}, coiffure styled with ${hairStyle.replace(/-/g, ' ')}, traditional authentic ${thanakaStyle.replace(/-/g, ' ')} with fine bark powder micro-texture, lips with ${lipColor.replace(/-/g, ' ')}, butterfly beauty ring light, extreme pore clarity, 100mm macro f/2.8 lens, Hasselblad 16-bit raw color --ar ${aspectRatio} --style raw --v 6.1`;
+        promptBody = `Macro studio beauty portrait: ${baseSubject}, coiffure styled with ${hairStyle.replace(/-/g, ' ')} and fresh white jasmine garland, traditional authentic ${thanakaStyle.replace(/-/g, ' ')} with fine Shinmadaung bark powder micro-texture, lips with ${lipColor.replace(/-/g, ' ')}, butterfly beauty ring light, extreme pore clarity, 100mm macro f/2.8 lens, Hasselblad 16-bit raw color --ar ${aspectRatio} --style raw --v 6.1`;
         break;
 
       case 'fashion':
-        promptBody = `High-couture Myanmar fashion editorial photograph: ${baseSubject}, wearing authentic ${garmentEra.replace(/-/g, ' ')} with ${silkPattern.replace(/-/g, ' ')}, adorned with ${jewelrySet.replace(/-/g, ' ')}, tactile textile weave micro-fibers, heavy gold metallic thread embroidery, theatrical fashion studio rim lighting, 85mm f/1.4 lens, architectural drapery --ar ${aspectRatio} --style raw --v 6.1`;
+        promptBody = `High-couture Myanmar fashion editorial photograph: ${baseSubject}, wearing authentic ${garmentEra.replace(/-/g, ' ')} with ${silkPattern.replace(/-/g, ' ')}, adorned with ${jewelrySet.replace(/-/g, ' ')}, tactile handwoven silk weave micro-fibers, heavy gold Zardosi metallic thread embroidery, theatrical fashion studio rim lighting, 85mm f/1.4 lens, architectural drapery --ar ${aspectRatio} --style raw --v 6.1`;
         break;
 
       case 'creative-director':
-        promptBody = `Cinematic fine art narrative photograph directed by high-fashion auteur: ${baseSubject}, set in evocative ${settingAtmosphere.replace(/-/g, ' ')}, dramatic ${lightingRig.replace(/-/g, ' ')}, camera optics ${cameraOptics.replace(/-/g, ' ')}, cinematic atmosphere, golden hour mist, authentic architectural depth, Hasselblad X2D RAW, perfect tonal graduation --ar ${aspectRatio} --style raw --v 6.1`;
+        promptBody = `Cinematic fine art narrative photograph directed by high-fashion auteur: ${baseSubject}, set in evocative ${settingAtmosphere.replace(/-/g, ' ')}, dramatic ${lightingRig.replace(/-/g, ' ')}, camera optics ${cameraOptics.replace(/-/g, ' ')}, cinematic atmosphere, golden hour mist, authentic Burmese architectural depth, Hasselblad X2D RAW, perfect tonal graduation --ar ${aspectRatio} --style raw --v 6.1`;
         break;
 
       case 'finalize':
-        promptBody = `Gallery-grade final master print artwork: ${baseSubject}, flawless balance of cultural authenticity and optical physics, 8k ultra high resolution, 300 DPI commercial press ready, contact ground shadow occlusion, zero haloing, cinematic Rembrandt key lighting, 85mm portrait prime lens, museum archive standard --ar ${aspectRatio} --style raw --v 6.1`;
+        promptBody = `Gallery-grade final master print artwork: ${baseSubject}, flawless balance of Burmese cultural authenticity and optical physics, 8k ultra high resolution, 300 DPI commercial press ready, contact ground shadow occlusion, zero haloing, cinematic Rembrandt key lighting, 85mm portrait prime lens, museum archive standard --ar ${aspectRatio} --style raw --v 6.1`;
         break;
 
       case 'skin-retouch':
@@ -233,12 +275,13 @@ export const AjaxStudioSuiteView: React.FC<AjaxStudioSuiteViewProps> = ({
         break;
 
       case 'event-portrait':
-        promptBody = `Prestigious Myanmar ${eventType.replace(/-/g, ' ')} event photograph: ${faceCount} portrait, ${groupDepthFocus.replace(/-/g, ' ')}, authentic individual facial preservation on every subject, regal ceremonial Acheik silk and gold velvet, ambient temple chandelier and warm candle lighting, 50mm f/1.4 prime lens, tack sharp depth of field across all faces --ar ${aspectRatio} --style raw --v 6.1`;
+        promptBody = `Prestigious Myanmar ${eventType.replace(/-/g, ' ')} event photograph: ${faceCount} portrait, ${groupDepthFocus.replace(/-/g, ' ')}, authentic individual facial preservation on every subject, regal ceremonial Luntaya Acheik silk and gold velvet, ambient temple chandelier and warm candle lighting, 50mm f/1.4 prime lens, tack sharp depth of field across all faces --ar ${aspectRatio} --style raw --v 6.1`;
         break;
     }
 
     return promptBody;
   }, [
+    aiRoomData,
     activeRoomId,
     personaGender,
     clientName,
@@ -264,14 +307,159 @@ export const AjaxStudioSuiteView: React.FC<AjaxStudioSuiteViewProps> = ({
     groupDepthFocus
   ]);
 
+  // Clean natural-language prose for FLUX.1 / GPT Image 2 / Gemini Image
+  const activeFluxProsePrompt = React.useMemo(() => {
+    if (aiRoomData?.fluxFormat) return aiRoomData.fluxFormat;
+    return `A hyper-realistic, master-grade studio photograph: ${activeRoomPrompt
+      .replace(/--cref\s+\S+/g, '')
+      .replace(/--cw\s+\S+/g, '')
+      .replace(/--ar\s+\S+/g, '')
+      .replace(/--style\s+\S+/g, '')
+      .replace(/--v\s+\S+/g, '')
+      .trim()}`;
+  }, [aiRoomData, activeRoomPrompt]);
+
+  // Accurate Burmese Detail Story for the active room
+  const activeBurmeseRoomStory = React.useMemo(() => {
+    if (aiRoomData?.descriptionMm) return aiRoomData.descriptionMm;
+    const genderMm = personaGender === 'woman' ? 'မြန်မာအမျိုးသမီး' : 'မြန်မာအမျိုးသား';
+    switch (activeRoomId) {
+      case 'album-studio':
+        return `【Room 01: Album Studio ဒါရိုက်တာ လမ်းညွှန်ချက်】\n• အဓိကဇာတ်ကောင်: ${genderMm} (${clientName} စီးရီး)\n• ဝတ်စုံနှင့် အဆင်တန်ဆာ: မန္တလေး လွန်းရာကျော် ပိုးချိတ်အစစ်နှင့် စတူဒီယို အယ်လ်ဘမ် အပြင်အဆင်\n• ကင်မရာနှင့် အရည်အသွေး: Hasselblad X2D 100C (100mm f/1.4) မှန်ဘီလူး၊ 300 DPI ပုံနှိပ်အရည်အသွေး (${aspectRatio})`;
+      case 'persona':
+        return `【Room 02: Character Persona မျက်နှာသွင်ပြင် ထိန်းသိမ်းချက်】\n• မျက်နှာတူညီမှု (Identity Lock): ${identityStrength}% အတိအကျ ထိန်းသိမ်းထားသည်\n• အမူအရာနှင့် အကြည့်: '${expression}' မျက်နှာအမူအရာနှင့် '${gazeAngle}' အကြည့်ထောင့်\n• ကင်မရာနှင့် အလင်း: 85mm Prime Portrait Lens၊ မျက်ဝန်းအတွင်း Softbox Catchlight အလင်းပြန်မှု`;
+      case 'beauty':
+        return `【Room 03: Beauty Studio သနပ်ခါးနှင့် ဆံထုံး အသေးစိတ်】\n• ဆံထုံးနှင့် ပန်းအလှ: ${hairStyle.replace(/-/g, ' ')} ဆံထုံးနှင့် စံပယ်ပန်းကုံးအစစ်\n• သနပ်ခါးနှင့် မိတ်ကပ်: ${thanakaStyle.replace(/-/g, ' ')} ရှင်မတောင်သနပ်ခါးမှုန့်သားနှင့် ${lipColor.replace(/-/g, ' ')} နှုတ်ခမ်းအရောင်\n• ကင်မရာ: 100mm Macro f/2.8 မှန်ဘီလူးနှင့် Butterfly Beauty Ring Light`;
+      case 'fashion':
+        return `【Room 04: Fashion Studio မြန်မာ့တော်ဝင် ဝတ်စုံနှင့် ပိုးထည်】\n• ဝတ်စုံခေတ်နှင့် ဒီဇိုင်း: ${garmentEra.replace(/-/g, ' ')} နှင့် ${silkPattern.replace(/-/g, ' ')} ပိုးချိတ်အဆင်\n• ရတနာဆင်ယင်မှု: ${jewelrySet.replace(/-/g, ' ')} ရွှေချည်ထိုးနှင့် နန်းတွင်းရတနာ\n• အလင်းနှင့် မှန်ဘီလူး: 85mm f/1.4 Lens ဖြင့် ပိုးသားအမျှင်များ ပေါ်လွင်စေသော Rim Lighting`;
+      case 'creative-director':
+        return `【Room 05: Creative Director နောက်ခံနှင့် အလင်းအမှောင်】\n• နောက်ခံပတ်ဝန်းကျင်: ${settingAtmosphere.replace(/-/g, ' ')} မြန်မာ့ဗိသုကာ နောက်ခံ\n• အလင်းအထားအသို: ${lightingRig.replace(/-/g, ' ')}\n• ကင်မရာမှန်ဘီလူး: ${cameraOptics.replace(/-/g, ' ')} ဖြင့် ရုပ်ရှင်ဆန်သော အနက်အရှိုင်းဖော်ပြချက်`;
+      case 'finalize':
+        return `【Room 06: Finalize 8K Master Print အချောသတ်စနစ်】\n• ပုံနှိပ်အရည်အသွေး: 8K Ultra HD, 300 DPI Commercial Press Ready, 16-Bit ProPhoto RGB\n• အလင်းနှင့် အရိပ်: သဘာဝကျသော မြေပြင်အရိပ် (Contact Shadow) နှင့် Rembrandt Key Lighting`;
+      case 'skin-retouch':
+        return `【Room 07: Skin Retouch သဘာဝ အသားအရေနှင့် သနပ်ခါး အသေးစိတ်】\n• ချွေးပေါက်ကြည်လင်မှု (Pore Sharpness): ${poreSharpness}%\n• သနပ်ခါးအမှုန့်သား တိကျမှု: ${thanakaFlakeRealism}%\n• သွေးကြောအနွေးဓာတ် (Subsurface Scattering): ${subsurfaceScattering}% (ပလတ်စတစ်အသားအရေ လုံးဝမဖြစ်စေပါ)`;
+      case 'event-portrait':
+      default:
+        return `【Room 08: Event Portrait မြန်မာ့ရိုးရာ ပွဲတော်နှင့် မင်္ဂလာပွဲ】\n• ပွဲအမျိုးအစား: ${eventType.replace(/-/g, ' ')}\n• ပါဝင်သူအရေအတွက်: ${faceCount} (မျက်နှာအားလုံး ၁၀၀% ကြည်လင်ပြတ်သားမှု)\n• ফোকাস အနက်အရှိုင်း: ${groupDepthFocus.replace(/-/g, ' ')}၊ 50mm f/1.4 Prime Lens`;
+    }
+  }, [
+    aiRoomData,
+    activeRoomId,
+    personaGender,
+    clientName,
+    aspectRatio,
+    identityStrength,
+    expression,
+    gazeAngle,
+    hairStyle,
+    thanakaStyle,
+    lipColor,
+    garmentEra,
+    silkPattern,
+    jewelrySet,
+    settingAtmosphere,
+    lightingRig,
+    cameraOptics,
+    poreSharpness,
+    thanakaFlakeRealism,
+    subsurfaceScattering,
+    eventType,
+    faceCount,
+    groupDepthFocus
+  ]);
+
   const activeNegativeShield =
-    'plastic skin, wax figure, oversmoothed cheeks, blurry pores, missing thanaka texture, westernized facial structure, extra fingers, cartoon, distorted jewelry, deformed ears, low resolution, blown highlights, doll face, 3d render';
+    aiRoomData?.negativePrompt ||
+    'plastic skin, wax figure, oversmoothed cheeks, blurry pores, missing thanaka texture, westernized facial structure, Indian saree, bindi, Chinese hanfu, Japanese kimono, extra fingers, cartoon, distorted jewelry, deformed ears, low resolution, blown highlights, doll face, 3d render';
+
+  const displayedRoomText = React.useMemo(() => {
+    switch (roomFormatTab) {
+      case 'flux':
+        return activeFluxProsePrompt;
+      case 'burmese':
+        return activeBurmeseRoomStory;
+      case 'negative':
+        return activeNegativeShield;
+      case 'midjourney':
+      default:
+        return activeRoomPrompt;
+    }
+  }, [roomFormatTab, activeFluxProsePrompt, activeBurmeseRoomStory, activeNegativeShield, activeRoomPrompt]);
 
   const handleCopyPrompt = () => {
-    navigator.clipboard.writeText(activeRoomPrompt);
+    navigator.clipboard.writeText(displayedRoomText);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
-    showToast(isMm ? 'Prompt ကူးယူပြီးပါပြီ!' : 'Prompt copied to clipboard!');
+    showToast(isMm ? 'Prompt ကူးယူပြီးပါပြီ!' : 'Copied to clipboard!');
+  };
+
+  // Live AI Master Synthesis for the current room
+  const handleSynthesizeRoomAi = async () => {
+    setIsSynthesizingRoomAi(true);
+    try {
+      const res = await fetch('/api/generate-prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          selection: {
+            subject: personaGender,
+            ethnicity: 'bamar',
+            garmentStyle: silkPattern.includes('acheik') ? 'royal_acheik' : 'konbaung_court',
+            location: settingAtmosphere.includes('bagan')
+              ? 'bagan_temples'
+              : settingAtmosphere.includes('palace')
+              ? 'mandalay_palace'
+              : 'luxury_studio',
+            aspectRatio,
+            identityLock: 'face_100',
+            culturalAccessories: 'yes',
+            customInstruction: `Studio Room: ${activeRoomId}. Details: ${activeFluxProsePrompt}`
+          },
+          language
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.promptData) {
+          setAiRoomData(data.promptData);
+          showToast(isMm ? '✨ AI ဖြင့် အသေးစိတ် Master Prompt ဖန်တီးပြီးပါပြီ!' : '✨ AI Master Prompt Synthesized!');
+        }
+      }
+    } catch (err) {
+      console.warn('Room AI synthesis notice:', err);
+    } finally {
+      setIsSynthesizingRoomAi(false);
+    }
+  };
+
+  // Generate Live Studio Preview Photo in Viewfinder
+  const handleGenerateRoomPreviewPhoto = async () => {
+    setIsGeneratingRoomPhoto(true);
+    try {
+      const res = await fetch('/api/photo-studio/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: activeFluxProsePrompt,
+          model: 'nano-banana-2',
+          aspectRatio: aspectRatio || '4:5',
+          count: 1
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const imgUrl = data?.images?.[0] || data?.imageUrl;
+        if (imgUrl) {
+          setActivePhoto(imgUrl);
+          showToast(isMm ? '📸 စတူဒီယို နမူနာဓာတ်ပုံ ထုတ်လုပ်ပြီးပါပြီ!' : '📸 Live Studio Preview Generated!');
+        }
+      }
+    } catch (err) {
+      console.warn('Room preview generation notice:', err);
+      showToast(isMm ? 'Preview ဓာတ်ပုံ ထုတ်လုပ်ရာတွင် အခက်အခဲရှိပါသည်' : 'Preview generation failed');
+    } finally {
+      setIsGeneratingRoomPhoto(false);
+    }
   };
 
   const currentRoomMeta = STUDIO_ROOMS.find((r) => r.id === activeRoomId) || STUDIO_ROOMS[0];
@@ -882,20 +1070,54 @@ export const AjaxStudioSuiteView: React.FC<AjaxStudioSuiteViewProps> = ({
           )}
 
           {/* Master Prompt Codebox */}
-          <div className="flex flex-col gap-2 pt-2 border-t border-[#1c2333]">
-            <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 pt-2 border-t border-[#1c2333]">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="font-mono text-xs font-bold text-[#ffd02f] uppercase tracking-wider flex items-center gap-1.5">
                 <span className="material-symbols-outlined text-[16px]">terminal</span>
-                Synthesized Room Master Prompt
+                <span>Synthesized Room Master Prompt</span>
+                {aiRoomData && (
+                  <span className="px-2 py-0.5 rounded-full bg-[#ffd02f] text-[#0a0d14] text-[10px] font-black">
+                    ✨ AI Pro
+                  </span>
+                )}
               </span>
-              <span className="text-[10px] font-mono text-[#6b7794]">Midjourney v6.1 / Flux Format</span>
+
+              {/* Room Multi-Format Tabs */}
+              <div className="flex flex-wrap items-center gap-1 bg-[#141b29] p-1 rounded-xl border border-[#252f44]">
+                {[
+                  { id: 'midjourney', label: 'Midjourney v6.1' },
+                  { id: 'flux', label: 'FLUX / GPT Prose' },
+                  { id: 'burmese', label: '🇲🇲 မြန်မာ Detail Story' },
+                  { id: 'negative', label: 'Negative Shield' }
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setRoomFormatTab(tab.id as any)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                      roomFormatTab === tab.id
+                        ? 'bg-[#ffd02f] text-[#0a0d14]'
+                        : 'text-[#8a95ab] hover:text-white'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="bg-[#080b12] p-4 rounded-xl border border-[#1d2538] font-mono text-xs text-[#dce2f0] leading-relaxed break-words max-h-40 overflow-y-auto">
-              {activeRoomPrompt}
+            <div className="bg-[#080b12] p-4 rounded-xl border border-[#1d2538] font-mono text-xs text-[#dce2f0] whitespace-pre-line leading-relaxed break-words max-h-44 overflow-y-auto select-all">
+              {displayedRoomText}
             </div>
 
-            {negativeShield && (
+            {/* Always show Burmese Detail Summary Box below English prompts so user sees both */}
+            {roomFormatTab !== 'burmese' && (
+              <div className="bg-[#161a14] p-3 rounded-xl border border-[#ffd02f]/25 text-xs text-[#f3e6b3] whitespace-pre-line leading-relaxed">
+                {activeBurmeseRoomStory}
+              </div>
+            )}
+
+            {negativeShield && roomFormatTab !== 'negative' && (
               <div className="bg-[#181115] p-2.5 rounded-lg border border-[#3b1d28] font-mono text-[11px] text-[#f28b9f]">
                 <strong className="text-xs uppercase block text-[#ff6b87] mb-0.5">--no Negative Shield Active:</strong>
                 {activeNegativeShield}
@@ -904,7 +1126,7 @@ export const AjaxStudioSuiteView: React.FC<AjaxStudioSuiteViewProps> = ({
 
             {/* Prompt Actions */}
             <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={handleCopyPrompt}
@@ -913,7 +1135,19 @@ export const AjaxStudioSuiteView: React.FC<AjaxStudioSuiteViewProps> = ({
                   <span className="material-symbols-outlined text-[16px]">
                     {isCopied ? 'check' : 'content_copy'}
                   </span>
-                  <span>{isCopied ? 'Copied!' : 'Copy Room Prompt'}</span>
+                  <span>{isCopied ? 'Copied!' : `Copy ${roomFormatTab.toUpperCase()}`}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSynthesizeRoomAi}
+                  disabled={isSynthesizingRoomAi}
+                  className="flex items-center gap-1.5 bg-[#1c2539] hover:bg-[#26324d] border border-[#ffd02f]/40 text-[#ffd02f] px-3.5 py-2 rounded-full font-bold text-xs cursor-pointer transition-colors disabled:opacity-50"
+                >
+                  <span className={`material-symbols-outlined text-[15px] ${isSynthesizingRoomAi ? 'animate-spin' : ''}`}>
+                    electric_bolt
+                  </span>
+                  <span>{isSynthesizingRoomAi ? 'AI Synthesizing...' : '✨ AI Synthesize'}</span>
                 </button>
 
                 {onSendToMatrix && (
@@ -989,8 +1223,17 @@ export const AjaxStudioSuiteView: React.FC<AjaxStudioSuiteViewProps> = ({
               <img
                 src={activePhoto}
                 alt="Active Room Reference"
-                className={`w-full h-full object-cover transition-transform duration-700 hover:scale-103 ${isDragOver ? 'opacity-30' : 'opacity-100'}`}
+                className={`w-full h-full object-cover transition-transform duration-700 hover:scale-103 ${
+                  isDragOver || isGeneratingRoomPhoto ? 'opacity-30' : 'opacity-100'
+                }`}
               />
+
+              {isGeneratingRoomPhoto && (
+                <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-2 bg-black/75 text-[#ffd02f] font-mono text-xs font-bold p-4 text-center">
+                  <span className="material-symbols-outlined text-[36px] animate-spin">refresh</span>
+                  <span>Rendering Burmese Studio Preview...</span>
+                </div>
+              )}
 
               {/* Drag overlay */}
               {isDragOver && (
@@ -1022,16 +1265,30 @@ export const AjaxStudioSuiteView: React.FC<AjaxStudioSuiteViewProps> = ({
               </div>
             </div>
 
-            {/* Quick Upload / Presets underneath */}
+            {/* Quick Upload / Live AI Preview / Presets underneath */}
             <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full flex items-center justify-center gap-2 bg-[#161d2b] hover:bg-[#20293d] border border-[#273248] text-white py-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-[16px] text-[#ffd02f]">add_photo_alternate</span>
-                <span>{isMm ? 'ဤအခန်းအတွက် Client ဓာတ်ပုံတင်မည်' : 'Upload Client Photo for This Room'}</span>
-              </button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={handleGenerateRoomPreviewPhoto}
+                  disabled={isGeneratingRoomPhoto}
+                  className="w-full flex items-center justify-center gap-1.5 bg-[#ffd02f] hover:bg-[#fcb900] text-[#0a0d14] py-2.5 px-3 rounded-xl text-xs font-black transition-all cursor-pointer disabled:opacity-50"
+                >
+                  <span className={`material-symbols-outlined text-[16px] ${isGeneratingRoomPhoto ? 'animate-spin' : ''}`}>
+                    photo_camera
+                  </span>
+                  <span>{isMm ? '📸 AI နမူနာပုံ ထုတ်မည်' : '📸 Generate Studio Preview'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full flex items-center justify-center gap-1.5 bg-[#161d2b] hover:bg-[#20293d] border border-[#273248] text-white py-2.5 px-3 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[16px] text-[#ffd02f]">add_photo_alternate</span>
+                  <span>{isMm ? 'Client ဓာတ်ပုံတင်မည်' : 'Upload Client Photo'}</span>
+                </button>
+              </div>
 
               <div className="grid grid-cols-4 gap-1.5 pt-1">
                 {STUDIO_ROOMS.slice(0, 4).map((preset) => (

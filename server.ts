@@ -12,8 +12,8 @@ dotenv.config();
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
+app.use(express.json({ limit: "250mb" }));
+app.use(express.urlencoded({ limit: "250mb", extended: true }));
 
 // Global CORS Middleware
 app.use((req, res, next) => {
@@ -371,39 +371,55 @@ IDENTITY LOCK INSTRUCTIONS:
 - CRITICAL: Whenever identity lock is enabled (face_100, face_body_lock, or soft_ref), you MUST explicitly include these mandatory keywords in the final generated prompt:
   "100% exact face match, 100% identical eyes nose lips, same face, same person, identical facial features, preserve identity, consistent character, no face change"
 
-ETHNICITY & CULTURAL ACCESSORIES INSTRUCTIONS:
-- If Ethnicity is selected: Accurately reflect facial features, skin tone, bone structure, and hair typical of that specific ethnicity.
-- If Cultural Accessories = Yes (or if cultural props are selected): Include authentic traditional clothing, jewelry, makeup, or cultural props strictly belonging to that culture.
-  Example for Burmese: "wearing traditional Myanmar woven silk longyi, natural yellowish-white Thanaka paste brushed gracefully on cheeks, fragrant white jasmine flowers woven in long dark hair, traditional royal Burmese filigree gold jewelry".
-- CRITICAL RULE: NEVER mix wrong or mismatched cultural elements (e.g. do not mix Thai accessories with traditional Japanese kimono, or Burmese Thanaka with Indian saree unless explicitly requested). Keep cultural elements 100% authentic and harmonious.
+ETHNICITY & CULTURAL ACCESSORIES INSTRUCTIONS (BURMESE HERITAGE TAXONOMY):
+- If Ethnicity is Burmese / Myanmar (or any Myanmar ethnic group: Bamar, Shan, Kachin, Kayin, Chin, Mon, Rakhine, Kayah):
+  - Accurately describe Southeast Asian Burmese facial features, warm golden-ivory skin tone, and authentic Burmese garments:
+    - Acheik / Silk Longyi: "authentic Burmese Luntaya Acheik wave-patterned handwoven silk longyi wrap skirt paired with a fitted Yinzi or Yinkhon traditional Burmese silk blouse"
+    - Konbaung Royal Attire: "historical Myanmar Konbaung Dynasty Maha Lata royal court regalia with intricate gold Zardosi embroidery, structured winged Dona-Yone collar, and tiered court skirt"
+    - Cosmetics & Hair: "authentic creamy ivory-yellow Burmese Thanaka bark paste delicately brushed on cheeks, traditional Myanmar Sadon high-crowned chignon hair bun adorned with fresh Padauk or white Jasmine flower garlands, and royal Burmese gold filigree Nadoung ear ornaments"
+  - Architectural & Location Accuracy:
+    - Bagan: "ancient Bagan archaeological plain with red-brick Buddhist stupas, Pyatthat tiered roofs, and warm golden sunset haze"
+    - Shwedagon / Golden Pagoda: "gleaming gold-leaf stupa spires, marble prayer pavilion platform, and carved teakwood temple eaves"
+    - Mandalay Palace: "crimson-red lacquered teakwood columns and multi-tiered golden Pyatthat roofs of Mandalay Royal Palace"
+- CRITICAL ANTI-HALLUCINATION RULE: NEVER mix wrong cultural elements (strictly forbid Indian saree, lehenga, bindi, nose ring, Chinese hanfu, cheongsam, or Japanese kimono when generating Burmese attire). Always include these exclusions in negativePrompt.
 
 PROMPT ENGINE OUTPUT RULES:
-1. Produce a clean, detailed English prompt ready for Flux / Midjourney / Ideogram.
-2. Always end with a strong negative prompt that includes: "different face, altered face, changed eyes, changed nose, changed lips, distorted face, facial asymmetry, face swap artifact, mismatched identity".
-3. CRITICAL RULE FOR SKIPPED OPTIONS: If any selection parameter is set to "skip", "None", or "Default", DO NOT include the literal word "skip" in the prompt. Instead, auto-determine a natural, harmonious photography default or omit that attribute altogether.
-4. CRITICAL MANDATE FOR ASPECT RATIO: You MUST MANDATORILY append "--ar <aspectRatio>" (e.g. "--ar 9:16", "--ar 16:9", "--ar 1:1", "--ar 4:5", "--ar 3:4", "--ar 2:3", "--ar 3:2") at the end of masterPrompt, midjourneyFormat, fluxFormat, and sdxlFormat.
+1. Produce ultra-detailed, photorealistic English prompts ready for Flux.1 / GPT Image 2 / Midjourney v6.1 / SDXL.
+2. Always include a strong negativePrompt containing: "different face, altered face, changed eyes, changed nose, changed lips, distorted face, facial asymmetry, face swap artifact, mismatched identity, Indian saree, bindi, Chinese hanfu, Japanese kimono, plastic skin, CGI".
+3. CRITICAL RULE FOR SKIPPED OPTIONS: If any selection parameter is set to "skip", "None", or "Default", DO NOT include the literal word "skip" in the prompt. Instead, auto-determine a natural, harmonious photography default.
+4. ENGINE-SPECIFIC FORMATTING:
+   - masterPrompt: Structured 8-part photography prompt ending with "--ar <aspectRatio>".
+   - fluxFormat: Pure natural-language photographic prose optimized for FLUX.1 Pro / GPT Image 2 / Gemini Image (NO "--ar" flags, NO Midjourney parameters, NO negative prompt text appended).
+   - midjourneyFormat: Starts with "/imagine prompt: " and ends with "--ar <aspectRatio> --v 6.1 --style raw".
+   - sdxlFormat: Tag-weighted photorealistic prompt optimized for SDXL / Juggernaut XL.
+   - descriptionMm: MUST be a rich, accurate, 5-point structured Burmese Director's Breakdown (သတ်ပုံမှန်ကန်သော မြန်မာဘာသာဖြင့်):
+     【မြန်မာ့ရိုးရာနှင့် စတူဒီယို အသေးစိတ် ဒါရိုက်တာ လမ်းညွှန်ချက်】
+     ၁။ အဓိကဇာတ်ကောင်နှင့် မျက်နှာသွင်ပြင် (Subject & Identity Lock)
+     ၂။ ဝတ်စုံ၊ ပိုးထည်နှင့် ရိုးရာအဆင်တန်ဆာ (Garment & Textile Craft)
+     ၃။ နောက်ခံပတ်ဝန်းကျင်နှင့် အလင်းအမှောင် (Environment & Lighting Setup)
+     ၄။ ကင်မရာ၊ မှန်ဘီလူးနှင့် ဖွဲ့စည်းပုံ (Camera Optics & Composition)
+     ၅။ ကာလာအသွေးအရောင်နှင့် အရည်အသွေး (Color Grading & Render Quality)
 
 ALWAYS structure the masterPrompt string in this EXACT order:
 1. Subject (100% exact facial likeness, eyes, nose, lips lock, age, gender, ethnicity, expression, pose)
-2. Clothing & accessories
+2. Clothing & accessories (exact textile weave, embroidery, jewelry, cultural cosmetics)
 3. Action / Pose
 4. Environment & Background
 5. Lighting (time + quality + direction)
-6. Camera & lens
-7. Style & mood
+6. Camera & lens (focal length, aperture, depth of field)
+7. Style & mood (color grading, film stock)
 8. Technical quality keywords & Aspect Ratio parameter (--ar <ratio>)
-9. Negative prompt (Always end with strong negative prompt keywords: "different face, changed eyes, changed nose, changed lips, distorted facial features")
 
 Output ONLY valid JSON matching this exact structure:
 {
   "masterPrompt": "string (Structured prompt strictly ending with --ar <ratio>)",
-  "negativePrompt": "string (Step 9: Comprehensive negative prompt keywords including face/eyes/nose/lips preservation)",
-  "midjourneyFormat": "string (Formatted with /imagine prompt: ... --ar <ratio> --v 6.0 --style raw)",
-  "fluxFormat": "string (Formatted with ... --ar <ratio> optimized specifically for Flux.1 dev/schnell)",
-  "sdxlFormat": "string (Formatted with ... --ar <ratio> optimized for SDXL Turbo / Lightning)",
-  "descriptionMm": "string (Detailed explanation in correct Myanmar language explaining why these camera parameters, lighting, and style choices were made - သတ်ပုံမှန်မှန်)",
-  "descriptionEn": "string (Detailed explanation in English)",
-  "cameraNotes": "string (Technical photography notes e.g., 85mm f/1.2, ISO 100, 1/250s)"
+  "negativePrompt": "string (Comprehensive negative prompt keywords including face preservation and cultural accuracy exclusions)",
+  "midjourneyFormat": "string (Formatted with /imagine prompt: ... --ar <ratio> --v 6.1 --style raw)",
+  "fluxFormat": "string (Pure natural-language photographic prose without --ar flags, optimized for FLUX.1 / GPT Image 2)",
+  "sdxlFormat": "string (Tag-weighted prompt optimized for SDXL Turbo / Juggernaut XL)",
+  "descriptionMm": "string (5-point structured Burmese Director's Breakdown in accurate Myanmar language - သတ်ပုံမှန်မှန်)",
+  "descriptionEn": "string (Detailed director's explanation in English)",
+  "cameraNotes": "string (Technical photography notes e.g., 85mm f/1.4, ISO 100, 1/250s)"
 }`;
 
     const garmentStyleText = isCustomGarmentUpload
@@ -626,7 +642,7 @@ Now generate the ONE complete, single polished image-generation prompt as specif
       }
     }
 
-    // Guaranteed aspect ratio post-processing
+    // Guaranteed aspect ratio & engine format post-processing
     const targetAr = selection?.aspectRatio || '9:16';
     const arTag = `--ar ${targetAr}`;
 
@@ -637,17 +653,27 @@ Now generate the ONE complete, single polished image-generation prompt as specif
     }
     if (resultObj.midjourneyFormat) {
       if (!resultObj.midjourneyFormat.includes('--ar')) {
-        resultObj.midjourneyFormat = `${resultObj.midjourneyFormat.trim()} ${arTag} --v 6.0 --style raw`;
+        resultObj.midjourneyFormat = `${resultObj.midjourneyFormat.trim()} ${arTag} --v 6.1 --style raw`;
       }
     } else if (resultObj.masterPrompt) {
-      resultObj.midjourneyFormat = `/imagine prompt: ${resultObj.masterPrompt} --v 6.0 --style raw`;
+      const cleanMjBase = resultObj.masterPrompt.replace(/--ar\s+\S+/g, '').trim();
+      resultObj.midjourneyFormat = `/imagine prompt: ${cleanMjBase} ${arTag} --v 6.1 --style raw`;
     }
 
-    if (resultObj.fluxFormat && !resultObj.fluxFormat.includes('--ar')) {
-      resultObj.fluxFormat = `${resultObj.fluxFormat.trim()} ${arTag}`;
+    if (resultObj.fluxFormat) {
+      // Keep Flux / GPT Image 2 format as pure natural-language photographic prose without Midjourney flags
+      resultObj.fluxFormat = resultObj.fluxFormat
+        .replace(/\/imagine\s+prompt:\s*/gi, '')
+        .replace(/--ar\s+\S+/gi, '')
+        .replace(/--v\s+\S+/gi, '')
+        .replace(/--style\s+\S+/gi, '')
+        .trim();
+    } else if (resultObj.masterPrompt) {
+      resultObj.fluxFormat = `A hyper-realistic, master-grade photograph: ${resultObj.masterPrompt.replace(/--ar\s+\S+/g, '').trim()}`;
     }
-    if (resultObj.sdxlFormat && !resultObj.sdxlFormat.includes('--ar')) {
-      resultObj.sdxlFormat = `${resultObj.sdxlFormat.trim()} ${arTag}`;
+
+    if (!resultObj.sdxlFormat && resultObj.masterPrompt) {
+      resultObj.sdxlFormat = `(masterpiece, best quality, ultra-detailed, photorealistic, 8k uhd:1.3), ${resultObj.masterPrompt.replace(/--ar\s+\S+/g, '').trim()}`;
     }
 
     res.json({
@@ -736,105 +762,95 @@ Output ONLY the polished final English prompt without any preamble, markdown for
 app.post("/api/generate-image", async (req, res) => {
   try {
     const { prompt, aspectRatio = "1:1", referenceImage } = req.body;
-
-    if (!process.env.GEMINI_API_KEY) {
-      // Fallback placeholder image if no key set
-      const seed = Math.floor(Math.random() * 100000);
-      return res.json({
-        success: true,
-        imageUrl: `https://picsum.photos/seed/infinity_${seed}/1024/1024`,
-        isPlaceholder: true,
-        message: "Demo preview image generated."
-      });
-    }
-
-    const ai = getGeminiClient();
-
-    // Valid Gemini aspect ratios
-    const validRatios = ["1:1", "3:4", "4:3", "9:16", "16:9"];
+    const validRatios = ["1:1", "3:4", "4:3", "9:16", "16:9", "4:5", "2:3", "3:2"];
     const formattedRatio = validRatios.includes(aspectRatio) ? aspectRatio : "1:1";
-
-    const parts: any[] = [];
-
-    if (referenceImage && referenceImage.startsWith("data:image")) {
-      const match = referenceImage.match(/^data:(image\/\w+);base64,(.+)$/);
-      if (match) {
-        parts.push({
-          inlineData: {
-            mimeType: match[1],
-            data: match[2]
-          }
-        });
-      }
-    }
-
-    parts.push({
-      text: `CRITICAL INSTRUCTION: Maintain 100% exact face, eyes, nose, lips, facial features, and identity from the provided reference image. Do not distort, alter, or change the subject's face, eyes, nose, or lips. Prompt details: ${prompt}`
-    });
 
     let imageUrl: string | null = null;
     let isQuotaLimit = false;
 
-    try {
-      const response = await ai.models.generateContent({
-        model: "gemini-3.1-flash-lite-image",
-        contents: {
-          parts
-        },
-        config: {
-          imageConfig: {
-            aspectRatio: formattedRatio as any,
-          }
+    // 1. Primary: OpenRouter watermark-free synthesis (Gemini 2.5 Flash Image / GPT-5 Image)
+    if (process.env.OPENROUTER_API_KEY) {
+      try {
+        const orImages = await generateWithOpenRouter(
+          prompt || "Ultra-detailed photorealistic Burmese studio portrait, 8k resolution",
+          formattedRatio,
+          1
+        );
+        if (orImages && orImages.length > 0) {
+          imageUrl = orImages[0];
         }
-      });
-
-      if (response.candidates?.[0]?.content?.parts) {
-        for (const part of response.candidates[0].content.parts) {
-          if (part.inlineData && part.inlineData.data) {
-            const mime = part.inlineData.mimeType || "image/png";
-            imageUrl = `data:${mime};base64,${part.inlineData.data}`;
-            break;
-          }
-        }
-      }
-    } catch (genErr: any) {
-      const errMsg = String(genErr?.message || '');
-      const errStatus = genErr?.status;
-      if (
-        errStatus === 429 ||
-        errMsg.includes('429') ||
-        errMsg.includes('quota') ||
-        errMsg.includes('RESOURCE_EXHAUSTED') ||
-        errMsg.includes('rate-limit')
-      ) {
-        console.warn("Notice: Gemini image API free tier quota limit reached. Using high-resolution preview fallback.");
-        isQuotaLimit = true;
-      } else {
-        console.warn("Gemini image generation notice:", errMsg || genErr);
+      } catch (orErr: any) {
+        console.warn("[/api/generate-image] OpenRouter primary notice:", orErr?.message || orErr);
       }
     }
 
+    // 2. Secondary: Direct Gemini Image API if OpenRouter was not used or failed
+    if (!imageUrl && process.env.GEMINI_API_KEY) {
+      try {
+        const ai = getGeminiClient();
+        const parts: any[] = [];
+        if (referenceImage && referenceImage.startsWith("data:image")) {
+          const match = referenceImage.match(/^data:(image\/\w+);base64,(.+)$/);
+          if (match) {
+            parts.push({
+              inlineData: {
+                mimeType: match[1],
+                data: match[2]
+              }
+            });
+          }
+        }
+        parts.push({
+          text: `CRITICAL INSTRUCTION: Maintain 100% exact face, eyes, nose, lips, facial features, and identity from the provided reference image. Prompt details: ${prompt}`
+        });
+
+        const response = await ai.models.generateContent({
+          model: "gemini-2.5-flash-image",
+          contents: { parts },
+          config: {
+            imageConfig: {
+              aspectRatio: (["1:1", "3:4", "4:3", "9:16", "16:9"].includes(formattedRatio) ? formattedRatio : "1:1") as any,
+            }
+          }
+        });
+
+        if (response.candidates?.[0]?.content?.parts) {
+          for (const part of response.candidates[0].content.parts) {
+            if (part.inlineData && part.inlineData.data) {
+              const mime = part.inlineData.mimeType || "image/png";
+              imageUrl = `data:${mime};base64,${part.inlineData.data}`;
+              break;
+            }
+          }
+        }
+      } catch (genErr: any) {
+        isQuotaLimit = true;
+      }
+    }
+
+    // 3. Final fallback: Pollinations FLUX engine (instead of unrelated random stock photos)
     if (!imageUrl) {
-      // High-quality contextual fallback image based on prompt content
-      const seed = Math.floor(Math.random() * 100000);
-      imageUrl = `https://picsum.photos/seed/infinity_${seed}/1024/1024`;
+      const fallbackImgs = pollinationsImages(prompt || "Burmese studio portrait", formattedRatio, 1, "flux");
+      imageUrl = fallbackImgs[0];
     }
 
     res.json({
       success: true,
       imageUrl,
-      quotaExceeded: isQuotaLimit,
+      images: [imageUrl],
+      quotaExceeded: isQuotaLimit && !imageUrl.startsWith("data:image"),
       isFallback: !imageUrl.startsWith("data:image"),
-      message: isQuotaLimit
-        ? "AI Image API quota limit reached on free tier. Displaying high-resolution visual preview. Your master prompt is ready to copy into Midjourney, Flux, SDXL, or Imagen."
-        : "Image generated successfully"
+      message: imageUrl.startsWith("data:image")
+        ? "Image generated successfully via OpenRouter Pro Engine"
+        : "Rendered high-resolution studio preview."
     });
   } catch (error: any) {
     console.warn("Image endpoint fallback handler:", error?.message || error);
-    const seed = Math.floor(Math.random() * 100000);
+    const fallbackImgs = pollinationsImages(req.body?.prompt || "Burmese portrait", req.body?.aspectRatio || "1:1", 1, "flux");
     res.json({
       success: true,
-      imageUrl: `https://picsum.photos/seed/infinity_${seed}/1024/1024`,
+      imageUrl: fallbackImgs[0],
+      images: fallbackImgs,
       quotaExceeded: true,
       isFallback: true,
       message: "Rendered high-resolution image preview."
@@ -853,16 +869,20 @@ const SAMPLE_VIDEOS = [
 // Photo to Text Generator API Endpoint (Image-to-Prompt Vision Analysis)
 app.post("/api/photo-to-text", async (req, res) => {
   try {
-    const { image, targetEngine = "midjourney-v6", focusArea = "full", language = "my" } = req.body;
-    if (!image) {
+    const { image, images, targetEngine = "midjourney-v6", focusArea = "full", language = "my" } = req.body;
+    const imageList: string[] = Array.isArray(images) && images.length > 0
+      ? images.filter((x: any) => typeof x === "string" && x.startsWith("data:image"))
+      : (image ? [image] : []);
+
+    if (imageList.length === 0) {
       return res.status(400).json({ success: false, error: "Image data is required" });
     }
 
     const ai = getGeminiClient();
-    const imgPart = parseDataUrlToPart(image);
+    const imgParts = imageList.map(img => parseDataUrlToPart(img)).filter(Boolean);
 
     const systemInstruction = `You are a world-class commercial studio photography director and prompt engineer specializing in Midjourney v6.1, Flux.1 Pro, and SDXL.
-Your task is to analyze an uploaded reference photograph in rigorous technical detail and generate a complete image-to-text reverse engineering prompt breakdown.
+Your task is to analyze ${imageList.length > 1 ? `all ${imageList.length} uploaded reference photographs` : 'an uploaded reference photograph'} in rigorous technical detail and generate a complete image-to-text reverse engineering prompt breakdown.
 
 CRITICAL REALISM & ANTI-PLASTIC MANDATES:
 - Look for authentic human skin textures: natural micro-pores, fine vellus hair (peach fuzz), natural subsurface scattering (SSS) with subtle vascular warmth, dewy non-greasy highlights, and authentic Thanaka bark paste patterns on cheekbones if present.
@@ -914,7 +934,7 @@ Output ONLY valid JSON matching this structure:
   "descriptionEn": "string (English technical photography breakdown)"
 }`;
 
-    const promptText = `Analyze this attached studio photograph thoroughly. Deconstruct all visual elements: subject identity, skin micro-texture, Thanaka details, wardrobe fabrics, lighting setup, camera optics, and background. Produce the complete JSON structure with master reproduction prompts. Focus: ${focusArea}. Target engine: ${targetEngine}. Target aspect ratio: 4:5.`;
+    const promptText = `Analyze ${imageList.length > 1 ? `these ${imageList.length} attached studio reference photographs` : 'this attached studio photograph'} thoroughly. Synthesize and deconstruct all visual elements across the reference set: subject identity, skin micro-texture, Thanaka details, wardrobe fabrics, lighting setup, camera optics, and background. Produce the complete JSON structure with master reproduction prompts. Focus: ${focusArea}. Target engine: ${targetEngine}. Target aspect ratio: 4:5.`;
 
     const openRouterKey = process.env.OPENROUTER_API_KEY;
     let jsonText = "{}";
@@ -926,12 +946,11 @@ Output ONLY valid JSON matching this structure:
           model: process.env.OPENROUTER_VISION_MODEL || "google/gemini-2.5-flash",
           systemPrompt: systemInstruction,
           userPrompt: promptText,
-          images: image ? [image] : [],
+          images: imageList,
           responseFormat: "json"
         });
       } catch (orErr) {
-        let contentsArray: any[] = [{ text: promptText }];
-        if (imgPart) contentsArray.push(imgPart);
+        let contentsArray: any[] = [{ text: promptText }, ...imgParts];
 
         const response = await generateContentWithFallback(ai, {
           contents: contentsArray,
@@ -944,8 +963,7 @@ Output ONLY valid JSON matching this structure:
         jsonText = response.text ? response.text.trim() : "{}";
       }
     } else {
-      let contentsArray: any[] = [{ text: promptText }];
-      if (imgPart) contentsArray.push(imgPart);
+      let contentsArray: any[] = [{ text: promptText }, ...imgParts];
 
       const response = await generateContentWithFallback(ai, {
         contents: contentsArray,
@@ -1672,19 +1690,40 @@ function pollinationsImages(prompt: string, ar: string, count: number, model: st
   });
 }
 
-async function generateWithOpenRouter(prompt: string, ar: string, count: number, model: string = "google/gemini-2.5-flash-image"): Promise<string[] | null> {
+async function generateWithOpenRouter(
+  prompt: string,
+  ar: string,
+  count: number,
+  model: string = "google/gemini-2.5-flash-image",
+  referenceImage?: string | null,
+  referenceImages?: string[]
+): Promise<string[] | null> {
   const key = process.env.OPENROUTER_API_KEY;
   if (!key || key.trim() === "") return null;
+  const refList = Array.isArray(referenceImages) && referenceImages.length > 0
+    ? referenceImages.filter(img => typeof img === "string" && img.startsWith("data:image"))
+    : (referenceImage && referenceImage.startsWith("data:image") ? [referenceImage] : []);
   try {
     const out: string[] = [];
     for (let i = 0; i < count; i++) {
+      const userContent: any =
+        refList.length > 0
+          ? [
+              ...refList.map(url => ({ type: "image_url", image_url: { url } })),
+              {
+                type: "text",
+                text: `Preserve the subject's exact facial identity, features, and reference aesthetics from the ${refList.length > 1 ? `${refList.length} attached reference images` : 'attached image'}. ${prompt}. Aspect ratio ${ar}.`,
+              },
+            ]
+          : `${prompt}. Aspect ratio ${ar}.`;
+
       const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${key.trim()}` },
         body: JSON.stringify({
           model,
           modalities: ["image", "text"],
-          messages: [{ role: "user", content: `${prompt}. Aspect ratio ${ar}.` }],
+          messages: [{ role: "user", content: userContent }],
         }),
       });
       const d: any = await r.json();
@@ -1694,7 +1733,7 @@ async function generateWithOpenRouter(prompt: string, ar: string, count: number,
       } else {
         console.warn("[openrouter-image] OpenRouter returned status:", r.status, d?.error?.message);
         if (model !== "google/gemini-2.5-flash-image") {
-          return generateWithOpenRouter(prompt, ar, count, "google/gemini-2.5-flash-image");
+          return generateWithOpenRouter(prompt, ar, count, "google/gemini-2.5-flash-image", referenceImage, referenceImages);
         }
       }
     }
@@ -1705,9 +1744,20 @@ async function generateWithOpenRouter(prompt: string, ar: string, count: number,
   return null;
 }
 
-async function generateByProvider(modelId: string, prompt: string, ar: string, count: number): Promise<string[]> {
+async function generateByProvider(
+  modelId: string,
+  prompt: string,
+  ar: string,
+  count: number,
+  referenceImage?: string | null,
+  referenceImages?: string[]
+): Promise<string[]> {
   const { w, h } = IMAGE_DIMS[ar] || IMAGE_DIMS["1:1"];
   const def = IMAGE_MODELS.find(m => m.id === modelId) || IMAGE_MODELS[0];
+  const refList = Array.isArray(referenceImages) && referenceImages.length > 0
+    ? referenceImages.filter(img => typeof img === "string" && img.startsWith("data:image"))
+    : (referenceImage && referenceImage.startsWith("data:image") ? [referenceImage] : []);
+  const hasRef = refList.length > 0;
 
   if (def.provider === "pollinations") {
     return pollinationsImages(prompt, ar, count, "flux");
@@ -1731,10 +1781,19 @@ async function generateByProvider(modelId: string, prompt: string, ar: string, c
       try {
         const out: string[] = [];
         for (let i = 0; i < count; i++) {
+          const parts: any[] = [];
+          for (const refImg of refList) {
+            const match = refImg.match(/^data:(image\/\w+);base64,(.+)$/);
+            if (match) {
+              parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
+            }
+          }
+          parts.push({ text: promptText });
+
           const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${key}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] }),
+            body: JSON.stringify({ contents: [{ parts }] }),
           });
           const d: any = await r.json();
           if (r.ok) {
@@ -1755,7 +1814,7 @@ async function generateByProvider(modelId: string, prompt: string, ar: string, c
     }
 
     // Direct OpenRouter synthesis without watermarks
-    const orImgs = await generateWithOpenRouter(promptText, ar, count);
+    const orImgs = await generateWithOpenRouter(promptText, ar, count, "google/gemini-2.5-flash-image", referenceImage, refList);
     if (orImgs && orImgs.length > 0) return orImgs;
 
     return pollinationsImages(promptText, ar, count, "flux");
@@ -1765,7 +1824,7 @@ async function generateByProvider(modelId: string, prompt: string, ar: string, c
     const key = process.env.GEMINI_API_KEY;
     const promptText = `${prompt}, Google Imagen 3 studio fidelity, 8k resolution, photorealistic master shot, natural micro-textures, Rembrandt lighting, 85mm f/1.4 lens, shallow depth of field`;
 
-    if (key && key.trim() !== "") {
+    if (key && key.trim() !== "" && !hasRef) {
       try {
         const imagenAr = ["1:1", "3:4", "4:3", "9:16", "16:9"].includes(ar) ? ar : "1:1";
         const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${key}`, {
@@ -1786,7 +1845,7 @@ async function generateByProvider(modelId: string, prompt: string, ar: string, c
     }
 
     // Direct OpenRouter synthesis without watermarks
-    const orImgs = await generateWithOpenRouter(promptText, ar, count);
+    const orImgs = await generateWithOpenRouter(promptText, ar, count, "google/gemini-2.5-flash-image", referenceImage, refList);
     if (orImgs && orImgs.length > 0) return orImgs;
 
     return pollinationsImages(promptText, ar, count, "flux");
@@ -1797,7 +1856,7 @@ async function generateByProvider(modelId: string, prompt: string, ar: string, c
     const dallSize = w === h ? "1024x1024" : w > h ? "1792x1024" : "1024x1792";
     const promptText = `${prompt}, OpenAI DALL-E 3 HD masterwork composition, hyper-detailed, dramatic studio lighting, 8k`;
 
-    if (key && key.trim() !== "") {
+    if (key && key.trim() !== "" && !hasRef) {
       try {
         const calls = Array.from({ length: count }, async () => {
           const r = await fetch("https://api.openai.com/v1/images/generations", {
@@ -1827,7 +1886,7 @@ async function generateByProvider(modelId: string, prompt: string, ar: string, c
     }
 
     // Direct OpenRouter synthesis using OpenAI GPT Image 2 (Watermark-free)
-    const orImgs = await generateWithOpenRouter(promptText, ar, count, "openai/gpt-5.4-image-2");
+    const orImgs = await generateWithOpenRouter(promptText, ar, count, "openai/gpt-5.4-image-2", referenceImage, refList);
     if (orImgs && orImgs.length > 0) return orImgs;
 
     return pollinationsImages(promptText, ar, count, "flux");
@@ -1836,7 +1895,7 @@ async function generateByProvider(modelId: string, prompt: string, ar: string, c
   if (def.provider === "openai") {
     const key = process.env.OPENAI_API_KEY;
     const size = w === h ? "1024x1024" : w > h ? "1536x1024" : "1024x1536";
-    if (key && key.trim() !== "") {
+    if (key && key.trim() !== "" && !hasRef) {
       try {
         const r = await fetch("https://api.openai.com/v1/images/generations", {
           method: "POST",
@@ -1851,7 +1910,7 @@ async function generateByProvider(modelId: string, prompt: string, ar: string, c
         console.warn("[openai] OpenAI failed:", err?.message || err);
       }
     }
-    const orImgs = await generateWithOpenRouter(prompt, ar, count);
+    const orImgs = await generateWithOpenRouter(prompt, ar, count, "google/gemini-2.5-flash-image", referenceImage, refList);
     if (orImgs && orImgs.length > 0) return orImgs;
 
     return pollinationsImages(prompt, ar, count, "flux");
@@ -1878,7 +1937,7 @@ async function generateByProvider(modelId: string, prompt: string, ar: string, c
   }
 
   if (def.provider === "openrouter") {
-    const orImgs = await generateWithOpenRouter(prompt, ar, count);
+    const orImgs = await generateWithOpenRouter(prompt, ar, count, "google/gemini-2.5-flash-image", referenceImage, refList);
     if (orImgs && orImgs.length > 0) return orImgs;
     return pollinationsImages(prompt, ar, count, "flux");
   }
@@ -1903,7 +1962,7 @@ app.get("/api/photo-studio/models", (_req, res) => {
 });
 
 app.post("/api/photo-studio/generate-image", async (req, res) => {
-  const { prompt, model = "nano-banana-2", aspectRatio = "1:1", count = 1 } = req.body || {};
+  const { prompt, model = "nano-banana-2", aspectRatio = "1:1", count = 1, referenceImage = null, referenceImages = [] } = req.body || {};
   if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
     return res.status(400).json({ success: false, error: "Prompt is required" });
   }
@@ -1912,15 +1971,17 @@ app.post("/api/photo-studio/generate-image", async (req, res) => {
   const cleanPrompt = prompt.trim().slice(0, 1500);
 
   try {
-    const images = await generateByProvider(def.id, cleanPrompt, aspectRatio, n);
-    return res.json({ success: true, images, provider: def.name, model: def.id });
+    const images = await generateByProvider(def.id, cleanPrompt, aspectRatio, n, referenceImage, referenceImages);
+    return res.json({ success: true, images, imageUrl: images[0], provider: def.name, model: def.id });
   } catch (err: any) {
     console.warn(`[generate-image] ${def.id} failed, using free FLUX fallback:`, err?.message || err);
   }
 
+  const fallbackImgs = pollinationsImages(cleanPrompt, aspectRatio, n, "flux");
   return res.json({
     success: true,
-    images: pollinationsImages(cleanPrompt, aspectRatio, n, "flux"),
+    images: fallbackImgs,
+    imageUrl: fallbackImgs[0],
     provider: `${def.name} (Photoreal Engine)`,
     model: def.id,
   });
@@ -2031,6 +2092,150 @@ app.get("/api/dashboard/config", (req, res) => {
     version: "2.5.0",
     serverTime: new Date().toISOString()
   });
+});
+
+// ============================================================================
+// SUPABASE SERVER-SIDE ADMIN & STORAGE ENDPOINTS (Uses SUPABASE_SECRET_KEY)
+// ============================================================================
+const getSupabaseAdminConfig = () => {
+  const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "https://qiuljrsqztohzyyghany.supabase.co").replace(/\/$/, "");
+  const secretKey = process.env.SUPABASE_SECRET_KEY || "sb_secret_O2gWUQoFFLFa26i2gn0w3w_5JdEzHLv";
+  const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || "sb_publishable_rkmYkYrptB5AjII4JigQSQ_1jY6RvYh";
+  return { url, secretKey, publishableKey };
+};
+
+const getSupabaseSecretHeaders = (contentType = "application/json") => {
+  const { secretKey } = getSupabaseAdminConfig();
+  const headers: Record<string, string> = {
+    apikey: secretKey,
+  };
+  if (secretKey.startsWith("eyJ")) {
+    headers["Authorization"] = `Bearer ${secretKey}`;
+  }
+  if (contentType) {
+    headers["Content-Type"] = contentType;
+  }
+  return headers;
+};
+
+async function ensureSupabaseBuckets() {
+  const { url } = getSupabaseAdminConfig();
+  const buckets = ["website-photos", "user-generations"];
+  for (const b of buckets) {
+    try {
+      await fetch(`${url}/storage/v1/bucket`, {
+        method: "POST",
+        headers: getSupabaseSecretHeaders(),
+        body: JSON.stringify({ id: b, name: b, public: true }),
+      });
+    } catch {}
+  }
+}
+ensureSupabaseBuckets();
+
+// Instant auto-confirmed signup via Supabase Admin API
+app.post("/api/supabase/instant-signup", async (req, res) => {
+  try {
+    const { email, password, fullName } = req.body || {};
+    if (!email || !password) {
+      return res.status(400).json({ success: false, error: "Email and password are required" });
+    }
+    const { url, publishableKey } = getSupabaseAdminConfig();
+
+    // 1. Create auto-confirmed user via Admin API
+    const createRes = await fetch(`${url}/auth/v1/admin/users`, {
+      method: "POST",
+      headers: getSupabaseSecretHeaders(),
+      body: JSON.stringify({
+        email: email.trim(),
+        password,
+        email_confirm: true,
+        user_metadata: { full_name: (fullName || email.split("@")[0]).trim() },
+      }),
+    });
+    const createData: any = await createRes.json();
+    if (!createRes.ok && !String(createData?.msg || createData?.message || "").toLowerCase().includes("already")) {
+      return res.status(400).json({
+        success: false,
+        error: createData?.msg || createData?.message || "Could not create user",
+      });
+    }
+
+    // 2. Immediately sign in to get session token
+    const tokenHeaders: Record<string, string> = {
+      apikey: publishableKey,
+      "Content-Type": "application/json",
+    };
+    const loginRes = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+      method: "POST",
+      headers: tokenHeaders,
+      body: JSON.stringify({ email: email.trim(), password }),
+    });
+    const loginData: any = await loginRes.json();
+    if (!loginRes.ok) {
+      return res.status(400).json({
+        success: false,
+        error: loginData?.error_description || loginData?.msg || "Created account, please sign in.",
+      });
+    }
+
+    return res.json({
+      success: true,
+      session: {
+        access_token: loginData.access_token,
+        refresh_token: loginData.refresh_token,
+        expires_at: loginData.expires_at,
+        user: loginData.user,
+      },
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || "Server signup error" });
+  }
+});
+
+// Server-assisted Supabase Storage upload (guarantees bucket & bypasses storage RLS issues)
+app.post("/api/supabase/upload-storage", async (req, res) => {
+  try {
+    const { bucket = "user-generations", dataUrl, folderPrefix = "uploads" } = req.body || {};
+    if (!dataUrl || typeof dataUrl !== "string" || !dataUrl.startsWith("data:image")) {
+      return res.status(400).json({ success: false, error: "Valid image dataUrl required" });
+    }
+    const match = dataUrl.match(/^data:(image\/([a-zA-Z0-9+]+));base64,(.+)$/);
+    if (!match) {
+      return res.status(400).json({ success: false, error: "Malformed image dataUrl" });
+    }
+    const mimeType = match[1];
+    const ext = match[2] === "jpeg" ? "jpg" : match[2];
+    const buffer = Buffer.from(match[3], "base64");
+    const objectPath = `${folderPrefix}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { url } = getSupabaseAdminConfig();
+
+    const headers = getSupabaseSecretHeaders(mimeType);
+    headers["x-upsert"] = "true";
+
+    const upRes = await fetch(`${url}/storage/v1/object/${bucket}/${objectPath}`, {
+      method: "POST",
+      headers,
+      body: buffer,
+    });
+
+    if (!upRes.ok) {
+      await ensureSupabaseBuckets();
+      const retryRes = await fetch(`${url}/storage/v1/object/${bucket}/${objectPath}`, {
+        method: "POST",
+        headers,
+        body: buffer,
+      });
+      if (!retryRes.ok) {
+        return res.json({ success: false, publicUrl: dataUrl });
+      }
+    }
+
+    const publicUrl = `${url}/storage/v1/object/public/${bucket}/${objectPath}`;
+    return res.json({ success: true, publicUrl });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || "Upload error" });
+  }
 });
 
 // Global Error Handling Middleware

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Language, MatrixSelection, AppMode } from '../types';
 import {
   SUBJECT_OPTIONS,
@@ -74,11 +74,13 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
   // Workflow tab navigation
   const [activeTab, setActiveTab] = useState<'tab-subject' | 'tab-scene' | 'tab-direction' | 'tab-engine'>('tab-subject');
   const [isViewAll, setIsViewAll] = useState<boolean>(false);
+  const [archetypeCategory, setArchetypeCategory] = useState<'all' | 'royal' | 'ethnic' | 'folk' | 'modern'>('all');
 
   // Deep resource drawer expandable states
   const [expandedDrawers, setExpandedDrawers] = useState<Record<string, boolean>>({
     characterFeature: true,
-    garmentCatalog: false,
+    garmentCatalog: true,
+    clothesSwapTools: false,
     locationCatalog: false,
     eventCatalog: false,
     lightingCatalog: false,
@@ -160,6 +162,16 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
     }
   }, [engine]);
 
+  // Live AI synthesis state & multi-engine format selector
+  const [aiSynthesizedData, setAiSynthesizedData] = useState<any | null>(null);
+  const [isSynthesizingAi, setIsSynthesizingAi] = useState<boolean>(false);
+  const [activeFormatTab, setActiveFormatTab] = useState<'master' | 'flux' | 'midjourney' | 'sdxl' | 'negative'>('master');
+
+  // Reset AI override when user modifies matrix selection so live matrix stays 100% reactive
+  useEffect(() => {
+    setAiSynthesizedData(null);
+  }, [selection]);
+
   // Master Prompt Assembly from selection
   const liveBuilt = useMemo(() => {
     try {
@@ -169,10 +181,12 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
     }
   }, [selection]);
 
+  const effectivePromptData = aiSynthesizedData || liveBuilt;
+
   const masterPromptText = useMemo(() => {
-    if (!liveBuilt?.masterPrompt) return '';
-    let p = liveBuilt.masterPrompt;
-    if (selection.referenceImage) {
+    if (!effectivePromptData?.masterPrompt) return '';
+    let p = effectivePromptData.masterPrompt;
+    if (selection.referenceImage && !p.includes('--cref')) {
       p += `, --cref [Locked Face Reference: 100% exact facial likeness, bone structure, and micro-pores preserved] --cw 100`;
     }
     if (quickModifiers.length > 0) {
@@ -186,12 +200,62 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
       p += ` ${engineSyntax}`;
     }
     return p;
-  }, [liveBuilt, quickModifiers, selection.aspectRatio, selection.referenceImage, engineSyntax]);
+  }, [effectivePromptData, quickModifiers, selection.aspectRatio, selection.referenceImage, engineSyntax]);
+
+  const displayedPromptText = useMemo(() => {
+    if (!effectivePromptData) return masterPromptText;
+    const modSuffix = quickModifiers.length > 0 ? `, ${quickModifiers.join(', ')}` : '';
+    switch (activeFormatTab) {
+      case 'flux':
+        return `${effectivePromptData.fluxFormat || masterPromptText.replace(/--\w+\s+\S+/g, '').trim()}${modSuffix}`;
+      case 'midjourney':
+        return `${effectivePromptData.midjourneyFormat || `/imagine prompt: ${masterPromptText}`}`;
+      case 'sdxl':
+        return `${effectivePromptData.sdxlFormat || masterPromptText}${modSuffix}`;
+      case 'negative':
+        return effectivePromptData.negativePrompt || '';
+      case 'master':
+      default:
+        return masterPromptText;
+    }
+  }, [activeFormatTab, effectivePromptData, masterPromptText, quickModifiers]);
+
+  const handleSynthesizeAiPrompt = async () => {
+    setIsSynthesizingAi(true);
+    try {
+      const res = await fetch('/api/generate-prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          selection,
+          customInstruction: selection.customInstruction || '',
+          language
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.promptData) {
+          setAiSynthesizedData(data.promptData);
+          if (onSavePrompt && data.promptData.masterPrompt) {
+            onSavePrompt(data.promptData.masterPrompt, {
+              archetype: selection.customSubjectDetails || selection.subject || 'Burmese Portrait',
+              setting: selection.location || 'Heritage Setting',
+              ratio: selection.aspectRatio || '16:9'
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('AI prompt synthesis fallback to local builder:', err);
+    } finally {
+      setIsSynthesizingAi(false);
+    }
+  };
 
   // Token counter estimation
   const estimatedTokens = useMemo(() => {
-    return Math.round(masterPromptText.split(' ').length * 1.35);
-  }, [masterPromptText]);
+    return Math.round(displayedPromptText.split(' ').length * 1.35);
+  }, [displayedPromptText]);
 
   // Active Picked Option Chips (ရွေးချယ်ထားချက်များ)
   const activeOptionChips = useMemo(() => {
@@ -360,13 +424,13 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
   };
 
   const handleCopyPrompt = () => {
-    navigator.clipboard.writeText(masterPromptText);
+    navigator.clipboard.writeText(displayedPromptText || masterPromptText);
     setCopiedToast(true);
     setTimeout(() => setCopiedToast(false), 2000);
   };
 
   const handleCopyNegative = () => {
-    const neg = liveBuilt?.negativePrompt || "--no modern western clothing, sunglasses, plastic, wrist watch, distorted hands, extra fingers, inaccurate generic anime face, non-Burmese Chinese or Japanese traditional costumes, synthetic nylon fabrics, low quality render, deformed facial anatomy";
+    const neg = effectivePromptData?.negativePrompt || "--no modern western clothing, sunglasses, plastic, wrist watch, distorted hands, extra fingers, inaccurate generic anime face, non-Burmese Chinese or Japanese traditional costumes, Indian saree, bindi, synthetic nylon fabrics, low quality render, deformed facial anatomy";
     navigator.clipboard.writeText(neg);
     setNegCopiedToast(true);
     setTimeout(() => setNegCopiedToast(false), 2000);
@@ -374,7 +438,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
 
   const handleSaveToPresets = () => {
     if (onSavePrompt) {
-      onSavePrompt(masterPromptText, {
+      onSavePrompt(displayedPromptText || masterPromptText, {
         archetype: selection.customSubjectDetails || selection.subject,
         setting: selection.location,
         ratio: selection.aspectRatio || '16:9'
@@ -387,6 +451,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
   const handleResetMatrix = () => {
     onResetAll();
     setQuickModifiers([]);
+    setAiSynthesizedData(null);
     setResetToast(true);
     setTimeout(() => setResetToast(false), 2500);
   };
@@ -682,19 +747,24 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
             {(activeTab === 'tab-subject' || isViewAll) && (
               <div className="flex flex-col gap-6">
                 
-                {/* SECTION 1: Character & Cultural Archetype */}
+                {/* SECTION 1: Character & Cultural Archetype (100% Myanmar Archetype Studio) */}
                 <section className="bg-white rounded-xl p-5 shadow-xs border border-[#d6c3b6]/30 flex flex-col gap-4">
-                  <div className="flex items-center justify-between pb-1 border-b border-[#d6c3b6]/20">
+                  <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-[#d6c3b6]/20">
                     <div className="flex items-center gap-2">
                       <span className="w-7 h-7 rounded-full bg-[#704112]/10 text-[#704112] font-sans text-sm flex items-center justify-center font-bold border border-[#704112]/20">
                         1
                       </span>
                       <div>
-                        <h2 className="font-sans text-base text-[#1e1b19] font-semibold">
-                          Character &amp; Cultural Archetype
-                        </h2>
+                        <div className="flex items-center gap-2">
+                          <h2 className="font-sans text-base text-[#1e1b19] font-semibold">
+                            Myanmar Character &amp; Cultural Archetype
+                          </h2>
+                          <span className="px-2 py-0.5 rounded bg-[#704112]/10 text-[#704112] font-mono text-[10px] font-bold uppercase">
+                            Only Myanmar • 24 Archetypes
+                          </span>
+                        </div>
                         <span className="font-sans text-xs text-[#51443a]">
-                          ဇာတ်ကောင်နှင့် လူမျိုးနွယ်
+                          မြန်မာ့သမိုင်းဝင် နန်းတွင်း၊ တိုင်းရင်းသား ရိုးရာ၊ ဓလေ့စရိုက်နှင့် ခေတ်သစ် ဇာတ်ကောင်များ (၂၄ မျိုး)
                         </span>
                       </div>
                     </div>
@@ -702,79 +772,457 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                     <button
                       type="button"
                       onClick={() => toggleDrawer('characterFeature')}
-                      className="px-2.5 py-1 rounded-full bg-[#ffdf98]/50 text-[#5a4300] border border-[#775a00]/20 font-sans text-xs font-semibold flex items-center gap-1 cursor-pointer hover:bg-[#ffdf98]"
+                      className="px-3 py-1 rounded-full bg-[#ffdf98]/50 text-[#5a4300] border border-[#775a00]/20 font-sans text-xs font-semibold flex items-center gap-1.5 cursor-pointer hover:bg-[#ffdf98]"
                     >
-                      <span className="material-symbols-outlined text-[16px]">stars</span>
-                      <span>{expandedDrawers.characterFeature ? 'Close Higgsfield Character' : '🌟 Higgsfield Character Studio'}</span>
+                      <span className="material-symbols-outlined text-[16px]">person_pin</span>
+                      <span>{expandedDrawers.characterFeature ? 'Hide Face Lock & Persona Cards' : 'Open Face Lock & Persona Cards (15)'}</span>
                     </button>
                   </div>
 
-                  {/* Archetype Quick Selector Cards */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                    {[
-                      { id: 'burmese-royal-lady', nameEn: 'Bagan Royal Lady', nameMm: 'ပုဂံ မင်းသမီး', subject: 'woman', eth: 'burmese', garment: 'traditional_myanmar_royal' },
-                      { id: 'burmese-young-woman', nameEn: 'Burmese Young Woman', nameMm: 'အမျိုးသမီးငယ်', subject: 'woman', eth: 'burmese', garment: 'traditional_myanmar' },
-                      { id: 'mandalay-model', nameEn: 'Mandalay Model', nameMm: 'မန္တလေး မော်ဒယ်', subject: 'fashion', eth: 'burmese', garment: 'evening_gown' },
-                      { id: 'mon-princess', nameEn: 'Mon Princess', nameMm: 'မွန် မင်းသမီး', subject: 'woman', eth: 'mon', garment: 'mon_ethnic_attire' },
-                      { id: 'shan-elder', nameEn: 'Shan Elder', nameMm: 'ရှမ်း သက်ကြီး', subject: 'man', eth: 'shan', garment: 'shan_ethnic_attire' },
-                      { id: 'burmese-gentleman', nameEn: 'Burmese Gentleman', nameMm: 'အမျိုးသား', subject: 'man', eth: 'burmese', garment: 'formal_business' }
-                    ].map((arch) => {
-                      const isSelected = selection.customSubjectDetails === arch.nameEn || selection.subject === arch.subject;
-                      return (
-                        <button
-                          key={arch.id}
-                          type="button"
-                          onClick={() => onUpdateSelection({
-                            subject: arch.subject,
-                            ethnicity: arch.eth,
-                            garmentStyle: arch.garment,
-                            customSubjectDetails: arch.nameEn
-                          })}
-                          className={`p-3 rounded-lg text-left transition-all relative flex flex-col items-start gap-1 cursor-pointer ${
-                            isSelected
-                              ? 'border-2 border-[#704112] bg-[#704112]/5 text-[#1e1b19] shadow-xs'
-                              : 'border border-[#d6c3b6]/40 bg-[#faf2ee] text-[#1e1b19] hover:border-[#847469] hover:bg-[#f4ece9]'
-                          }`}
-                        >
-                          <div className="w-full flex items-center justify-between">
-                            <span className={`font-sans text-sm font-semibold leading-snug ${isSelected ? 'text-[#704112]' : 'text-[#1e1b19]'}`}>
-                              {arch.nameEn}
-                            </span>
-                            <span className={`material-symbols-outlined text-[18px] ${isSelected ? 'text-[#704112]' : 'text-[#847469]/40'}`}>
-                              {isSelected ? 'check_circle' : 'radio_button_unchecked'}
-                            </span>
-                          </div>
-                          <span className="font-sans text-xs text-[#51443a]">
-                            {arch.nameMm}
-                          </span>
-                        </button>
-                      );
-                    })}
+                  {/* Category Filter Tabs for 24 Myanmar Archetypes */}
+                  <div className="flex flex-col gap-2.5">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <span className="font-sans text-[11px] text-[#847469] uppercase font-bold tracking-wider">
+                        Step 1A — Select Myanmar Character Archetype (မြန်မာ့ဇာတ်ကောင် စရိုက်လက္ခဏာ ရွေးချယ်ရန်):
+                      </span>
+                      <div className="flex flex-wrap gap-1">
+                        {[
+                          { id: 'all', labelEn: 'All (24)', labelMm: 'အားလုံး (၂၄)' },
+                          { id: 'royal', labelEn: 'Royal & Historical (6)', labelMm: 'နန်းတွင်း/သမိုင်း (၆)' },
+                          { id: 'ethnic', labelEn: 'Ethnic Heritage (8)', labelMm: 'တိုင်းရင်းသား (၈)' },
+                          { id: 'folk', labelEn: 'Sacred & Folk Art (5)', labelMm: 'ရိုးရာဓလေ့/အနုပညာ (၅)' },
+                          { id: 'modern', labelEn: 'Modern & Family (5)', labelMm: 'ခေတ်သစ်/မိသားစု (၅)' },
+                        ].map((cat) => (
+                          <button
+                            key={cat.id}
+                            type="button"
+                            onClick={() => setArchetypeCategory(cat.id as any)}
+                            className={`px-2.5 py-1 rounded-full font-sans text-[11px] font-semibold transition-all cursor-pointer ${
+                              archetypeCategory === cat.id
+                                ? 'bg-[#704112] text-white shadow-2xs'
+                                : 'bg-[#f4ece9] text-[#51443a] hover:bg-[#e9e1dd]'
+                            }`}
+                          >
+                            {isMyanmar ? cat.labelMm : cat.labelEn}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* 24 Myanmar-Only Archetype Cards Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-[340px] overflow-y-auto pr-1">
+                      {[
+                        // 1. ROYAL & HISTORICAL MYANMAR (6)
+                        {
+                          id: 'konbaung-princess',
+                          code: '01',
+                          cat: 'royal',
+                          badge: 'KONBAUNG',
+                          nameEn: 'Konbaung Royal Princess',
+                          nameMm: 'ကုန်းဘောင် နန်းတွင်း မင်းသမီး',
+                          descMm: 'မဟာလတ္တ နန်းဝတ်တန်ဆာနှင့် ရတနာပုံ မင်းသမီး',
+                          subject: 'woman',
+                          eth: 'burmese',
+                          garment: 'traditional_myanmar_royal',
+                          promptTag: 'Konbaung Dynasty Royal Burmese Princess (Thamee-daw) with regal palace poise'
+                        },
+                        {
+                          id: 'konbaung-prince',
+                          code: '02',
+                          cat: 'royal',
+                          badge: 'KONBAUNG',
+                          nameEn: 'Konbaung Royal Prince / General',
+                          nameMm: 'ကုန်းဘောင် မင်းသား / စစ်သူကြီး',
+                          descMm: 'ရွှေချည်ထိုး မင်းဝတ်တန်ဆာနှင့် ခေါင်းပေါင်းတော်',
+                          subject: 'man',
+                          eth: 'burmese',
+                          garment: 'traditional_myanmar_royal',
+                          promptTag: 'Konbaung Dynasty Royal Burmese Prince and noble commander in gilded court regalia'
+                        },
+                        {
+                          id: 'bagan-queen',
+                          code: '03',
+                          cat: 'royal',
+                          badge: 'BAGAN ERA',
+                          nameEn: 'Bagan Dynasty Royal Lady',
+                          nameMm: 'ပုဂံခေတ် တော်ဝင်မိဖုရား / မင်းသမီး',
+                          descMm: 'ပုဂံခေတ် ရင်စည်းပိုးထည်နှင့် ရှေးဟောင်း ရွှေပန်းထိမ်',
+                          subject: 'woman',
+                          eth: 'burmese',
+                          garment: 'bagan_royal_yinzi',
+                          promptTag: '11th-century Ancient Bagan Dynasty Royal Queen with classical lotus poise'
+                        },
+                        {
+                          id: 'yadanabon-court-maiden',
+                          code: '04',
+                          cat: 'royal',
+                          badge: 'YADANABON',
+                          nameEn: 'Yadanabon Palace Lady-in-Waiting',
+                          nameMm: 'ရတနာပုံ နန်းတွင်း အပျိုတော်',
+                          descMm: 'ဆံမြိတ်ချ ဆံထုံး၊ ရင်ဖုံးပိုးအင်္ကျီနှင့် လွန်းရာကျော်ချိတ်',
+                          subject: 'woman',
+                          eth: 'burmese',
+                          garment: 'amarapura_luntaya_acheik',
+                          promptTag: 'Mandalay Yadanabon Royal Palace court maiden with classic trailing hair tress and Luntaya Acheik silk'
+                        },
+                        {
+                          id: 'colonial-rangoon-lady',
+                          code: '05',
+                          cat: 'royal',
+                          badge: 'HERITAGE 1930s',
+                          nameEn: 'Colonial Era Rangoon Aristocrat',
+                          nameMm: 'ကိုလိုနီခေတ် ရန်ကုန် ဂုဏ်သရေရှိ အမျိုးသမီး',
+                          descMm: 'ပုလဲကြယ်သီး ဇာအင်္ကျီ၊ ပိုးထဘီနှင့် စိန်နားကပ်',
+                          subject: 'woman',
+                          eth: 'burmese',
+                          garment: 'colonial_rangoon_lace',
+                          promptTag: '1930s Heritage Yangon aristocratic Burmese lady in sheer French lace Yin-Phone blouse and pearl buttons'
+                        },
+                        {
+                          id: 'classical-zat-dancer',
+                          code: '06',
+                          cat: 'royal',
+                          badge: 'CLASSICAL ART',
+                          nameEn: 'Classical Myanmar Zat / Anyint Dancer',
+                          nameMm: 'မြန်မာ့ရိုးရာ အငြိမ့် / ဇာတ်မင်းသမီး',
+                          descMm: 'ရိုးရာ ကဗျာလွတ် အကဟန်နှင့် ရွှေချည်ထိုး ဝတ်စုံ',
+                          subject: 'woman',
+                          eth: 'burmese',
+                          garment: 'traditional_myanmar',
+                          promptTag: 'Classical Burmese royal court dancer performing graceful traditional Yodaya/Anyint hand mudra'
+                        },
+
+                        // 2. MYANMAR ETHNIC HERITAGE (8)
+                        {
+                          id: 'kachin-manaw-maiden',
+                          code: '07',
+                          cat: 'ethnic',
+                          badge: 'KACHIN',
+                          nameEn: 'Kachin Manaw Festival Maiden',
+                          nameMm: 'ကချင် မနော ရိုးရာ လှပျိုဖြူ',
+                          descMm: 'ငွေမောင်း ရင်လွှမ်း ကတ္တီပါအင်္ကျီနှင့် ဂျပ်ခုတ်ထဘီ',
+                          subject: 'woman',
+                          eth: 'kachin',
+                          garment: 'kachin_ethnic_attire',
+                          promptTag: 'Kachin Jinghpaw maiden in ceremonial black velvet jacket adorned with embossed silver coin medallions'
+                        },
+                        {
+                          id: 'kayah-kayan-lady',
+                          code: '08',
+                          cat: 'ethnic',
+                          badge: 'KAYAH / KAYAN',
+                          nameEn: 'Kayah / Kayan Brass-Coil Maiden',
+                          nameMm: 'ကယား / ကယန်း (ပဒေါင်) ရိုးရာ အမျိုးသမီး',
+                          descMm: 'ရွှေရောင် ကြေးကွင်းလည်ပတ်နှင့် ရိုးရာ လက်ရက်ဝတ်စုံ',
+                          subject: 'woman',
+                          eth: 'kayah',
+                          garment: 'kayah_ethnic_attire',
+                          promptTag: 'Kayan (Padaung) highland woman wearing gleaming golden brass neck coils and handwoven tribal tunic'
+                        },
+                        {
+                          id: 'kayin-done-youth',
+                          code: '09',
+                          cat: 'ethnic',
+                          badge: 'KAYIN',
+                          nameEn: 'Kayin Done-Dance Traditional Maiden',
+                          nameMm: 'ကရင် ရိုးရာ သင်တိုင်း လှပျိုဖြူ',
+                          descMm: 'ကရင် လက်ရက် သင်တိုင်းဝတ်စုံနှင့် ရိုးရာ ခေါင်းပေါင်းစည်း',
+                          subject: 'woman',
+                          eth: 'karen',
+                          garment: 'karen_ethnic_attire',
+                          promptTag: 'Kayin (Karen) maiden in vibrant red-and-white handwoven Hsin-thone tunic and traditional woven sarong'
+                        },
+                        {
+                          id: 'chin-highland-noble',
+                          code: '10',
+                          cat: 'ethnic',
+                          badge: 'CHIN HILLS',
+                          nameEn: 'Chin Highland Heritage Noble',
+                          nameMm: 'ချင်း တောင်တန်း ရိုးရာ ဇာတ်ကောင်',
+                          descMm: 'ချင်းရိုးရာ စိန်ကွက် ဂျပ်ခုတ်စောင်နှင့် ရိုးရာပုတီး',
+                          subject: 'woman',
+                          eth: 'chin',
+                          garment: 'chin_ethnic_attire',
+                          promptTag: 'Chin highland noblewoman draped in intricate diamond-weave handloom Chin textile shawl'
+                        },
+                        {
+                          id: 'mon-hongsa-princess',
+                          code: '11',
+                          cat: 'ethnic',
+                          badge: 'MON RAMANYA',
+                          nameEn: 'Mon Hongsa Royal Lady',
+                          nameMm: 'မွန် ဟင်္သာ တော်ဝင် အမျိုးသမီး',
+                          descMm: 'မွန်ရိုးရာ အနီရောင် အကွက်စိပ်ထဘီနှင့် အဖြူရောင် ဇာအင်္ကျီ',
+                          subject: 'woman',
+                          eth: 'mon',
+                          garment: 'mon_ethnic_attire',
+                          promptTag: 'Mon (Ramanya) noblewoman in traditional crimson checkered silk longyi, white lace bodice, and golden Hongsa brooch'
+                        },
+                        {
+                          id: 'rakhine-mrauk-u-noble',
+                          code: '12',
+                          cat: 'ethnic',
+                          badge: 'RAKHINE',
+                          nameEn: 'Rakhine Mrauk-U Royal Noble',
+                          nameMm: 'ရခိုင် မြောက်ဦး တော်ဝင် ဇာတ်ကောင်',
+                          descMm: 'မြောက်ဦးခေတ် ရွှေချည်ထိုး ပိုးထည်နှင့် ဒလီဇန် လည်ဆွဲ',
+                          subject: 'woman',
+                          eth: 'rakhine',
+                          garment: 'rakhine_ethnic_attire',
+                          promptTag: 'Rakhine (Arakanese) Mrauk-U royal lady wearing gold-threaded silk longyi and antique Arakanese filigree necklace'
+                        },
+                        {
+                          id: 'shan-sawbwa-princess',
+                          code: '13',
+                          cat: 'ethnic',
+                          badge: 'SHAN STATE',
+                          nameEn: 'Shan Royal Sawbwa Princess',
+                          nameMm: 'ရှမ်း စော်ဘွား တော်ဝင်မင်းသမီး',
+                          descMm: 'ရှမ်းရိုးရာ ပိုးဖဲကော်ဇောအဆင် ဝတ်စုံနှင့် ငွေခါးပတ်',
+                          subject: 'woman',
+                          eth: 'shan',
+                          garment: 'shan_ethnic_attire',
+                          promptTag: 'Shan royal Sawbwa princess wearing pastel silk brocade cross-collar jacket and silver waist ornament'
+                        },
+                        {
+                          id: 'pao-turban-maiden',
+                          code: '14',
+                          cat: 'ethnic',
+                          badge: 'PA-O HIGHLAND',
+                          nameEn: 'Pa-O Dragon-Turban Maiden',
+                          nameMm: 'ပအိုဝ်း ရိုးရာ ပဝါအနီ လှပျိုဖြူ',
+                          descMm: 'ပအိုဝ်း အနက်ရောင် ရိုးရာဝတ်စုံ၊ လိမ္မော်/အနီ ခေါင်းပေါင်းနှင့် ရွှေဆံထိုး',
+                          subject: 'woman',
+                          eth: 'pao',
+                          garment: 'shan_ethnic_attire',
+                          promptTag: 'Pa-O highland maiden wearing traditional indigo-black jacket, vibrant orange-red dragon turban headband, and gold hairpins'
+                        },
+
+                        // 3. SACRED, FOLK & ARTISAN MYANMAR (5)
+                        {
+                          id: 'shwedagon-pilgrim',
+                          code: '15',
+                          cat: 'folk',
+                          badge: 'DEVOTEE',
+                          nameEn: 'Shwedagon Pagoda Pilgrim Devotee',
+                          nameMm: 'ဘုရားဖူး ကုသိုလ်ရှင် (ရွှေတိဂုံ/ပုဂံ)',
+                          descMm: 'ယဉ်ကျေးသိမ်မွေ့သော မြန်မာ့ပိုးဝတ်စုံနှင့် ကြာပန်းကပ်လှူဟန်',
+                          subject: 'woman',
+                          eth: 'burmese',
+                          garment: 'amarapura_silk',
+                          promptTag: 'Serene Burmese Buddhist devotee in modest pure silk attire holding fresh lotus blossoms in prayer'
+                        },
+                        {
+                          id: 'inle-lotus-artisan',
+                          code: '16',
+                          cat: 'folk',
+                          badge: 'INLE INTHA',
+                          nameEn: 'Inle Lake Intha Lotus Silk Artisan',
+                          nameMm: 'အင်းလေး အင်းသား ကြာချည်ပိုး ပညာရှင်',
+                          descMm: 'အင်းလေး ရိုးရာ ကြာချည်ပိုးဝတ်စုံနှင့် ကန်ရေပြင် ဓလေ့',
+                          subject: 'woman',
+                          eth: 'intha',
+                          garment: 'inle_lotus_silk_attire',
+                          promptTag: 'Intha artisan from Inle Lake wearing rare hand-spun sacred lotus fiber tunic and raw silk longyi'
+                        },
+                        {
+                          id: 'shinbyu-royal-novice',
+                          code: '17',
+                          cat: 'folk',
+                          badge: 'SHINBYU',
+                          nameEn: 'Shinbyu Royal Novice / Ear-Boring',
+                          nameMm: 'ရှင်ပြု မောင်ရှင်လောင်း / နားသမင်္ဂလာ',
+                          descMm: 'မင်းသား/မင်းသမီး ဝတ်စုံတော်၊ ရွှေထီးနှင့် သနပ်ခါး',
+                          subject: 'child',
+                          eth: 'burmese',
+                          garment: 'traditional_myanmar_royal',
+                          promptTag: 'Burmese child dressed as a royal prince/princess for sacred Shinbyu novitiation ceremony with golden crown and Thanaka'
+                        },
+                        {
+                          id: 'amarapura-silk-weaver',
+                          code: '18',
+                          cat: 'folk',
+                          badge: 'CRAFTSMAN',
+                          nameEn: 'Amarapura Master Silk Weaver',
+                          nameMm: 'အမရပူရ လွန်းရာကျော် ပိုးချိတ် ပညာရှင်',
+                          descMm: 'ရိုးရာ ရက်ကန်းစင်နှင့် လွန်းရာကျော် ပိုးချိတ် အနုပညာရှင်',
+                          subject: 'woman',
+                          eth: 'burmese',
+                          garment: 'amarapura_luntaya_acheik',
+                          promptTag: 'Master Burmese silk weaver in Amarapura wearing traditional handwoven Acheik longyi and natural Thanaka'
+                        },
+                        {
+                          id: 'upper-myanmar-villager',
+                          code: '19',
+                          cat: 'folk',
+                          badge: 'ANYAR FOLK',
+                          nameEn: 'Upper Myanmar Anyar Heritage Belle',
+                          nameMm: 'အညာဒေသ ရိုးရာ သနပ်ခါး လှပျိုဖြူ',
+                          descMm: 'သနပ်ခါး ပါးကွက်ထူထူ၊ ချည်ထည် လက်ရက်နှင့် ပုသိမ်ထီး',
+                          subject: 'woman',
+                          eth: 'burmese',
+                          garment: 'traditional_myanmar',
+                          promptTag: 'Authentic Upper Myanmar (Anyar) young woman with circular Kyauk Pyin Thanaka cheek swirls and handwoven cotton longyi'
+                        },
+
+                        // 4. MODERN, EDITORIAL & FAMILY MYANMAR (5)
+                        {
+                          id: 'mandalay-couture-model',
+                          code: '20',
+                          cat: 'modern',
+                          badge: 'COUTURE',
+                          nameEn: 'Mandalay Silk Couture Model',
+                          nameMm: 'မန္တလေး အဆင့်မြင့် ပိုးထည် ဖက်ရှင်မော်ဒယ်',
+                          descMm: 'ခေတ်မီ ပိုးရင်ဖုံးဒီဇိုင်းနှင့် မဂ္ဂဇင်း အဆင့်မြင့် ဖက်ရှင်',
+                          subject: 'woman',
+                          eth: 'burmese',
+                          garment: 'modern_silk_yin_phone',
+                          promptTag: 'High-fashion Burmese editorial model wearing sculpted contemporary silk Yin-Phone and Luntaya Acheik couture'
+                        },
+                        {
+                          id: 'burmese-gentleman',
+                          code: '21',
+                          cat: 'modern',
+                          badge: 'GENTLEMAN',
+                          nameEn: 'Distinguished Burmese Gentleman',
+                          nameMm: 'မြန်မာ့ ဂုဏ်သရေရှိ အမျိုးသား (တိုက်ပုံနှင့် ပုဆိုး)',
+                          descMm: 'ပိုးတိုက်ပုံ၊ အမရပူရ ပိုးပုဆိုးနှင့် ခန့်ညားသော ဟန်ပန်',
+                          subject: 'man',
+                          eth: 'burmese',
+                          garment: 'myanmar_taingmathea',
+                          promptTag: 'Distinguished Burmese gentleman in tailored cream silk Taikpon jacket and handwoven Acheik silk Paso'
+                        },
+                        {
+                          id: 'myanmar-bridal-couple',
+                          code: '22',
+                          cat: 'modern',
+                          badge: 'ROYAL WEDDING',
+                          nameEn: 'Royal Myanmar Bridal Couple',
+                          nameMm: 'မြန်မာ့ရိုးရာ မင်္ဂလာ မောင်နှံ စုံတွဲ',
+                          descMm: 'ရွှေချည်ထိုး ထိုင်မသိမ်း သတို့သမီးနှင့် ခေါင်းပေါင်း သတို့သား',
+                          subject: 'couple',
+                          eth: 'burmese',
+                          garment: 'myanmar_bridal_gold',
+                          promptTag: 'Royal Myanmar wedding couple (Burmese groom in silk Taikpon and Gaung Baung with Burmese bride in gold-embroidered Htaingmathein and Acheik train)'
+                        },
+                        {
+                          id: 'venerable-myanmar-elder',
+                          code: '23',
+                          cat: 'modern',
+                          badge: 'ELDER DIGNITY',
+                          nameEn: 'Venerable Burmese Elder',
+                          nameMm: 'ကျက်သရေရှိသော မြန်မာ့ သက်ကြီး ဘိုးဘွား',
+                          descMm: 'တည်ကြည်အေးချမ်းသော အပြုံး၊ ပိုးပုဝါနှင့် ပုတီးစိပ်ဟန်',
+                          subject: 'elderly',
+                          eth: 'burmese',
+                          garment: 'myanmar_taingmathea',
+                          promptTag: 'Venerable dignified Burmese elder with silver hair, serene wise smile, wearing traditional silk attire and teakwood prayer beads'
+                        },
+                        {
+                          id: 'burmese-thanaka-child',
+                          code: '24',
+                          cat: 'modern',
+                          badge: 'YOUTH / CHILD',
+                          nameEn: 'Burmese Thanaka Child Portrait',
+                          nameMm: 'မြန်မာ့ သနပ်ခါး ပါးကွက်ကြား ကလေးငယ်',
+                          descMm: 'သနပ်ခါး ပါးကွက်ဝိုင်းဝိုင်းနှင့် ချစ်စဖွယ် မြန်မာကလေးငယ်',
+                          subject: 'child',
+                          eth: 'burmese',
+                          garment: 'traditional_myanmar',
+                          promptTag: 'Adorable Burmese child with traditional circular Thanaka paste on cheeks and festive Burmese silk outfit'
+                        }
+                      ]
+                        .filter((arch) => archetypeCategory === 'all' || arch.cat === archetypeCategory)
+                        .map((arch) => {
+                          const isSelected =
+                            selection.customSubjectDetails === arch.promptTag ||
+                            selection.customSubjectDetails === arch.nameEn;
+                          return (
+                            <button
+                              key={arch.id}
+                              type="button"
+                              onClick={() =>
+                                onUpdateSelection({
+                                  subject: arch.subject,
+                                  ethnicity: arch.eth,
+                                  garmentStyle: arch.garment,
+                                  customSubjectDetails: arch.promptTag
+                                })
+                              }
+                              className={`p-3 rounded-xl text-left transition-all relative flex flex-col items-start gap-1 cursor-pointer ${
+                                isSelected
+                                  ? 'border-2 border-[#704112] bg-[#fff8ec] text-[#1e1b19] shadow-xs'
+                                  : 'border border-[#d6c3b6]/40 bg-[#faf2ee] text-[#1e1b19] hover:border-[#847469] hover:bg-[#f4ece9]'
+                              }`}
+                            >
+                              <div className="w-full flex items-center justify-between gap-1.5">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span
+                                    className={`px-1.5 py-0.5 rounded font-mono text-[10px] font-bold shrink-0 ${
+                                      isSelected
+                                        ? 'bg-[#704112] text-white'
+                                        : 'bg-white border border-[#d6c3b6]/60 text-[#704112]'
+                                    }`}
+                                  >
+                                    {arch.code}
+                                  </span>
+                                  <span className="px-1.5 py-0.5 rounded bg-[#e9e1dd]/70 text-[#51443a] font-mono text-[9px] font-bold uppercase tracking-wider truncate">
+                                    {arch.badge}
+                                  </span>
+                                </div>
+                                <span
+                                  className={`material-symbols-outlined text-[17px] shrink-0 ${
+                                    isSelected ? 'text-[#704112]' : 'text-[#847469]/40'
+                                  }`}
+                                >
+                                  {isSelected ? 'check_circle' : 'radio_button_unchecked'}
+                                </span>
+                              </div>
+                              <span
+                                className={`font-sans text-xs font-bold leading-snug mt-0.5 ${
+                                  isSelected ? 'text-[#704112]' : 'text-[#1e1b19]'
+                                }`}
+                              >
+                                {arch.nameMm}
+                              </span>
+                              <span className="font-sans text-[11px] font-medium text-[#51443a] leading-tight">
+                                {arch.nameEn}
+                              </span>
+                              <span className="font-sans text-[10px] text-[#847469] line-clamp-1">
+                                {arch.descMm}
+                              </span>
+                            </button>
+                          );
+                        })}
+                    </div>
                   </div>
 
-                  {/* 🌟 HIGGSFIELD CHARACTER FEATURE DRAWER (Character Presets, Face Upload & Identity Lock) */}
+                  {/* HIGGSFIELD CHARACTER FEATURE DRAWER (15 Myanmar Character Presets, Face Upload & Identity Lock) */}
                   {expandedDrawers.characterFeature && (
                     <div className="p-4 rounded-xl bg-[#faf2ee] border border-[#d6c3b6]/50 space-y-4 animate-in fade-in">
                       <div className="flex items-center justify-between pb-1 border-b border-[#d6c3b6]/30">
                         <div className="flex items-center gap-2">
                           <span className="material-symbols-outlined text-[#704112] text-[20px]">person_pin</span>
                           <h3 className="font-sans text-sm font-bold text-[#704112]">
-                            Dedicated Character Presets &amp; 100% Face Identity Lock
+                            Visual Myanmar Persona Gallery (15 Cards) &amp; 100% Face Identity Lock
                           </h3>
                         </div>
                         <span className="text-xs font-semibold text-[#51443a]">
-                          Higgsfield AI Architecture
+                          Myanmar Portrait Studio
                         </span>
                       </div>
 
-                      {/* Character Presets Carousel Grid */}
+                      {/* Character Presets Carousel Grid (All 15 Myanmar Personas) */}
                       <div className="space-y-2">
                         <span className="font-sans text-xs text-[#51443a] uppercase font-bold tracking-wider">
-                          Select Character Persona (ကလစ်နှိပ်၍ ဇာတ်ကောင် ရွေးပါ):
+                          Visual Myanmar Persona Cards (ပုံပါ မြန်မာ့ဇာတ်ကောင် ၁၅ မျိုးမှ တိုက်ရိုက်ရွေးပါ):
                         </span>
-                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
-                          {CHARACTER_PRESETS.slice(0, 10).map((char) => {
-                            const isSelected = selection.customSubjectDetails === (isMyanmar ? char.nameMm : char.nameEn) || selection.customSubjectDetails === char.nameEn;
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 max-h-64 overflow-y-auto pr-1">
+                          {CHARACTER_PRESETS.map((char, idx) => {
+                            const isSelected =
+                              selection.customSubjectDetails === (isMyanmar ? char.nameMm : char.nameEn) ||
+                              selection.customSubjectDetails === char.nameEn ||
+                              selection.customSubjectDetails === char.description;
                             return (
                               <button
                                 key={char.id}
@@ -788,20 +1236,20 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                                       ethnicity: char.ethnicity,
                                       poseExpression: char.poseExpression,
                                       garmentStyle: char.garmentStyle,
-                                      customSubjectDetails: isMyanmar ? char.nameMm : char.nameEn
+                                      customSubjectDetails: char.description
                                     });
                                   }
                                 }}
                                 className={`rounded-xl overflow-hidden border text-left flex flex-col transition-all cursor-pointer ${
                                   isSelected
-                                    ? 'border-[#704112] ring-2 ring-[#704112] bg-white shadow-sm scale-[1.02]'
+                                    ? 'border-[#704112] ring-2 ring-[#704112] bg-white shadow-sm'
                                     : 'border-[#d6c3b6]/40 bg-white hover:border-[#847469]'
                                 }`}
                               >
-                                <div className="h-24 w-full bg-[#f4ece9] relative overflow-hidden">
+                                <div className="h-20 w-full bg-[#f4ece9] relative overflow-hidden">
                                   <img src={char.previewUrl} alt={char.nameEn} className="w-full h-full object-cover" />
-                                  <span className="absolute top-1.5 left-1.5 text-xs p-0.5 rounded bg-black/60 text-white">
-                                    {char.emoji}
+                                  <span className="absolute top-1.5 left-1.5 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-black/65 text-white">
+                                    {String(idx + 1).padStart(2, '0')}
                                   </span>
                                   {isSelected && (
                                     <span className="absolute top-1.5 right-1.5 material-symbols-outlined text-[16px] text-[#704112] bg-white rounded-full">
@@ -811,10 +1259,13 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                                 </div>
                                 <div className="p-2">
                                   <span className="font-sans text-xs font-bold text-[#1e1b19] block truncate">
-                                    {isMyanmar ? char.nameMm : char.nameEn}
+                                    {char.nameMm}
+                                  </span>
+                                  <span className="font-sans text-[10px] text-[#704112] font-medium block truncate">
+                                    {char.nameEn}
                                   </span>
                                   <span className="font-sans text-[10px] text-[#51443a] block truncate">
-                                    {char.taglineEn}
+                                    {char.taglineMm}
                                   </span>
                                 </div>
                               </button>
@@ -885,7 +1336,6 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                                       : 'bg-white border border-[#d6c3b6]/40 text-[#51443a] hover:bg-[#eee7e3]'
                                   }`}
                                 >
-                                  <span className="mr-1">{lock.emoji}</span>
                                   <span>{isMyanmar ? lock.labelMm : lock.labelEn}</span>
                                 </button>
                               );
@@ -919,26 +1369,30 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                     </div>
                   )}
 
-                  {/* Ethnicity Chips */}
-                  <div className="flex flex-col gap-1.5 pt-1">
-                    <label className="font-sans text-xs text-[#51443a] uppercase tracking-wider font-semibold">
-                      Ethnicity Sub-Archetype (တိုင်းရင်းသားမျိုးနွယ်)
-                    </label>
+                  {/* Step 1B: Myanmar-Only Ethnic Groups Selector (တိုင်းရင်းသားမျိုးနွယ်စု ၁၄ မျိုး) */}
+                  <div className="flex flex-col gap-2 pt-1">
+                    <div className="flex items-center justify-between">
+                      <label className="font-sans text-[11px] text-[#847469] uppercase tracking-wider font-bold">
+                        Step 1B — Myanmar Ethnic Heritage (မြန်မာ့ တိုင်းရင်းသားမျိုးနွယ်စု ၁၄ မျိုး):
+                      </label>
+                      <span className="font-mono text-[10px] text-[#704112] font-semibold">
+                        100% Myanmar Ethnicities Only
+                      </span>
+                    </div>
                     <div className="flex flex-wrap gap-1.5">
-                      {ETHNICITY_OPTIONS.map((eth) => {
+                      {ETHNICITY_OPTIONS.filter((e) => e.id !== 'skip').map((eth) => {
                         const isSelected = (selection.ethnicity || 'burmese') === eth.id;
                         return (
                           <button
                             key={eth.id}
                             type="button"
-                            onClick={() => onUpdateSelection({ ethnicity: isSelected ? 'skip' : eth.id })}
-                            className={`px-3.5 py-1 rounded-full font-sans text-xs transition-all cursor-pointer ${
+                            onClick={() => onUpdateSelection({ ethnicity: isSelected ? 'burmese' : eth.id })}
+                            className={`px-3 py-1.5 rounded-lg font-sans text-xs transition-all cursor-pointer ${
                               isSelected
-                                ? 'bg-[#704112] text-white font-semibold border border-[#704112]'
+                                ? 'bg-[#704112] text-white font-semibold border border-[#704112] shadow-2xs'
                                 : 'bg-[#f4ece9] border border-[#d6c3b6]/40 text-[#51443a] hover:border-[#847469] hover:bg-[#eee7e3]'
                             }`}
                           >
-                            <span className="mr-1">{eth.emoji}</span>
                             <span>{isMyanmar ? eth.labelMm : eth.labelEn}</span>
                           </button>
                         );
@@ -946,174 +1400,211 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                     </div>
                   </div>
 
-                  {/* Complexion Prompt Anchor Box */}
-                  <div className="bg-[#faf2ee] p-3.5 rounded-lg border border-[#d6c3b6]/30 flex flex-col gap-1">
-                    <div className="flex items-center justify-between">
+                  {/* Step 1C: Age Group & Myanmar Complexion / Facial Structure Selector */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                    {/* Age Group Pills */}
+                    <div className="bg-[#faf2ee] p-3.5 rounded-xl border border-[#d6c3b6]/40 flex flex-col gap-2">
                       <span className="font-sans text-[11px] text-[#704112] uppercase font-bold tracking-wider">
-                        Skin Tone &amp; Facial Structure
+                        Step 1C — Age Group (အသက်အရွယ် အပိုင်းအခြား):
                       </span>
-                      <span className="text-[#275546] font-sans text-[11px] bg-[#bcedda]/40 px-2 py-0.5 rounded-full font-medium">
-                        Natural Glow Preset
-                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          { id: '8-12', labelMm: 'ကလေး (၈-၁၂ နှစ်)', labelEn: 'Child (8-12 yrs)' },
+                          { id: '18_25', labelMm: 'လူငယ် (၁၈-၂၅ နှစ်)', labelEn: 'Youth (18-25 yrs)' },
+                          { id: '26_35', labelMm: 'လူလတ် (၂၆-၃၅ နှစ်)', labelEn: 'Prime Adult (26-35)' },
+                          { id: '36_45', labelMm: 'ဂုဏ်သရေရှိ (၃၆-၄၅ နှစ်)', labelEn: 'Mature (36-45 yrs)' },
+                          { id: 'over_65', labelMm: 'သက်ကြီးဘိုးဘွား (၆၀+)', labelEn: 'Elder (60+ yrs)' },
+                        ].map((age) => {
+                          const active = (selection.ageRange || '18_25') === age.id;
+                          return (
+                            <button
+                              key={age.id}
+                              type="button"
+                              onClick={() => onUpdateSelection({ ageRange: age.id })}
+                              className={`px-2.5 py-1 rounded-md font-sans text-xs transition-all cursor-pointer ${
+                                active
+                                  ? 'bg-[#704112] text-white font-semibold'
+                                  : 'bg-white border border-[#d6c3b6]/50 text-[#51443a] hover:bg-[#eee7e3]'
+                              }`}
+                            >
+                              {isMyanmar ? age.labelMm : age.labelEn}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <p className="font-sans text-xs text-[#1e1b19] leading-relaxed">
-                      "Warm golden honey olive complexion, smooth natural epidermal texture, authentic Southeast Asian Burmese facial bone structure, gentle contemplative amber eyes."
-                    </p>
+
+                    {/* Interactive Myanmar Skin Tone & Facial Bone Structure Presets */}
+                    <div className="bg-[#faf2ee] p-3.5 rounded-xl border border-[#d6c3b6]/40 flex flex-col gap-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-sans text-[11px] text-[#704112] uppercase font-bold tracking-wider">
+                          Step 1D — Myanmar Skin &amp; Facial Tone (မြန်မာ့အသားအရောင်):
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {[
+                          {
+                            id: 'shwe_o_honey',
+                            labelMm: 'ရွှေအိုရောင် အသားညိုချော',
+                            labelEn: 'Golden Honey Olive',
+                            promptVal: 'warm golden honey-olive Burmese complexion, natural epidermal micro-pores, gentle dark amber eyes'
+                          },
+                          {
+                            id: 'ivory_thanaka',
+                            labelMm: 'ဝင်းဝါစိုပြည် အသားဖြူဝင်း',
+                            labelEn: 'Luminous Ivory Glow',
+                            promptVal: 'luminous warm ivory Burmese complexion with dewy Thanaka radiance and delicate facial bone structure'
+                          },
+                          {
+                            id: 'highland_rosy',
+                            labelMm: 'တောင်ပေါ် အသားဖြူသွေးရောင်',
+                            labelEn: 'Highland Rosy Fair',
+                            promptVal: 'fair rosy-ivory Myanmar highland complexion with refined cheekbones and clear radiant skin'
+                          },
+                          {
+                            id: 'anyar_bronze',
+                            labelMm: 'အညာ သဘာဝ အသားညိုဝင်း',
+                            labelEn: 'Sunlit Bronze Tan',
+                            promptVal: 'rich sunlit bronze-golden Upper Myanmar complexion with authentic natural skin texture and expressive eyes'
+                          }
+                        ].map((skin) => {
+                          const active =
+                            selection.customEthnicityDetails === skin.promptVal ||
+                            (!selection.customEthnicityDetails && skin.id === 'shwe_o_honey');
+                          return (
+                            <button
+                              key={skin.id}
+                              type="button"
+                              onClick={() => onUpdateSelection({ customEthnicityDetails: skin.promptVal })}
+                              className={`p-2 rounded-lg text-left transition-all cursor-pointer ${
+                                active
+                                  ? 'bg-[#704112] text-white font-semibold'
+                                  : 'bg-white border border-[#d6c3b6]/50 text-[#1e1b19] hover:bg-[#eee7e3]'
+                              }`}
+                            >
+                              <span className="font-sans text-[11px] block leading-tight font-bold">
+                                {skin.labelMm}
+                              </span>
+                              <span className={`font-sans text-[10px] block ${active ? 'text-white/80' : 'text-[#51443a]'}`}>
+                                {skin.labelEn}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
                 </section>
 
-                {/* SECTION 2: Traditional Dress & Textile Heritage */}
+                {/* SECTION 2: Traditional Dress & Textile Heritage (Clothes & Silk Browser) */}
                 <section className="bg-white rounded-xl p-5 shadow-xs border border-[#d6c3b6]/30 flex flex-col gap-4">
-                  <div className="flex items-center justify-between pb-1 border-b border-[#d6c3b6]/20">
+                  <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-[#d6c3b6]/20">
                     <div className="flex items-center gap-2">
                       <span className="w-7 h-7 rounded-full bg-[#704112]/10 text-[#704112] font-sans text-sm flex items-center justify-center font-bold border border-[#704112]/20">
                         2
                       </span>
                       <div>
                         <h2 className="font-sans text-base text-[#1e1b19] font-semibold">
-                          Traditional Dress &amp; Textile Heritage
+                          Traditional Dress &amp; Textile Heritage (Clothes Style Browser)
                         </h2>
                         <span className="font-sans text-xs text-[#51443a]">
-                          ရိုးရာဝတ်စုံနှင့် ရက်ကန်းထည်များ
+                          ရိုးရာဝတ်စုံ၊ တိုင်းရင်းသားဝတ်စုံ၊ အရောင်နှင့် ပိုးချိတ်အသား ရွေးချယ်မှု (၃၈ မျိုး)
                         </span>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => toggleDrawer('garmentCatalog')}
-                      className="px-2.5 py-1 rounded-full bg-[#ffdf98]/50 text-[#5a4300] border border-[#775a00]/20 font-sans text-xs px-2.5 py-0.5 rounded-full font-semibold flex items-center gap-1 cursor-pointer hover:bg-[#ffdf98]"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">checkroom</span>
-                      <span>{expandedDrawers.garmentCatalog ? 'Hide 32 Outfits' : '👗 Browse 32 Outfits & Clothes Swap'}</span>
-                    </button>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => toggleDrawer('garmentCatalog')}
+                        className="px-3 py-1 rounded-full bg-[#704112] text-white font-sans text-xs font-semibold flex items-center gap-1.5 cursor-pointer hover:bg-[#5a330d] transition-colors shadow-2xs"
+                      >
+                        <span className="material-symbols-outlined text-[15px]">checkroom</span>
+                        <span>
+                          {expandedDrawers.garmentCatalog
+                            ? 'Hide Clothes Browser'
+                            : 'Open Clothes & Silk Browser (38 Styles)'}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => toggleDrawer('clothesSwapTools')}
+                        className="px-3 py-1 rounded-full bg-[#ffdf98]/60 text-[#5a4300] border border-[#775a00]/25 font-sans text-xs font-semibold flex items-center gap-1.5 cursor-pointer hover:bg-[#ffdf98] transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-[15px]">swap_horiz</span>
+                        <span>
+                          {expandedDrawers.clothesSwapTools
+                            ? 'Hide Clothes Swap Upload'
+                            : 'Custom Outfit Upload & Swap'}
+                        </span>
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Female Silhouettes */}
-                    <div className="flex flex-col gap-2">
-                      <span className="font-sans text-xs text-[#847469] uppercase font-semibold">
-                        Female Silhouettes (အမျိုးသမီး ဝတ်စုံ)
-                      </span>
-                      <div className="flex flex-col gap-1.5">
-                        {[
-                          { id: 'traditional_myanmar_royal', titleEn: 'Bagan Silk Yinzi Htamein', titleMm: 'ပုဂံခေတ် ရင်စည်း ပိုးထဘီ' },
-                          { id: 'traditional_myanmar', titleEn: 'Mandalay Yadanabon Royal Ein Gyi', titleMm: 'မန္တလေး ရတနာပုံ နန်းတွင်း ဝတ်စုံကြီး' },
-                          { id: 'kachin_ethnic_attire', titleEn: 'Kachin Wool & Silver Attire', titleMm: 'ကချင် ရိုးရာ ငွေမောင်းတန်ဆာဆင် ဝတ်စုံ' },
-                          { id: 'shan_ethnic_attire', titleEn: 'Inle Lotus Patterned Longyi', titleMm: 'အင်းလေး ကြာချည် လုံချည်' }
-                        ].map((item) => (
-                          <label
+                  {/* Quick Heritage Archetype Picks (1-Click Featured Burmese Silhouettes) */}
+                  <div className="flex flex-col gap-2">
+                    <span className="font-sans text-[11px] text-[#847469] uppercase font-bold tracking-wider">
+                      Quick Royal &amp; Ethnic Archetypes (အမြန်ရွေးရန် အဓိက မြန်မာ့ရိုးရာ ဝတ်စုံများ):
+                    </span>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                      {[
+                        { id: 'traditional_myanmar', code: '01', titleEn: 'Mandalay Acheik Silk', titleMm: 'မန္တလေး လွန်းရာကျော် ပိုးချိတ်' },
+                        { id: 'traditional_myanmar_royal', code: '02', titleEn: 'Konbaung Royal Court', titleMm: 'ကုန်းဘောင် နန်းတွင်းဝတ်စုံ' },
+                        { id: 'bagan_royal_yinzi', code: '03', titleEn: 'Bagan Silk Yinzi', titleMm: 'ပုဂံခေတ် ရင်စည်း ပိုးထဘီ' },
+                        { id: 'myanmar_bridal_gold', code: '04', titleEn: 'Royal Bridal Gold', titleMm: 'မြန်မာ့ သတို့သမီး ရွှေချည်ထိုး' },
+                        { id: 'inle_lotus_silk_attire', code: '05', titleEn: 'Inle Lotus Silk', titleMm: 'အင်းလေး ကြာချည် ပိုးဝတ်စုံ' },
+                        { id: 'kachin_ethnic_attire', code: '06', titleEn: 'Kachin Silver & Wool', titleMm: 'ကချင် ငွေမောင်း ရိုးရာဝတ်စုံ' },
+                        { id: 'shan_ethnic_attire', code: '07', titleEn: 'Shan Royal Brocade', titleMm: 'ရှမ်းရိုးရာ ပိုးဖဲဝတ်စုံ' },
+                        { id: 'myanmar_taingmathea', code: '08', titleEn: 'Taikpon & Acheik Paso', titleMm: 'တိုက်ပုံ၊ ပိုးပုဆိုးနှင့် ခေါင်းပေါင်း' },
+                      ].map((item) => {
+                        const active = selection.garmentStyle === item.id;
+                        return (
+                          <button
                             key={item.id}
+                            type="button"
                             onClick={() => onUpdateSelection({ garmentStyle: item.id })}
-                            className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-colors ${
-                              selection.garmentStyle === item.id
-                                ? 'bg-[#faf2ee] border border-[#704112]/50'
-                                : 'bg-[#faf2ee] border border-[#d6c3b6]/30 hover:bg-[#f4ece9]'
+                            className={`flex items-center gap-2.5 p-2.5 rounded-xl text-left border transition-all cursor-pointer ${
+                              active
+                                ? 'bg-[#fff8ec] border-[#704112] ring-1 ring-[#704112]/40 shadow-2xs'
+                                : 'bg-[#faf2ee] border-[#d6c3b6]/40 hover:bg-[#f4ece9]'
                             }`}
                           >
-                            <input
-                              type="radio"
-                              name="garment"
-                              checked={selection.garmentStyle === item.id}
-                              onChange={() => onUpdateSelection({ garmentStyle: item.id })}
-                              className="accent-[#704112] w-4 h-4"
-                            />
-                            <div className="flex flex-col">
-                              <span className="font-sans text-sm text-[#1e1b19] font-medium leading-tight">
-                                {item.titleEn}
-                              </span>
-                              <span className="font-sans text-xs text-[#51443a]">
+                            <span className={`w-7 h-7 rounded-lg flex items-center justify-center font-mono text-[11px] font-bold shrink-0 ${
+                              active
+                                ? 'bg-[#704112] text-white'
+                                : 'bg-white border border-[#d6c3b6]/60 text-[#704112]'
+                            }`}>
+                              {item.code}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-sans text-xs text-[#1e1b19] font-bold truncate">
                                 {item.titleMm}
-                              </span>
+                              </p>
+                              <p className="font-sans text-[10px] text-[#51443a] truncate">
+                                {item.titleEn}
+                              </p>
                             </div>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Male Attire & Textile Modifiers */}
-                    <div className="flex flex-col gap-4">
-                      <div className="flex flex-col gap-2">
-                        <span className="font-sans text-xs text-[#847469] uppercase font-semibold">
-                          Male Archetype Garments (အမျိုးသား ဝတ်စုံ)
-                        </span>
-                        <div className="flex flex-col gap-1.5">
-                          {[
-                            { id: 'myanmar_taingmathea', titleEn: 'Taikpon & Achik Paso', titleMm: 'တိုက်ပုံ၊ ပိုးပုဆိုး နှင့် ခေါင်းပေါင်း' },
-                            { id: 'formal_business', titleEn: 'Konbaung Royal Court Robe', titleMm: 'ကုန်းဘောင်ခေတ် ဝန်ကြီး ဝတ်စုံ' }
-                          ].map((item) => (
-                            <label
-                              key={item.id}
-                              onClick={() => onUpdateSelection({ garmentStyle: item.id })}
-                              className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-colors ${
-                                selection.garmentStyle === item.id
-                                  ? 'bg-[#faf2ee] border border-[#704112]/50'
-                                  : 'bg-[#faf2ee] border border-[#d6c3b6]/30 hover:bg-[#f4ece9]'
-                              }`}
-                            >
-                              <input
-                                type="radio"
-                                name="garment"
-                                checked={selection.garmentStyle === item.id}
-                                onChange={() => onUpdateSelection({ garmentStyle: item.id })}
-                                className="accent-[#704112] w-4 h-4"
-                              />
-                              <div className="flex flex-col">
-                                <span className="font-sans text-sm text-[#1e1b19] font-medium leading-tight">
-                                  {item.titleEn}
-                                </span>
-                                <span className="font-sans text-xs text-[#51443a]">
-                                  {item.titleMm}
-                                </span>
-                              </div>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Textile Texture Modifiers */}
-                      <div className="flex flex-col gap-1.5">
-                        <span className="font-sans text-xs text-[#847469] uppercase font-semibold">
-                          Textile Texture Modifiers (ရက်ကန်းအထည်သား)
-                        </span>
-                        <div className="flex flex-wrap gap-2">
-                          {[
-                            'Woven Silk with Water Droplets',
-                            'Traditional Konbaung Gold Brocade',
-                            'Lustrous Royal Velvet',
-                            'Crisp Tailored Cotton Linen'
-                          ].map((mod) => {
-                            const isIncluded = selection.garmentFabric === mod;
-                            return (
-                              <button
-                                key={mod}
-                                type="button"
-                                onClick={() => onUpdateSelection({ garmentFabric: isIncluded ? '' : mod })}
-                                className={`px-2.5 py-1 rounded-md font-sans text-xs flex items-center gap-1.5 border transition-all cursor-pointer ${
-                                  isIncluded
-                                    ? 'bg-[#f4ece9] border-[#704112]/60 text-[#704112] font-semibold'
-                                    : 'bg-[#faf2ee] border-[#d6c3b6]/40 text-[#51443a] hover:bg-[#eee7e3]'
-                                }`}
-                              >
-                                <span className={`material-symbols-outlined text-[14px] ${isIncluded ? 'text-[#704112]' : 'text-[#847469]'}`}>
-                                  {isIncluded ? 'check_circle' : 'add_circle'}
-                                </span>
-                                <span>{mod}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
-                  {/* 🌟 FULL 32 GARMENTS & CLOTHES SWAP CAROUSEL DRAWER */}
+                  {/* FULL CLOTHES, COLOR PALETTE & SILK WEAVE STYLE BROWSER (OPEN BY DEFAULT) */}
                   {expandedDrawers.garmentCatalog && (
-                    <div className="p-4 rounded-xl bg-[#faf2ee] border border-[#d6c3b6]/50 space-y-4 animate-in fade-in">
+                    <div className="animate-in fade-in">
                       <GarmentSelectionCarousel
                         language={language}
                         selection={selection}
                         onUpdateSelection={onUpdateSelection}
                       />
+                    </div>
+                  )}
+
+                  {/* OPTIONAL CLOTHES SWAP & CUSTOM GARMENT IMAGE UPLOADER */}
+                  {expandedDrawers.clothesSwapTools && (
+                    <div className="p-4 rounded-xl bg-[#faf2ee] border border-[#d6c3b6]/60 space-y-4 animate-in fade-in">
                       <ClothesSwapPanel
                         language={language}
                         selection={selection}
@@ -1128,79 +1619,111 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                   )}
                 </section>
 
-                {/* SECTION 3: Thanaka & Royal Coiffure */}
+                {/* SECTION 3: Thanaka, Royal Coiffure & Cultural Jewelry Browser */}
                 <section className="bg-white rounded-xl p-5 shadow-xs border border-[#d6c3b6]/30 flex flex-col gap-4">
-                  <div className="flex items-center justify-between pb-1 border-b border-[#d6c3b6]/20">
+                  <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-[#d6c3b6]/20">
                     <div className="flex items-center gap-2">
                       <span className="w-7 h-7 rounded-full bg-[#704112]/10 text-[#704112] font-sans text-sm flex items-center justify-center font-bold border border-[#704112]/20">
                         3
                       </span>
                       <div>
                         <h2 className="font-sans text-base text-[#1e1b19] font-semibold">
-                          Thanaka &amp; Royal Coiffure
+                          Thanaka, Royal Coiffure &amp; Cultural Jewelry Browser
                         </h2>
                         <span className="font-sans text-xs text-[#51443a]">
-                          သနပ်ခါး လိမ်းခြယ်မှုနှင့် ဆံထုံးအဆင်တန်ဆာ
+                          သနပ်ခါး လိမ်းခြယ်မှု၊ ဆံထုံးပန်းအလှ နှင့် နန်းတွင်း လက်ဝတ်ရတနာ ဘရောက်ဇာ (၄၆ မျိုး)
                         </span>
                       </div>
                     </div>
                     <span className="bg-[#ffdf98]/50 text-[#5a4300] border border-[#775a00]/20 font-sans text-xs px-2.5 py-0.5 rounded-full font-semibold">
-                      Essential Signature
+                      Jewelry, Hair &amp; Thanaka Studio
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Thanaka Patterns */}
-                    <div className="flex flex-col gap-2">
-                      <span className="font-sans text-xs text-[#847469] uppercase font-semibold">
-                        Thanaka Bark Application (သနပ်ခါး လိမ်းစနစ်)
-                      </span>
-                      <div className="flex flex-col gap-1.5">
-                        {[
-                          { id: 'traditional_myanmar', titleEn: 'Circular Swirl Pattern', titleMm: 'သနပ်ခါး ဘီးကျဲ' },
-                          { id: 'minimalist_natural', titleEn: 'Leaf Stencil Motif', titleMm: 'သနပ်ခါး သစ်ရွက်ပုံ' },
-                          { id: 'glamour_editorial', titleEn: 'Sheer Sun-Veil Dusted', titleMm: 'ပါးကွက် ပါးပါးကြည်' }
-                        ].map((item) => (
-                          <label
+                  {/* Step 3A: Thanaka & Burmese Beauty Application Bar */}
+                  <div className="flex flex-col gap-2">
+                    <span className="font-sans text-[11px] text-[#847469] uppercase font-bold tracking-wider">
+                      Step 3A — Thanaka &amp; Burmese Cosmetics Application (သနပ်ခါး နှင့် မိတ်ကပ် စတိုင်):
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                      {[
+                        {
+                          id: 'traditional_myanmar',
+                          icon: 'spa',
+                          titleEn: 'Circular Kyauk Pyin Swirl',
+                          titleMm: 'သနပ်ခါး ပါးကွက် ဘီးကျဲ',
+                          desc: 'Organic pale-gold Thanaka swirl on cheeks',
+                        },
+                        {
+                          id: 'minimalist_natural',
+                          icon: 'eco',
+                          titleEn: 'Leaf Stencil Motif',
+                          titleMm: 'သနပ်ခါး သစ်ရွက်ပုံ ဒီဇိုင်း',
+                          desc: 'Delicate botanical leaf Thanaka artwork',
+                        },
+                        {
+                          id: 'glamour_editorial',
+                          icon: 'flare',
+                          titleEn: 'Sheer Sun-Veil Dusted',
+                          titleMm: 'သနပ်ခါး ပါးပါးကြည် မိတ်ကပ်',
+                          desc: 'Translucent golden Thanaka powder glow',
+                        },
+                        {
+                          id: 'traditional_myanmar_makeup',
+                          icon: 'face_retouching_natural',
+                          titleEn: 'Royal Myanmar Bridal Glam',
+                          titleMm: 'ရိုးရာ မင်္ဂလာ မိတ်ကပ်အလှ',
+                          desc: 'Classic Burmese bridal glow & ruby lips',
+                        },
+                      ].map((item) => {
+                        const active = (selection.makeup || 'traditional_myanmar') === item.id;
+                        return (
+                          <button
                             key={item.id}
+                            type="button"
                             onClick={() => onUpdateSelection({ makeup: item.id })}
-                            className={`flex items-center justify-between p-2.5 rounded-lg cursor-pointer transition-colors ${
-                              (selection.makeup || 'traditional_myanmar') === item.id
-                                ? 'bg-[#faf2ee] border border-[#704112]/50'
-                                : 'bg-[#faf2ee] border border-[#d6c3b6]/30 hover:bg-[#f4ece9]'
+                            className={`flex items-start gap-2.5 p-3 rounded-xl text-left border transition-all cursor-pointer ${
+                              active
+                                ? 'bg-[#fff8ec] border-[#704112] ring-1 ring-[#704112]/40 shadow-2xs'
+                                : 'bg-[#faf2ee] border-[#d6c3b6]/40 hover:bg-[#f4ece9]'
                             }`}
                           >
-                            <div className="flex items-center gap-2.5">
-                              <input
-                                type="radio"
-                                name="makeup"
-                                checked={(selection.makeup || 'traditional_myanmar') === item.id}
-                                onChange={() => onUpdateSelection({ makeup: item.id })}
-                                className="accent-[#704112] w-4 h-4"
-                              />
-                              <span className="font-sans text-sm text-[#1e1b19] font-medium">
-                                {item.titleEn}
+                            <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                              active
+                                ? 'bg-[#704112] text-white'
+                                : 'bg-white border border-[#d6c3b6]/50 text-[#704112]'
+                            }`}>
+                              <span className="material-symbols-outlined text-[18px]">
+                                {item.icon}
                               </span>
-                            </div>
-                            <span className="font-sans text-xs text-[#51443a]">
-                              {item.titleMm}
                             </span>
-                          </label>
-                        ))}
-                      </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-sans text-xs text-[#1e1b19] font-bold leading-snug">
+                                {item.titleMm}
+                              </p>
+                              <p className="font-sans text-[10px] text-[#704112] font-medium">
+                                {item.titleEn}
+                              </p>
+                              <p className="font-sans text-[10px] text-[#51443a] mt-0.5 line-clamp-1">
+                                {item.desc}
+                              </p>
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
+                  </div>
 
-                    {/* Cultural Props Dropdown */}
-                    <div className="flex flex-col gap-2">
-                      <span className="font-sans text-xs text-[#847469] uppercase font-semibold">
-                        Cultural Jewelry &amp; Props (ရိုးရာ အဆင်တန်ဆာ)
-                      </span>
-                      <CulturalPropsDropdown
-                        language={language}
-                        selection={selection}
-                        onUpdateSelection={onUpdateSelection}
-                      />
-                    </div>
+                  {/* Step 3B: Full-Width Royal Jewelry, Hair Coiffure & Cultural Props Style Browser */}
+                  <div className="flex flex-col gap-2">
+                    <span className="font-sans text-[11px] text-[#847469] uppercase font-bold tracking-wider">
+                      Step 3B — Browse Royal Jewelry, Hair Coiffure &amp; Cultural Accessories (ရတနာ၊ ဆံထုံးနှင့် ရိုးရာအသုံးအဆောင် ဘရောက်ဇာ):
+                    </span>
+                    <CulturalPropsDropdown
+                      language={language}
+                      selection={selection}
+                      onUpdateSelection={onUpdateSelection}
+                    />
                   </div>
                 </section>
 
@@ -1238,7 +1761,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                           title="Open Background Changer Studio with 24+ Presets & Contact Shadows"
                         >
                           <span className="material-symbols-outlined text-[16px]">wallpaper</span>
-                          <span>🖼️ {isMyanmar ? 'နောက်ခံလဲလှယ်ခန်း (Presets)' : 'Background Changer (Presets)'}</span>
+                          <span>{isMyanmar ? 'နောက်ခံလဲလှယ်ခန်း (Presets)' : 'Background Changer (Presets)'}</span>
                         </button>
                       )}
                       <button
@@ -1247,7 +1770,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                         className="px-2.5 py-1 rounded-full bg-[#bcedda]/50 text-[#214f41] border border-[#275546]/20 font-sans text-xs font-semibold flex items-center gap-1 cursor-pointer hover:bg-[#bcedda]"
                       >
                         <span className="material-symbols-outlined text-[16px]">map</span>
-                        <span>{expandedDrawers.locationCatalog ? 'Hide 36 Locations' : '🏛️ Browse 36 Locations'}</span>
+                        <span>{expandedDrawers.locationCatalog ? 'Hide 36 Locations' : 'Browse 36 Locations'}</span>
                       </button>
                     </div>
                   </div>
@@ -1313,7 +1836,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                         onClick={() => toggleDrawer('eventCatalog')}
                         className="text-xs text-[#704112] font-semibold hover:underline"
                       >
-                        {expandedDrawers.eventCatalog ? 'Close 30 Events' : '🎉 Browse 30 Festivals'}
+                        {expandedDrawers.eventCatalog ? 'Close 30 Events' : 'Browse 30 Festivals'}
                       </button>
                     </div>
                     {expandedDrawers.eventCatalog && (
@@ -1406,7 +1929,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                       className="px-2.5 py-1 rounded-full bg-[#ffdf98]/50 text-[#5a4300] border border-[#775a00]/20 font-sans text-xs font-semibold flex items-center gap-1 cursor-pointer hover:bg-[#ffdf98]"
                     >
                       <span className="material-symbols-outlined text-[16px]">wb_sunny</span>
-                      <span>{expandedDrawers.lightingCatalog ? 'Hide 30 Lights' : '💡 Browse 30 Lights & Moods'}</span>
+                      <span>{expandedDrawers.lightingCatalog ? 'Hide 30 Lights' : 'Browse 30 Lights & Moods'}</span>
                     </button>
                   </div>
 
@@ -1449,7 +1972,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                     })}
                   </div>
 
-                  {/* 🌟 30 LIGHTING & 15 MOODS CAROUSEL DRAWER */}
+                  {/* 30 LIGHTING & 15 MOODS CAROUSEL DRAWER */}
                   {expandedDrawers.lightingCatalog && (
                     <div className="p-4 rounded-xl bg-[#faf2ee] border border-[#d6c3b6]/50 space-y-4 animate-in fade-in">
                       <LightingSelectionCarousel
@@ -1497,7 +2020,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                       className="px-2.5 py-1 rounded-full bg-[#ffdf98]/50 text-[#5a4300] border border-[#775a00]/20 font-sans text-xs font-semibold flex items-center gap-1 cursor-pointer hover:bg-[#ffdf98]"
                     >
                       <span className="material-symbols-outlined text-[16px]">accessibility_new</span>
-                      <span>{expandedDrawers.poseCatalog ? 'Hide 25 Poses' : '🧘 Browse 25 Signature Poses'}</span>
+                      <span>{expandedDrawers.poseCatalog ? 'Hide 25 Poses' : 'Browse 25 Signature Poses'}</span>
                     </button>
                   </div>
 
@@ -1554,7 +2077,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                     </div>
                   </div>
 
-                  {/* 🌟 25 POSES CAROUSEL DRAWER */}
+                  {/* 25 POSES CAROUSEL DRAWER */}
                   {expandedDrawers.poseCatalog && (
                     <div className="p-4 rounded-xl bg-[#faf2ee] border border-[#d6c3b6]/50 space-y-4 animate-in fade-in">
                       <PoseSelectionCarousel
@@ -1588,7 +2111,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                       className="px-2.5 py-1 rounded-full bg-[#ffdf98]/50 text-[#5a4300] border border-[#775a00]/20 font-sans text-xs font-semibold flex items-center gap-1 cursor-pointer hover:bg-[#ffdf98]"
                     >
                       <span className="material-symbols-outlined text-[16px]">photo_camera</span>
-                      <span>{expandedDrawers.cameraCatalog ? 'Hide 25 Cameras' : '📷 Browse 25 Cameras & Angles'}</span>
+                      <span>{expandedDrawers.cameraCatalog ? 'Hide 25 Cameras' : 'Browse 25 Cameras & Angles'}</span>
                     </button>
                   </div>
 
@@ -1644,7 +2167,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                     </div>
                   </div>
 
-                  {/* 🌟 25 CAMERAS & ANGLES CAROUSEL DRAWER */}
+                  {/* 25 CAMERAS & ANGLES CAROUSEL DRAWER */}
                   {expandedDrawers.cameraCatalog && (
                     <div className="p-4 rounded-xl bg-[#faf2ee] border border-[#d6c3b6]/50 space-y-4 animate-in fade-in">
                       <CameraSelectionCarousel
@@ -1683,7 +2206,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                       className="px-2.5 py-1 rounded-full bg-[#ffdf98]/50 text-[#5a4300] border border-[#775a00]/20 font-sans text-xs font-semibold flex items-center gap-1 cursor-pointer hover:bg-[#ffdf98]"
                     >
                       <span className="material-symbols-outlined text-[16px]">palette</span>
-                      <span>{expandedDrawers.filmRetouchCatalog ? 'Hide 20 Film LUTs' : '🎞️ Browse 20 Film LUTs & Retouch'}</span>
+                      <span>{expandedDrawers.filmRetouchCatalog ? 'Hide 20 Film LUTs' : 'Browse 20 Film LUTs & Retouch'}</span>
                     </button>
                   </div>
 
@@ -1723,7 +2246,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                     })}
                   </div>
 
-                  {/* 🌟 20 FILM LUTS, RETOUCH & MAKEUP CAROUSEL DRAWER */}
+                  {/* 20 FILM LUTS, RETOUCH & MAKEUP CAROUSEL DRAWER */}
                   {expandedDrawers.filmRetouchCatalog && (
                     <div className="p-4 rounded-xl bg-[#faf2ee] border border-[#d6c3b6]/50 space-y-4 animate-in fade-in">
                       <FilmColorSelectionCarousel
@@ -1781,7 +2304,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                       className="px-2.5 py-1 rounded-full bg-[#ffdf98]/50 text-[#5a4300] border border-[#775a00]/20 font-sans text-xs font-semibold flex items-center gap-1 cursor-pointer hover:bg-[#ffdf98]"
                     >
                       <span className="material-symbols-outlined text-[16px]">auto_awesome</span>
-                      <span>{expandedDrawers.qualityCatalog ? 'Hide Quality Engines' : '⚙️ Master Render Quality Engines'}</span>
+                      <span>{expandedDrawers.qualityCatalog ? 'Hide Quality Engines' : 'Master Render Quality Engines'}</span>
                     </button>
                   </div>
 
@@ -2070,11 +2593,13 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                 {activeOptionChips.map((chip) => (
                   <div
                     key={chip.id}
-                    className="flex items-center gap-1 pl-2 pr-1 py-1 rounded-md bg-[#faf2ee] border border-[#d6c3b6]/40 text-xs"
+                    className="flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-md bg-[#faf2ee] border border-[#d6c3b6]/40 text-xs"
                   >
-                    <span>{chip.emoji || '✨'}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#704112]">
+                      {chip.labelEn}:
+                    </span>
                     <span className="font-semibold text-[#1e1b19]">
-                      {isMyanmar ? chip.valueMm : chip.valueEn}
+                      {(isMyanmar ? chip.valueMm : chip.valueEn).replace(/^🚫\s*/, '')}
                     </span>
                     <button
                       type="button"
@@ -2094,11 +2619,18 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
           <div className="bg-white rounded-xl p-5 shadow-xs border border-[#d6c3b6]/30 flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-sans text-base text-[#1e1b19] font-semibold">
-                  Master Synthesized Prompt
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-sans text-base text-[#1e1b19] font-semibold">
+                    Master Synthesized Prompt
+                  </h3>
+                  {aiSynthesizedData && (
+                    <span className="px-2 py-0.5 rounded-full bg-[#ffd02f] text-[#1c1c1e] text-[10px] font-extrabold">
+                      AI Pro Synthesized
+                    </span>
+                  )}
+                </div>
                 <span className="font-sans text-xs text-[#51443a]">
-                  ထုတ်ပေးလိုက်သော AI စာသား
+                  ထုတ်ပေးလိုက်သော အဆင့်မြင့် မြန်မာ့ရိုးရာ AI စာသား
                 </span>
               </div>
               <div className="flex items-center gap-1.5 bg-[#f4ece9] border border-[#d6c3b6]/30 px-3 py-1 rounded-lg">
@@ -2109,20 +2641,41 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
               </div>
             </div>
 
+            {/* Multi-Engine Format Selector Tabs */}
+            <div className="flex flex-wrap items-center gap-1.5 p-1 bg-[#f4ece9] rounded-xl border border-[#d6c3b6]/30">
+              {[
+                { id: 'master', label: 'Master' },
+                { id: 'flux', label: 'FLUX / GPT Prose' },
+                { id: 'midjourney', label: 'Midjourney v6.1' },
+                { id: 'sdxl', label: 'SDXL' },
+                { id: 'negative', label: 'Negative' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveFormatTab(tab.id as any)}
+                  className={`px-2.5 py-1 rounded-lg font-sans text-[11px] font-bold transition-all cursor-pointer ${
+                    activeFormatTab === tab.id
+                      ? 'bg-[#1c1c1e] text-[#ffd02f] shadow-2xs'
+                      : 'text-[#51443a] hover:bg-white/70'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
             {/* Active Parameters Pill Badges */}
             <div className="flex flex-wrap items-center gap-1.5 pb-0.5">
               <span className="px-2 py-0.5 rounded-full bg-[#ffdf98]/50 text-[#5a4300] border border-[#775a00]/20 text-xs font-semibold">
-                {engineSyntax.split(' ')[0]}
+                {activeFormatTab === 'flux' ? 'Natural Prose (No Flags)' : engineSyntax.split(' ')[0]}
               </span>
               <span className="px-2 py-0.5 rounded-full bg-[#ffdcc2]/50 text-[#2e1500] border border-[#704112]/20 text-xs font-semibold">
                 --ar {selection.aspectRatio || '16:9'}
               </span>
-              <span className="px-2 py-0.5 rounded-full bg-[#f4ece9] border border-[#d6c3b6]/30 text-[#1e1b19] text-xs font-medium">
-                --style raw
-              </span>
               <span className="px-2 py-0.5 rounded-full bg-[#bcedda]/50 text-[#214f41] border border-[#275546]/20 text-xs font-semibold flex items-center gap-1">
                 <span className="material-symbols-outlined text-[12px]">verified</span>
-                <span>Authenticity 99.4%</span>
+                <span>100% Burmese Cultural Taxonomy</span>
               </span>
             </div>
 
@@ -2160,7 +2713,17 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
               <div className="flex items-center justify-between pb-1.5 border-b border-[#eef0f3]">
                 <span className="font-sans text-[11px] text-[#1c1c1e] font-bold uppercase tracking-wider flex items-center gap-1.5">
                   <span className="material-symbols-outlined text-[15px] text-[#4262ff]">terminal</span>
-                  <span>{engine.toUpperCase()} Prompt</span>
+                  <span>
+                    {activeFormatTab === 'flux'
+                      ? 'FLUX.1 / GPT Image 2 Prose'
+                      : activeFormatTab === 'midjourney'
+                      ? 'Midjourney v6.1 Command'
+                      : activeFormatTab === 'sdxl'
+                      ? 'SDXL Tag-Weighted Prompt'
+                      : activeFormatTab === 'negative'
+                      ? 'Anti-Hallucination Negative Prompt'
+                      : `${engine.toUpperCase()} Master Prompt`}
+                  </span>
                 </span>
                 <span className={`font-sans text-xs text-[#00b473] font-bold transition-opacity ${copiedToast ? 'opacity-100' : 'opacity-0'}`}>
                   ✓ Copied to Clipboard
@@ -2169,7 +2732,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
 
               {/* Synthesized Text */}
               <div className="font-mono text-xs text-[#1c1c1e] leading-relaxed select-all max-h-48 overflow-y-auto">
-                {masterPromptText || 'Assembling master prompt from chosen parameters...'}
+                {displayedPromptText || 'Assembling master prompt from chosen parameters...'}
               </div>
             </div>
 
@@ -2181,7 +2744,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                 className="h-10 px-4 rounded-full bg-[#1c1c1e] text-white hover:bg-[#2c2c34] font-sans text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-98"
               >
                 <span className="material-symbols-outlined text-[17px] text-[#ffd02f]">content_copy</span>
-                <span>{copiedToast ? 'Copied!' : 'Copy Prompt'}</span>
+                <span>{copiedToast ? 'Copied!' : `Copy ${activeFormatTab.toUpperCase()}`}</span>
               </button>
 
               <button
@@ -2194,43 +2757,46 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
               </button>
             </div>
 
-            {/* Burmese Cultural Translation Breakdown Note in Miro Pastel Card */}
-            <details className="group bg-[#fff8e0]/70 border border-[#fcb900]/30 rounded-xl p-3 text-xs cursor-pointer">
+            {/* Burmese 5-Point Cultural & Studio Director's Breakdown (Open by default) */}
+            <details open className="group bg-[#fff8e0]/80 border border-[#fcb900]/40 rounded-xl p-3.5 text-xs cursor-pointer">
               <summary className="font-sans font-bold text-[#746019] flex items-center justify-between select-none list-none">
                 <span className="flex items-center gap-1.5">
                   <span className="material-symbols-outlined text-[16px]">translate</span>
-                  <span>မြန်မာဘာသာ ယဉ်ကျေးမှုဆိုင်ရာ ရှင်းလင်းချက်</span>
+                  <span>မြန်မာဘာသာ အသေးစိတ် ဒါရိုက်တာ ရှင်းလင်းချက် (၅ ချက်)</span>
                 </span>
                 <span className="material-symbols-outlined text-[16px] text-[#746019] group-open:rotate-180 transition-transform">
                   expand_more
                 </span>
               </summary>
-              <p className="font-sans text-[11px] text-[#746019] leading-relaxed pt-2 border-t border-[#fcb900]/25 mt-2">
-                {liveBuilt?.descriptionMm || 'ဤပရွမ့်ဖော်ပြချက်တွင် ရွေးချယ်ထားသော မြန်မာ့ရိုးရာ နန်းတွင်း ဝတ်စုံ၊ သနပ်ခါး၊ ဆံထုံး နှင့် နောက်ခံ ရှုခင်းတို့ကို အတိအကျ ပေါင်းစပ်ထားပြီး သဘာဝကျသော ရွှေရောင်အလင်းရောင်ဖြင့် ပုံဖော်ပေးပါသည်။'}
-              </p>
+              <div className="font-sans text-[11px] text-[#5c480a] whitespace-pre-line leading-relaxed pt-2.5 border-t border-[#fcb900]/30 mt-2">
+                {effectivePromptData?.descriptionMm || 'ဤပရွမ့်ဖော်ပြချက်တွင် ရွေးချယ်ထားသော မြန်မာ့ရိုးရာ နန်းတွင်း ဝတ်စုံ၊ သနပ်ခါး၊ ဆံထုံး နှင့် နောက်ခံ ရှုခင်းတို့ကို အတိအကျ ပေါင်းစပ်ထားပြီး သဘာဝကျသော ရွှေရောင်အလင်းရောင်ဖြင့် ပုံဖော်ပေးပါသည်။'}
+              </div>
+              {effectivePromptData?.cameraNotes && (
+                <div className="mt-2 pt-2 border-t border-[#fcb900]/20 font-mono text-[10px] text-[#704112] font-semibold">
+                  OPTICS: {effectivePromptData.cameraNotes}
+                </div>
+              )}
             </details>
 
             {/* Generate Full AI Prompt Button - Miro Signature Black Button */}
-            {onGeneratePrompt && (
-              <button
-                type="button"
-                onClick={() => onGeneratePrompt(masterPromptText)}
-                disabled={isGeneratingPrompt}
-                className="w-full py-3 px-5 rounded-full bg-[#1c1c1e] text-white hover:bg-[#2c2c34] font-sans text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer disabled:opacity-50"
-              >
-                {isGeneratingPrompt ? (
-                  <>
-                    <span className="material-symbols-outlined text-[16px] animate-spin text-[#ffd02f]">refresh</span>
-                    <span>AI Engine Synthesizing Master Prompt...</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined text-[16px] text-[#ffd02f]">electric_bolt</span>
-                    <span>Generate Master AI Prompt</span>
-                  </>
-                )}
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleSynthesizeAiPrompt}
+              disabled={isSynthesizingAi || isGeneratingPrompt}
+              className="w-full py-3 px-5 rounded-full bg-[#1c1c1e] text-white hover:bg-[#2c2c34] font-sans text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer disabled:opacity-50"
+            >
+              {isSynthesizingAi || isGeneratingPrompt ? (
+                <>
+                  <span className="material-symbols-outlined text-[16px] animate-spin text-[#ffd02f]">refresh</span>
+                  <span>AI Engine Synthesizing Master Prompt...</span>
+                </>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined text-[16px] text-[#ffd02f]">electric_bolt</span>
+                  <span>AI Synthesize Master Prompt &amp; Burmese Story</span>
+                </>
+              )}
+            </button>
 
           </div>
 
