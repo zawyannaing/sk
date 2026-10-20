@@ -31,10 +31,12 @@ import {
   Video,
   Loader2,
   Cpu,
-  Activity
+  Activity,
+  LogIn
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CHARACTER_REFERENCE_STYLES } from '../data/characterReferenceStyles';
+import { SupabaseService } from '../utils/supabaseClient';
 
 export type VideoModel = 'Veo' | 'Sora' | 'Kling' | 'Hailuo' | 'Wan' | 'Seedance' | 'Runway-Gen3' | 'Luma-Dream';
 export type PromptFormat = 'json' | 'normal';
@@ -381,6 +383,13 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
   // Generate Prompt handler with Animation & Camera awareness
   const handleGenerate = async () => {
     if (!inputText.trim()) return;
+
+    const session = SupabaseService.getSession();
+    if (!session) {
+      window.dispatchEvent(new CustomEvent('open-supabase-auth', { detail: { targetSection: 'video-prompt' } }));
+      return;
+    }
+
     setIsGenerating(true);
     setShowResult(true);
     setDisplayedText('');
@@ -392,6 +401,16 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
     const cameraInstruction = `${activeMotionObj.promptSnippet}, paced at ${motionSpeed} speed, recorded at ${framerate}${isLooping ? ', seamlessly looping seamlessly back to first frame' : ''}`;
 
     try {
+      if (SupabaseService.isConfigured()) {
+        const creditRes = await SupabaseService.deductCredits(1, 'video_prompt', `Generated Video Prompt via ${selectedModel}`);
+        if (!creditRes.success) {
+          alert(creditRes.error || 'Insufficient credits (Requires 1 Credit)');
+          setIsGenerating(false);
+          return;
+        }
+        window.dispatchEvent(new CustomEvent('supabase-cloud-refresh'));
+      }
+
       const res = await fetch('/api/generate-video-prompt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -515,9 +534,9 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-[#07080b] text-zinc-100 relative overflow-hidden font-sans selection:bg-[#ccff00] selection:text-black">
+    <div className="min-h-screen bg-[#07080b] text-zinc-100 relative overflow-hidden font-sans selection:bg-[#05b187] selection:text-black">
       
-      {/* 🌟 ANIMATED BACKGROUND GRID & DRIFTING GLOW PARTICLES */}
+      {/* ANIMATED BACKGROUND GRID & DRIFTING GLOW PARTICLES */}
       <div 
         className="absolute inset-0 pointer-events-none opacity-[0.09]"
         style={{
@@ -538,14 +557,14 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
           y: [0, -15, 0]
         }}
         transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[450px] bg-gradient-to-tr from-[#ccff00]/15 via-[#00d2ff]/10 to-transparent blur-[130px] pointer-events-none rounded-full" 
+        className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[450px] bg-gradient-to-tr from-[#05b187]/15 via-[#00d2ff]/10 to-transparent blur-[130px] pointer-events-none rounded-full" 
       />
 
-      {/* 🌟 TOP NAVBAR HEADER */}
-      <header className="relative z-20 flex items-center justify-between px-4 sm:px-8 py-3.5 sm:py-4 border-b border-zinc-900/90 bg-[#07080b]/80 backdrop-blur-md">
+      {/* TOP NAVBAR HEADER */}
+      <header className="relative z-20 flex flex-wrap items-center justify-between gap-2.5 px-3 sm:px-8 py-2.5 sm:py-4 border-b border-zinc-900/90 bg-[#07080b]/80 backdrop-blur-md">
         
         {/* Left: 3 Sections Back Navigation & Title */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           {onBackToPortal && (
             <motion.button
               whileHover={{ scale: 1.03 }}
@@ -560,18 +579,18 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
           )}
 
           <div className="flex items-center gap-2">
-            <span className="text-sm sm:text-base font-extrabold tracking-tight text-white flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#ccff00] shadow-[0_0_10px_#ccff00]" />
+            <span className="text-xs sm:text-base font-extrabold tracking-tight text-white flex items-center gap-1.5 sm:gap-2 truncate">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#05b187] shadow-[0_0_10px_#05b187]" />
               Video Prompt Studio
             </span>
-            <span className="text-[10px] bg-zinc-800 text-[#ccff00] font-mono px-2 py-0.5 rounded-full border border-zinc-700/60 hidden sm:inline font-bold">
+            <span className="text-[10px] bg-zinc-800 text-[#05b187] font-mono px-2 py-0.5 rounded-full border border-zinc-700/60 hidden sm:inline font-bold">
               ANIMATION &amp; 3D ENGINE
             </span>
           </div>
         </div>
 
         {/* Right: Quick Action Buttons & Try Prompts */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           
           {/* Motion Simulator Quick Button */}
           <motion.button
@@ -581,15 +600,30 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
             onClick={() => setShowSimModal(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-800 text-xs font-semibold cursor-pointer shadow-sm"
           >
-            <Compass className="w-3.5 h-3.5 text-[#ccff00]" />
+            <Compass className="w-3.5 h-3.5 text-[#05b187]" />
             <span className="hidden sm:inline">Motion Simulator</span>
-            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-black/60 text-[#ccff00]">3D</span>
+            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-black/60 text-[#05b187]">3D</span>
           </motion.button>
+
+          {/* Sign In / Login Button for Guests */}
+          {!SupabaseService.getSession() && (
+            <motion.button
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.96 }}
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent('open-supabase-auth'))}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-emerald-400 to-teal-300 text-slate-950 font-black text-xs cursor-pointer shadow-sm hover:brightness-105 transition-all"
+              title="Sign in / Register"
+            >
+              <LogIn className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span className="hidden sm:inline">Sign In</span>
+            </motion.button>
+          )}
 
         </div>
       </header>
 
-      {/* 🌟 MAIN HERO & WORKBENCH */}
+      {/* MAIN HERO & WORKBENCH */}
       <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 flex flex-col items-center">
         
         {/* Animated Badge */}
@@ -598,7 +632,7 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
           animate={{ opacity: 1, y: 0 }}
           className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-zinc-900/90 border border-zinc-800 text-xs text-zinc-300 mb-4 shadow-sm"
         >
-          <span className="w-2 h-2 rounded-full bg-[#ccff00] animate-ping" />
+          <span className="w-2 h-2 rounded-full bg-[#05b187] animate-ping" />
           <span className="text-[12px] font-semibold tracking-tight">
             Animated Physics • Sora, Veo &amp; Kling Ready
           </span>
@@ -609,11 +643,11 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="text-3xl sm:text-5xl lg:text-6xl font-normal text-center tracking-tight text-white mb-2"
+          className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-normal text-center tracking-tight text-white mb-2 px-2"
         >
           Write video prompts
           <br />
-          <span className="font-extrabold bg-gradient-to-r from-white via-zinc-200 to-[#ccff00] bg-clip-text text-transparent">
+          <span className="font-extrabold bg-gradient-to-r from-white via-zinc-200 to-[#05b187] bg-clip-text text-transparent">
             that actually animate.
           </span>
         </motion.h1>
@@ -622,18 +656,18 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
           Full cinematic camera physics, anime cel timing, 3D Pixar rendering, and motion dynamics for any AI video model.
         </p>
 
-        {/* 🌟 STUDIO WORKSPACE GRID */}
+        {/* STUDIO WORKSPACE GRID */}
         <div className={`w-full transition-all duration-300 grid gap-6 ${showResult ? 'lg:grid-cols-2' : 'max-w-2xl'}`}>
 
           {/* LEFT: Input Brief & Animation Controls Card */}
           <motion.div 
             layout
-            className="bg-[#101217] border border-zinc-800/90 rounded-2xl shadow-2xl p-5 flex flex-col justify-between min-h-[420px] relative overflow-hidden"
+            className="bg-[#101217] border border-zinc-800/90 rounded-2xl shadow-2xl p-3.5 sm:p-5 flex flex-col justify-between min-h-[420px] relative overflow-hidden w-full"
           >
             
             {/* Top Toolbar */}
-            <div className="flex items-center justify-between gap-2 pb-3.5 border-b border-zinc-800/70 text-xs">
-              <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-3.5 border-b border-zinc-800/70 text-xs">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                 <span className="text-zinc-400 font-semibold text-xs">Brief</span>
 
                 {/* Recent Prompts */}
@@ -726,7 +760,7 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
               />
             </div>
 
-            {/* 🌟 NEW: ANIMATION & CAMERA MOTION STUDIO ACCORDION / STRIP */}
+            {/* NEW: ANIMATION & CAMERA MOTION STUDIO ACCORDION / STRIP */}
             <div className="space-y-3 pt-3 border-t border-zinc-800/60 bg-[#0d0e13]/60 -mx-5 px-5 pb-3">
               
               {/* Category Pills */}
@@ -741,13 +775,13 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                         onClick={() => setSelectedCategory(cat.name)}
                         className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer flex items-center gap-1 ${
                           active
-                            ? 'bg-[#ccff00] text-black font-bold shadow-[0_0_12px_rgba(204,255,0,0.3)] scale-102'
+                            ? 'bg-[#05b187] text-black font-bold shadow-[0_0_12px_rgba(5,177,135,0.3)] scale-102'
                             : 'bg-zinc-900/80 text-zinc-400 border border-zinc-800 hover:border-zinc-700 hover:text-zinc-200'
                         }`}
                       >
                         <span>{cat.name}</span>
                         {cat.badge && (
-                          <span className="text-[9px] px-1 py-0.2 rounded-full bg-black text-[#ccff00] font-mono">
+                          <span className="text-[9px] px-1 py-0.2 rounded-full bg-black text-[#05b187] font-mono">
                             {cat.badge}
                           </span>
                         )}
@@ -761,7 +795,7 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
               {(selectedCategory === 'Animation' || selectedCategory === 'Stylised') && (
                 <div className="space-y-1.5 animate-in fade-in duration-200">
                   <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400">
-                    <span className="flex items-center gap-1 text-[#ccff00]">
+                    <span className="flex items-center gap-1 text-[#05b187]">
                       <Wand2 className="w-3 h-3" />
                       ANIMATION ENGINE STYLES (Pick to inject aesthetic):
                     </span>
@@ -786,7 +820,7 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                           onClick={() => setSelectedAnimationStyle(isSelected ? null : anim.id)}
                           className={`p-2 rounded-xl text-left border transition-all cursor-pointer flex flex-col justify-between ${
                             isSelected
-                              ? 'bg-zinc-900 border-[#ccff00] ring-2 ring-[#ccff00]/30 shadow-xs'
+                              ? 'bg-zinc-900 border-[#05b187] ring-2 ring-[#05b187]/30 shadow-xs'
                               : 'bg-zinc-900/60 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900'
                           }`}
                         >
@@ -795,7 +829,7 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                               className="w-2 h-2 rounded-full" 
                               style={{ backgroundColor: anim.color }}
                             />
-                            {isSelected && <span className="text-[#ccff00] text-[10px]">✓</span>}
+                            {isSelected && <Check className="w-3 h-3 text-[#05b187] stroke-[3]" />}
                           </div>
                           <span className="text-[11px] font-bold text-zinc-200 block truncate mt-1">
                             {anim.label}
@@ -816,7 +850,7 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                 {/* Camera Movement Picker */}
                 <div className="flex items-center gap-1.5">
                   <span className="text-[11px] font-mono text-zinc-500 flex items-center gap-1">
-                    <Camera className="w-3 h-3 text-[#ccff00]" />
+                    <Camera className="w-3 h-3 text-[#05b187]" />
                     CAMERA:
                   </span>
                   <select
@@ -831,7 +865,7 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                 </div>
 
                 {/* Motion Speed & Loop Toggles */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                   
                   {/* Speed */}
                   <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-lg p-0.5 text-[11px]">
@@ -860,7 +894,7 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                         onClick={() => setFramerate(fps)}
                         className={`px-1.5 py-0.5 rounded transition cursor-pointer ${
                           framerate === fps
-                            ? 'bg-[#ccff00] text-black font-bold'
+                            ? 'bg-[#05b187] text-black font-bold'
                             : 'text-zinc-400 hover:text-zinc-200'
                         }`}
                         title={fps === '12fps' ? '12fps Anime / Stop-motion stepped timing' : `${fps} rate`}
@@ -876,7 +910,7 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                     onClick={() => setIsLooping(!isLooping)}
                     className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[11px] font-mono cursor-pointer transition ${
                       isLooping
-                        ? 'bg-[#ccff00]/15 text-[#ccff00] border-[#ccff00]/40 font-bold'
+                        ? 'bg-[#05b187]/15 text-[#05b187] border-[#05b187]/40 font-bold'
                         : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-zinc-200'
                     }`}
                     title="Generate as seamless looping video"
@@ -892,7 +926,7 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
             </div>
 
             {/* Bottom Generate Bar */}
-            <div className="pt-3 border-t border-zinc-800/60 flex items-center justify-between gap-3">
+            <div className="pt-3 border-t border-zinc-800/60 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
               <div className="flex flex-col">
                 <span className="text-[11px] text-zinc-400 font-medium">
                   {activeCategoryObj.desc}
@@ -909,10 +943,10 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                 type="button"
                 onClick={handleGenerate}
                 disabled={isGenerating || !inputText.trim()}
-                className={`h-11 px-5 rounded-full flex items-center justify-center gap-2 font-bold text-xs shrink-0 transition-all ${
+                className={`h-11 px-5 rounded-full flex items-center justify-center gap-2 font-bold text-xs shrink-0 transition-all w-full sm:w-auto ${
                   isGenerating
                     ? 'bg-zinc-800 text-zinc-500 cursor-wait'
-                    : 'bg-[#ccff00] text-black hover:shadow-[0_0_20px_rgba(204,255,0,0.4)] cursor-pointer'
+                    : 'bg-[#05b187] text-black hover:shadow-[0_0_20px_rgba(5,177,135,0.4)] cursor-pointer'
                 }`}
                 title="Synthesize Animated Video Prompt"
               >
@@ -940,22 +974,22 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                 animate={{ opacity: 1, scale: 1, x: 0 }}
                 exit={{ opacity: 0, scale: 0.96, x: 20 }}
                 transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                className="bg-[#101217] border border-zinc-800/90 rounded-2xl shadow-2xl p-5 flex flex-col justify-between min-h-[520px] relative"
+                className="bg-[#101217] border border-zinc-800/90 rounded-2xl shadow-2xl p-3.5 sm:p-5 flex flex-col justify-between min-h-[520px] relative w-full"
               >
                 
                 {/* Result Header */}
                 <div>
-                  <div className="flex items-center justify-between pb-3 border-b border-zinc-800/60">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 pb-3 border-b border-zinc-800/60">
                     <div className="flex flex-col">
                       <div className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-[#ccff00] animate-pulse" />
-                        <span className="text-[10px] uppercase tracking-widest text-[#ccff00] font-bold font-mono">
+                        <span className="w-2 h-2 rounded-full bg-[#05b187] animate-pulse" />
+                        <span className="text-[10px] uppercase tracking-widest text-[#05b187] font-bold font-mono">
                           SYNTHESIZED VIDEO PROMPT
                         </span>
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-base font-bold text-white">
-                          Optimized for <span className="text-[#ccff00]">{selectedModel}</span>
+                          Optimized for <span className="text-[#05b187]">{selectedModel}</span>
                         </span>
                         <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700/60">
                           {format.toUpperCase()}
@@ -963,12 +997,12 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2 self-end sm:self-auto shrink-0">
                       {/* Expand to Popup Screen Button */}
                       <button
                         type="button"
                         onClick={() => setShowResultPopup(true)}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#ccff00]/10 hover:bg-[#ccff00]/20 text-[#ccff00] border border-[#ccff00]/30 text-xs font-semibold transition cursor-pointer shadow-[0_0_15px_rgba(204,255,0,0.1)]"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#05b187]/10 hover:bg-[#05b187]/20 text-[#05b187] border border-[#05b187]/30 text-xs font-semibold transition cursor-pointer shadow-[0_0_15px_rgba(5,177,135,0.1)]"
                         title="Open in Animated Popup Screen"
                       >
                         <Maximize2 className="w-3.5 h-3.5" />
@@ -996,12 +1030,12 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                   </div>
 
                   {/* Beside Tabs / Tags Switcher */}
-                  <div className="flex items-center gap-1 p-1 rounded-xl bg-[#090a0e] border border-zinc-800/80 my-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 p-1 rounded-xl bg-[#090a0e] border border-zinc-800/80 my-3">
                     {[
-                      { id: 'tags', label: '🏷️ Visual Tags' },
-                      { id: 'cinematic', label: '🎬 Cinematic Prose' },
-                      { id: 'json', label: '📋 JSON Schema' },
-                      { id: 'specs', label: '🎥 Camera Specs' },
+                      { id: 'tags', label: 'Visual Tags' },
+                      { id: 'cinematic', label: 'Cinematic Prose' },
+                      { id: 'json', label: 'JSON Schema' },
+                      { id: 'specs', label: 'Camera Specs' },
                     ].map(tab => (
                       <button
                         key={tab.id}
@@ -1009,7 +1043,7 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                         onClick={() => setResultTab(tab.id as any)}
                         className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-medium transition cursor-pointer ${
                           resultTab === tab.id
-                            ? 'bg-zinc-800 text-[#ccff00] font-bold border border-zinc-700/80 shadow-xs'
+                            ? 'bg-zinc-800 text-[#05b187] font-bold border border-zinc-700/80 shadow-xs'
                             : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
                         }`}
                       >
@@ -1020,7 +1054,7 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
 
                   {/* Active Motion Badges */}
                   <div className="flex flex-wrap items-center gap-1.5 pb-2">
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-zinc-900 text-[#ccff00] border border-zinc-800 flex items-center gap-1">
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-zinc-900 text-[#05b187] border border-zinc-800 flex items-center gap-1">
                       <Camera className="w-2.5 h-2.5" />
                       {activeMotionObj.label}
                     </span>
@@ -1048,27 +1082,27 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                           <motion.div
                             animate={{ rotate: 360 }}
                             transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                            className="absolute inset-0 rounded-full border-2 border-dashed border-[#ccff00]/40"
+                            className="absolute inset-0 rounded-full border-2 border-dashed border-[#05b187]/40"
                           />
                           <motion.div
                             animate={{ rotate: -360 }}
                             transition={{ duration: 4.5, repeat: Infinity, ease: "linear" }}
-                            className="absolute inset-2 rounded-full border-2 border-t-[#00d2ff] border-r-transparent border-b-[#ccff00] border-l-transparent"
+                            className="absolute inset-2 rounded-full border-2 border-t-[#00d2ff] border-r-transparent border-b-[#05b187] border-l-transparent"
                           />
                           <motion.div
                             animate={{ scale: [0.92, 1.12, 0.92], opacity: [0.7, 1, 0.7] }}
                             transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                            className="w-12 h-12 rounded-full bg-gradient-to-tr from-[#ccff00]/25 via-[#00d2ff]/20 to-purple-500/25 border border-[#ccff00] flex items-center justify-center shadow-[0_0_30px_rgba(204,255,0,0.35)]"
+                            className="w-12 h-12 rounded-full bg-gradient-to-tr from-[#05b187]/25 via-[#00d2ff]/20 to-purple-500/25 border border-[#05b187] flex items-center justify-center shadow-[0_0_30px_rgba(5,177,135,0.35)]"
                           >
-                            <Sparkles className="w-5 h-5 text-[#ccff00] animate-spin" />
+                            <Sparkles className="w-5 h-5 text-[#05b187] animate-spin" />
                           </motion.div>
                         </div>
 
                         {/* Status Readout */}
                         <div className="space-y-1.5 max-w-sm">
                           <div className="flex items-center justify-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-[#ccff00] animate-ping" />
-                            <span className="text-[10px] uppercase font-mono tracking-widest text-[#ccff00] font-bold">
+                            <span className="w-2 h-2 rounded-full bg-[#05b187] animate-ping" />
+                            <span className="text-[10px] uppercase font-mono tracking-widest text-[#05b187] font-bold">
                               SYNTHESIZING PROMPT • {selectedModel.toUpperCase()}
                             </span>
                           </div>
@@ -1085,19 +1119,19 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                           <motion.div
                             animate={{ x: ["-100%", "100%"] }}
                             transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                            className="w-1/2 h-full bg-gradient-to-r from-transparent via-[#ccff00] to-transparent"
+                            className="w-1/2 h-full bg-gradient-to-r from-transparent via-[#05b187] to-transparent"
                           />
                         </div>
 
                         {/* Step Badges */}
                         <div className="flex items-center gap-2 font-mono text-[10px] text-zinc-500 pt-1">
-                          <span className={procStep >= 0 ? "text-[#ccff00] font-bold" : ""}>1. Physics</span>
+                          <span className={procStep >= 0 ? "text-[#05b187] font-bold" : ""}>1. Physics</span>
                           <span>→</span>
-                          <span className={procStep >= 1 ? "text-[#ccff00] font-bold" : ""}>2. 3D Path</span>
+                          <span className={procStep >= 1 ? "text-[#05b187] font-bold" : ""}>2. 3D Path</span>
                           <span>→</span>
-                          <span className={procStep >= 2 ? "text-[#ccff00] font-bold" : ""}>3. Lighting</span>
+                          <span className={procStep >= 2 ? "text-[#05b187] font-bold" : ""}>3. Lighting</span>
                           <span>→</span>
-                          <span className={procStep >= 3 ? "text-[#ccff00] font-bold" : ""}>4. Filters</span>
+                          <span className={procStep >= 3 ? "text-[#05b187] font-bold" : ""}>4. Filters</span>
                         </div>
                       </div>
                     ) : (
@@ -1108,15 +1142,15 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                             {/* Subject Tag */}
                             <div className="p-3 rounded-xl bg-[#090b10] border border-zinc-800/80 hover:border-zinc-700 transition">
                               <div className="flex items-center justify-between mb-1">
-                                <span className="text-[10px] font-mono text-[#ccff00] font-bold uppercase tracking-wider flex items-center gap-1">
-                                  <span>👤</span> Subject &amp; Action
+                                <span className="text-[10px] font-mono text-[#05b187] font-bold uppercase tracking-wider flex items-center gap-1">
+                                  Subject &amp; Action
                                 </span>
                                 <button
                                   type="button"
                                   onClick={() => handleCopyTag('subject', `${resultTags.subject}. ${resultTags.action}`)}
                                   className="text-[10px] text-zinc-500 hover:text-white flex items-center gap-1 cursor-pointer"
                                 >
-                                  {copiedTag === 'subject' ? <Check className="w-3 h-3 text-[#ccff00]" /> : <Copy className="w-3 h-3" />}
+                                  {copiedTag === 'subject' ? <Check className="w-3 h-3 text-[#05b187]" /> : <Copy className="w-3 h-3" />}
                                   <span>{copiedTag === 'subject' ? 'Copied' : 'Copy'}</span>
                                 </button>
                               </div>
@@ -1129,14 +1163,14 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                             <div className="p-3 rounded-xl bg-[#090b10] border border-zinc-800/80 hover:border-zinc-700 transition">
                               <div className="flex items-center justify-between mb-1">
                                 <span className="text-[10px] font-mono text-cyan-400 font-bold uppercase tracking-wider flex items-center gap-1">
-                                  <span>🎥</span> Camera Physics &amp; Lens
+                                  <span></span> Camera Physics &amp; Lens
                                 </span>
                                 <button
                                   type="button"
                                   onClick={() => handleCopyTag('camera', `${resultTags.camera}, ${resultTags.lens}, ${resultTags.speed} speed @ ${resultTags.framerate}`)}
                                   className="text-[10px] text-zinc-500 hover:text-white flex items-center gap-1 cursor-pointer"
                                 >
-                                  {copiedTag === 'camera' ? <Check className="w-3 h-3 text-[#ccff00]" /> : <Copy className="w-3 h-3" />}
+                                  {copiedTag === 'camera' ? <Check className="w-3 h-3 text-[#05b187]" /> : <Copy className="w-3 h-3" />}
                                   <span>{copiedTag === 'camera' ? 'Copied' : 'Copy'}</span>
                                 </button>
                               </div>
@@ -1149,14 +1183,14 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                             <div className="p-3 rounded-xl bg-[#090b10] border border-zinc-800/80 hover:border-zinc-700 transition">
                               <div className="flex items-center justify-between mb-1">
                                 <span className="text-[10px] font-mono text-amber-400 font-bold uppercase tracking-wider flex items-center gap-1">
-                                  <span>💡</span> Lighting &amp; Volumetrics
+                                  Lighting &amp; Volumetrics
                                 </span>
                                 <button
                                   type="button"
                                   onClick={() => handleCopyTag('lighting', `${resultTags.lighting}, ${resultTags.setting}`)}
                                   className="text-[10px] text-zinc-500 hover:text-white flex items-center gap-1 cursor-pointer"
                                 >
-                                  {copiedTag === 'lighting' ? <Check className="w-3 h-3 text-[#ccff00]" /> : <Copy className="w-3 h-3" />}
+                                  {copiedTag === 'lighting' ? <Check className="w-3 h-3 text-[#05b187]" /> : <Copy className="w-3 h-3" />}
                                   <span>{copiedTag === 'lighting' ? 'Copied' : 'Copy'}</span>
                                 </button>
                               </div>
@@ -1168,7 +1202,7 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                             {/* Color Palette Tag */}
                             <div className="p-3 rounded-xl bg-[#090b10] border border-zinc-800/80 hover:border-zinc-700 transition">
                               <span className="text-[10px] font-mono text-purple-400 font-bold uppercase tracking-wider flex items-center gap-1 mb-2">
-                                <span>🎨</span> Hollywood Color Grade
+                                Hollywood Color Grade
                               </span>
                               <div className="flex flex-wrap gap-1.5">
                                 {resultTags.palette.map((color: string, i: number) => (
@@ -1184,7 +1218,7 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                             <div className="p-3 rounded-xl bg-[#090b10] border border-zinc-800/80 hover:border-zinc-700 transition">
                               <div className="flex items-center justify-between mb-1">
                                 <span className="text-[10px] font-mono text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-1">
-                                  <span>✨</span> Animation Style &amp; Texture
+                                  Animation Style &amp; Texture
                                 </span>
                               </div>
                               <p className="text-zinc-300 text-xs font-sans leading-relaxed">
@@ -1195,7 +1229,7 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                             {/* Negative Filter Tag */}
                             <div className="p-3 rounded-xl bg-red-950/20 border border-red-900/40">
                               <span className="text-[10px] font-mono text-red-400 font-bold uppercase tracking-wider flex items-center gap-1 mb-1">
-                                <span>🚫</span> Avoid &amp; Negative Constraints
+                                Avoid &amp; Negative Constraints
                               </span>
                               <p className="text-red-300/80 text-[11px] font-mono">
                                 {resultTags.negative}
@@ -1208,7 +1242,7 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                         {resultTab === 'cinematic' && (
                           <div className="p-4 rounded-xl bg-[#08090c] border border-zinc-800/70 text-zinc-200 text-xs leading-relaxed font-sans select-all relative group">
                             {isTyping && (
-                              <div className="flex items-center justify-between pb-2 mb-2 border-b border-zinc-800/60 font-mono text-[10px] text-[#ccff00]">
+                              <div className="flex items-center justify-between pb-2 mb-2 border-b border-zinc-800/60 font-mono text-[10px] text-[#05b187]">
                                 <span className="flex items-center gap-1.5 animate-pulse font-bold">
                                   <Sparkles className="w-3 h-3" />
                                   <span>AI Typing Streamer in Progress...</span>
@@ -1218,14 +1252,14 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                                   onClick={() => { setDisplayedText(normalTextResult); setIsTyping(false); }}
                                   className="text-zinc-400 hover:text-white px-2 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 cursor-pointer text-[10px]"
                                 >
-                                  Skip ⏩
+                                  Skip
                                 </button>
                               </div>
                             )}
                             <div className="whitespace-pre-wrap leading-relaxed font-sans text-zinc-100">
                               {isTyping ? displayedText : normalTextResult}
                               {isTyping && (
-                                <span className="inline-block w-1.5 h-3.5 bg-[#ccff00] ml-1 animate-pulse align-middle" />
+                                <span className="inline-block w-1.5 h-3.5 bg-[#05b187] ml-1 animate-pulse align-middle" />
                               )}
                             </div>
                           </div>
@@ -1252,7 +1286,7 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                               </div>
                               <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800">
                                 <span className="text-[10px] text-zinc-500 font-mono block">CADENCE &amp; FPS</span>
-                                <span className="text-[#ccff00] font-bold">{framerate} Natural Film</span>
+                                <span className="text-[#05b187] font-bold">{framerate} Natural Film</span>
                               </div>
                               <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800">
                                 <span className="text-[10px] text-zinc-500 font-mono block">LENS SELECTION</span>
@@ -1274,12 +1308,12 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                 </div>
 
                 {/* Footer Copy & Simulator Button */}
-                <div className="pt-3 border-t border-zinc-800/60 flex items-center justify-between gap-3 mt-3">
-                  <div className="flex items-center gap-2">
+                <div className="pt-3 border-t border-zinc-800/60 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 mt-3">
+                  <div className="flex items-center justify-between sm:justify-start gap-2">
                     <button
                       type="button"
                       onClick={() => setShowSimModal(true)}
-                      className="flex items-center gap-1.5 text-xs text-[#ccff00] font-semibold hover:underline cursor-pointer"
+                      className="flex items-center gap-1.5 text-xs text-[#05b187] font-semibold hover:underline cursor-pointer"
                     >
                       <Play className="w-3.5 h-3.5" />
                       <span>Watch Motion Sim</span>
@@ -1294,21 +1328,21 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                     </button>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
                     <button
                       type="button"
                       onClick={handleCopy}
-                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-200 hover:bg-zinc-800 hover:border-zinc-700 text-xs font-medium transition cursor-pointer"
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-200 hover:bg-zinc-800 hover:border-zinc-700 text-xs font-medium transition cursor-pointer"
                     >
                       {copied ? (
                         <>
-                          <Check className="w-3.5 h-3.5 text-[#ccff00]" />
-                          <span className="text-[#ccff00]">Copied</span>
+                          <Check className="w-3.5 h-3.5 text-[#05b187]" />
+                          <span className="text-[#05b187]">Copied</span>
                         </>
                       ) : (
                         <>
                           <Copy className="w-3.5 h-3.5" />
-                          Copy Prompt
+                          <span>Copy</span>
                         </>
                       )}
                     </button>
@@ -1319,10 +1353,10 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                         handleCopy();
                         window.open('https://higgsfield.ai', '_blank');
                       }}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#ccff00] text-black font-semibold hover:shadow-[0_0_20px_rgba(204,255,0,0.4)] transition text-xs cursor-pointer"
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-[#05b187] text-black font-semibold hover:shadow-[0_0_20px_rgba(5,177,135,0.4)] transition text-xs cursor-pointer truncate"
                     >
-                      Open in Higgsfield
-                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Higgsfield</span>
+                      <ExternalLink className="w-3.5 h-3.5 shrink-0" />
                     </button>
                   </div>
                 </div>
@@ -1333,29 +1367,29 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
 
         </div>
 
-        {/* 🌟 ANIMATED POPUP SCREEN MODAL (Full Cinema View with Tabs & Motion HUD) */}
+        {/* ANIMATED POPUP SCREEN MODAL (Full Cinema View with Tabs & Motion HUD) */}
         <AnimatePresence>
           {showResultPopup && (
-            <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-in fade-in">
+            <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-y-auto animate-in fade-in">
               <motion.div 
                 initial={{ scale: 0.92, opacity: 0, y: 30 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.92, opacity: 0, y: 30 }}
                 transition={{ type: "spring", stiffness: 350, damping: 28 }}
-                className="bg-[#0c0e14] border-2 border-[#ccff00]/40 shadow-[0_0_80px_rgba(204,255,0,0.22)] rounded-3xl w-full max-w-4xl max-h-[92vh] overflow-hidden flex flex-col relative z-50"
+                className="bg-[#0c0e14] border-2 border-[#05b187]/40 shadow-[0_0_80px_rgba(5,177,135,0.22)] rounded-3xl w-full max-w-4xl max-h-[92vh] overflow-hidden flex flex-col relative z-50"
               >
                 {/* Popup Header */}
-                <div className="px-5 py-4 border-b border-zinc-800/90 bg-[#07090c] flex items-center justify-between">
+                <div className="px-3.5 sm:px-5 py-3 sm:py-4 border-b border-zinc-800/90 bg-[#07090c] flex items-center justify-between gap-2">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-[#ccff00]/15 border border-[#ccff00]/40 flex items-center justify-center shadow-[0_0_15px_rgba(204,255,0,0.2)]">
-                      <Sparkles className="w-4 h-4 text-[#ccff00]" />
+                    <div className="w-9 h-9 rounded-xl bg-[#05b187]/15 border border-[#05b187]/40 flex items-center justify-center shadow-[0_0_15px_rgba(5,177,135,0.2)]">
+                      <Sparkles className="w-4 h-4 text-[#05b187]" />
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
                         <h2 className="text-sm sm:text-base font-extrabold text-white tracking-tight">
                           Synthesized Video Prompt Studio
                         </h2>
-                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#ccff00]/20 text-[#ccff00] border border-[#ccff00]/40">
+                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#05b187]/20 text-[#05b187] border border-[#05b187]/40">
                           {selectedModel.toUpperCase()} READY
                         </span>
                       </div>
@@ -1386,13 +1420,13 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                 </div>
 
                 {/* Interactive Viewfinder HUD Banner */}
-                <div className="relative h-28 bg-[#050609] border-b border-zinc-800/80 px-6 flex items-center justify-between overflow-hidden">
+                <div className="relative min-h-[64px] sm:h-24 bg-[#050609] border-b border-zinc-800/80 px-3.5 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-2 overflow-hidden">
                   {/* Subtle 3D Grid */}
                   <div 
                     className="absolute inset-0 opacity-20 pointer-events-none"
                     style={{
                       backgroundImage: `
-                        linear-gradient(to right, #ccff00 1px, transparent 1px),
+                        linear-gradient(to right, #05b187 1px, transparent 1px),
                         linear-gradient(to bottom, #2b3240 1px, transparent 1px)
                       `,
                       backgroundSize: '28px 28px'
@@ -1406,7 +1440,7 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                       SYNTHESIZED
                     </div>
                     <div className="text-xs font-mono text-zinc-300 hidden sm:block">
-                      <span className="text-[#ccff00] font-bold">{activeMotionObj.label}</span>
+                      <span className="text-[#05b187] font-bold">{activeMotionObj.label}</span>
                       <span className="text-zinc-500"> • </span>
                       <span>{resultTags.lens}</span>
                       <span className="text-zinc-500"> • </span>
@@ -1419,7 +1453,7 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                     <button
                       type="button"
                       onClick={() => { setShowResultPopup(false); setShowSimModal(true); }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#ccff00] text-black font-bold hover:shadow-[0_0_20px_rgba(204,255,0,0.4)] transition cursor-pointer text-xs"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#05b187] text-black font-bold hover:shadow-[0_0_20px_rgba(5,177,135,0.4)] transition cursor-pointer text-xs"
                     >
                       <Play className="w-3.5 h-3.5" />
                       <span>Open 3D Simulator</span>
@@ -1428,12 +1462,12 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                 </div>
 
                 {/* Popup Tabs Bar */}
-                <div className="px-5 pt-3 pb-2 bg-[#090b10] border-b border-zinc-800/60 flex items-center gap-2 overflow-x-auto scrollbar-none">
+                <div className="px-3 sm:px-5 pt-2.5 pb-2 bg-[#090b10] border-b border-zinc-800/60 flex items-center gap-1.5 sm:gap-2 overflow-x-auto scrollbar-none">
                   {[
-                    { id: 'tags', label: '🏷️ Visual Tags Breakdown', badge: '8 Tags' },
-                    { id: 'cinematic', label: '🎬 Cinematic Prose Prompt', badge: 'Prose' },
-                    { id: 'json', label: '📋 Structured JSON', badge: 'Code' },
-                    { id: 'specs', label: '🎥 Director & Optics Spec', badge: '3D' },
+                    { id: 'tags', label: 'Visual Tags Breakdown', badge: '8 Tags' },
+                    { id: 'cinematic', label: 'Cinematic Prose Prompt', badge: 'Prose' },
+                    { id: 'json', label: 'Structured JSON', badge: 'Code' },
+                    { id: 'specs', label: 'Director & Optics Spec', badge: '3D' },
                   ].map(tab => (
                     <button
                       key={tab.id}
@@ -1441,7 +1475,7 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                       onClick={() => setResultTab(tab.id as any)}
                       className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition cursor-pointer shrink-0 ${
                         resultTab === tab.id
-                          ? 'bg-[#ccff00] text-black shadow-[0_0_15px_rgba(204,255,0,0.25)] font-bold'
+                          ? 'bg-[#05b187] text-black shadow-[0_0_15px_rgba(5,177,135,0.25)] font-bold'
                           : 'bg-zinc-900/80 text-zinc-400 hover:text-white border border-zinc-800'
                       }`}
                     >
@@ -1456,7 +1490,7 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                 </div>
 
                 {/* Popup Content Body */}
-                <div className="p-5 overflow-y-auto max-h-[58vh] text-xs font-mono scrollbar-thin scrollbar-thumb-zinc-800">
+                <div className="p-3.5 sm:p-5 overflow-y-auto max-h-[58vh] text-xs font-mono scrollbar-thin scrollbar-thumb-zinc-800">
                   {isGenerating ? (
                     <div className="py-16 px-4 flex flex-col items-center justify-center text-center space-y-5 animate-in fade-in">
                       {/* Futuristic Radar Aperture */}
@@ -1464,27 +1498,27 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                         <motion.div
                           animate={{ rotate: 360 }}
                           transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                          className="absolute inset-0 rounded-full border-2 border-dashed border-[#ccff00]/40"
+                          className="absolute inset-0 rounded-full border-2 border-dashed border-[#05b187]/40"
                         />
                         <motion.div
                           animate={{ rotate: -360 }}
                           transition={{ duration: 4.5, repeat: Infinity, ease: "linear" }}
-                          className="absolute inset-2 rounded-full border-2 border-t-[#00d2ff] border-r-transparent border-b-[#ccff00] border-l-transparent"
+                          className="absolute inset-2 rounded-full border-2 border-t-[#00d2ff] border-r-transparent border-b-[#05b187] border-l-transparent"
                         />
                         <motion.div
                           animate={{ scale: [0.92, 1.15, 0.92], opacity: [0.7, 1, 0.7] }}
                           transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                          className="w-12 h-12 rounded-full bg-gradient-to-tr from-[#ccff00]/25 via-[#00d2ff]/20 to-purple-500/25 border border-[#ccff00] flex items-center justify-center shadow-[0_0_35px_rgba(204,255,0,0.4)]"
+                          className="w-12 h-12 rounded-full bg-gradient-to-tr from-[#05b187]/25 via-[#00d2ff]/20 to-purple-500/25 border border-[#05b187] flex items-center justify-center shadow-[0_0_35px_rgba(5,177,135,0.4)]"
                         >
-                          <Sparkles className="w-5 h-5 text-[#ccff00] animate-spin" />
+                          <Sparkles className="w-5 h-5 text-[#05b187] animate-spin" />
                         </motion.div>
                       </div>
 
                       {/* Status Readout */}
                       <div className="space-y-1.5 max-w-md">
                         <div className="flex items-center justify-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-[#ccff00] animate-ping" />
-                          <span className="text-[11px] uppercase font-mono tracking-widest text-[#ccff00] font-bold">
+                          <span className="w-2 h-2 rounded-full bg-[#05b187] animate-ping" />
+                          <span className="text-[11px] uppercase font-mono tracking-widest text-[#05b187] font-bold">
                             AI DIRECTOR SYNTHESIZING • {selectedModel.toUpperCase()}
                           </span>
                         </div>
@@ -1501,19 +1535,19 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                         <motion.div
                           animate={{ x: ["-100%", "100%"] }}
                           transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                          className="w-1/2 h-full bg-gradient-to-r from-transparent via-[#ccff00] to-transparent"
+                          className="w-1/2 h-full bg-gradient-to-r from-transparent via-[#05b187] to-transparent"
                         />
                       </div>
 
                       {/* Step Badges */}
                       <div className="flex items-center gap-3 font-mono text-xs text-zinc-500 pt-1">
-                        <span className={procStep >= 0 ? "text-[#ccff00] font-bold" : ""}>1. Physics Cadence</span>
+                        <span className={procStep >= 0 ? "text-[#05b187] font-bold" : ""}>1. Physics Cadence</span>
                         <span>→</span>
-                        <span className={procStep >= 1 ? "text-[#ccff00] font-bold" : ""}>2. 3D Trajectory</span>
+                        <span className={procStep >= 1 ? "text-[#05b187] font-bold" : ""}>2. 3D Trajectory</span>
                         <span>→</span>
-                        <span className={procStep >= 2 ? "text-[#ccff00] font-bold" : ""}>3. Volumetric Light</span>
+                        <span className={procStep >= 2 ? "text-[#05b187] font-bold" : ""}>3. Volumetric Light</span>
                         <span>→</span>
-                        <span className={procStep >= 3 ? "text-[#ccff00] font-bold" : ""}>4. Negative Guardrails</span>
+                        <span className={procStep >= 3 ? "text-[#05b187] font-bold" : ""}>4. Negative Guardrails</span>
                       </div>
                     </div>
                   ) : (
@@ -1524,15 +1558,15 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                           {/* Subject & Character Tag */}
                           <div className="p-4 rounded-2xl bg-[#090b10] border border-zinc-800 hover:border-zinc-700 transition">
                             <div className="flex items-center justify-between mb-1.5">
-                              <span className="text-[11px] font-mono text-[#ccff00] font-bold uppercase tracking-wider flex items-center gap-1.5">
-                                <span>👤</span> Subject &amp; Core Action
+                              <span className="text-[11px] font-mono text-[#05b187] font-bold uppercase tracking-wider flex items-center gap-1.5">
+                                Subject &amp; Core Action
                               </span>
                               <button
                                 type="button"
                                 onClick={() => handleCopyTag('subject', `${resultTags.subject}. ${resultTags.action}`)}
                                 className="px-2 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[10px] flex items-center gap-1 cursor-pointer"
                               >
-                                {copiedTag === 'subject' ? <Check className="w-3 h-3 text-[#ccff00]" /> : <Copy className="w-3 h-3" />}
+                                {copiedTag === 'subject' ? <Check className="w-3 h-3 text-[#05b187]" /> : <Copy className="w-3 h-3" />}
                                 <span>{copiedTag === 'subject' ? 'Copied' : 'Copy'}</span>
                               </button>
                             </div>
@@ -1545,14 +1579,14 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                           <div className="p-4 rounded-2xl bg-[#090b10] border border-zinc-800 hover:border-zinc-700 transition">
                             <div className="flex items-center justify-between mb-1.5">
                               <span className="text-[11px] font-mono text-cyan-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
-                                <span>🎥</span> Camera Physics &amp; Optics
+                                <span></span> Camera Physics &amp; Optics
                               </span>
                               <button
                                 type="button"
                                 onClick={() => handleCopyTag('camera', `${resultTags.camera}, ${resultTags.lens}, ${resultTags.speed} speed @ ${resultTags.framerate}`)}
                                 className="px-2 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[10px] flex items-center gap-1 cursor-pointer"
                               >
-                                {copiedTag === 'camera' ? <Check className="w-3 h-3 text-[#ccff00]" /> : <Copy className="w-3 h-3" />}
+                                {copiedTag === 'camera' ? <Check className="w-3 h-3 text-[#05b187]" /> : <Copy className="w-3 h-3" />}
                                 <span>{copiedTag === 'camera' ? 'Copied' : 'Copy'}</span>
                               </button>
                             </div>
@@ -1565,14 +1599,14 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                           <div className="p-4 rounded-2xl bg-[#090b10] border border-zinc-800 hover:border-zinc-700 transition">
                             <div className="flex items-center justify-between mb-1.5">
                               <span className="text-[11px] font-mono text-amber-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
-                                <span>💡</span> Lighting &amp; Volumetric Set
+                                Lighting &amp; Volumetric Set
                               </span>
                               <button
                                 type="button"
                                 onClick={() => handleCopyTag('lighting', `${resultTags.lighting}, ${resultTags.setting}`)}
                                 className="px-2 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[10px] flex items-center gap-1 cursor-pointer"
                               >
-                                {copiedTag === 'lighting' ? <Check className="w-3 h-3 text-[#ccff00]" /> : <Copy className="w-3 h-3" />}
+                                {copiedTag === 'lighting' ? <Check className="w-3 h-3 text-[#05b187]" /> : <Copy className="w-3 h-3" />}
                                 <span>{copiedTag === 'lighting' ? 'Copied' : 'Copy'}</span>
                               </button>
                             </div>
@@ -1585,14 +1619,14 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                           <div className="p-4 rounded-2xl bg-[#090b10] border border-zinc-800 hover:border-zinc-700 transition">
                             <div className="flex items-center justify-between mb-1.5">
                               <span className="text-[11px] font-mono text-purple-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
-                                <span>🎨</span> Hollywood Color Grade
+                                Hollywood Color Grade
                               </span>
                               <button
                                 type="button"
                                 onClick={() => handleCopyTag('palette', resultTags.palette.join(', '))}
                                 className="px-2 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[10px] flex items-center gap-1 cursor-pointer"
                               >
-                                {copiedTag === 'palette' ? <Check className="w-3 h-3 text-[#ccff00]" /> : <Copy className="w-3 h-3" />}
+                                {copiedTag === 'palette' ? <Check className="w-3 h-3 text-[#05b187]" /> : <Copy className="w-3 h-3" />}
                                 <span>{copiedTag === 'palette' ? 'Copied' : 'Copy'}</span>
                               </button>
                             </div>
@@ -1610,7 +1644,7 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                           <div className="p-4 rounded-2xl bg-[#090b10] border border-zinc-800 hover:border-zinc-700 transition">
                             <div className="flex items-center justify-between mb-1.5">
                               <span className="text-[11px] font-mono text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
-                                <span>✨</span> Animation Style &amp; Cel Timing
+                                Animation Style &amp; Cel Timing
                               </span>
                             </div>
                             <p className="text-zinc-200 text-xs leading-relaxed">
@@ -1622,14 +1656,14 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                           <div className="p-4 rounded-2xl bg-[#090b10] border border-zinc-800 hover:border-zinc-700 transition">
                             <div className="flex items-center justify-between mb-1.5">
                               <span className="text-[11px] font-mono text-blue-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
-                                <span>🔊</span> Cinematic Soundscape &amp; Foley
+                                Cinematic Soundscape &amp; Foley
                               </span>
                               <button
                                 type="button"
                                 onClick={() => handleCopyTag('sound', resultTags.sound)}
                                 className="px-2 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[10px] flex items-center gap-1 cursor-pointer"
                               >
-                                {copiedTag === 'sound' ? <Check className="w-3 h-3 text-[#ccff00]" /> : <Copy className="w-3 h-3" />}
+                                {copiedTag === 'sound' ? <Check className="w-3 h-3 text-[#05b187]" /> : <Copy className="w-3 h-3" />}
                                 <span>{copiedTag === 'sound' ? 'Copied' : 'Copy'}</span>
                               </button>
                             </div>
@@ -1641,7 +1675,7 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                           {/* Negative Constraints Full Width */}
                           <div className="p-4 rounded-2xl bg-red-950/20 border border-red-900/40 md:col-span-2">
                             <span className="text-[11px] font-mono text-red-400 font-bold uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
-                              <span>🚫</span> Negative Prompt Filters (Avoid)
+                              Negative Prompt Filters (Avoid)
                             </span>
                             <p className="text-red-300/80 text-xs font-mono">
                               {resultTags.negative}
@@ -1654,7 +1688,7 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                       {resultTab === 'cinematic' && (
                         <div className="p-5 rounded-2xl bg-[#08090c] border border-zinc-800 text-zinc-200 text-xs sm:text-sm leading-relaxed font-sans relative group select-all">
                           {isTyping && (
-                            <div className="flex items-center justify-between pb-2 mb-2 border-b border-zinc-800/60 font-mono text-[11px] text-[#ccff00]">
+                            <div className="flex items-center justify-between pb-2 mb-2 border-b border-zinc-800/60 font-mono text-[11px] text-[#05b187]">
                               <span className="flex items-center gap-2 animate-pulse font-bold">
                                 <Sparkles className="w-3.5 h-3.5" />
                                 <span>AI Typing Streamer in Progress...</span>
@@ -1664,14 +1698,14 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                                 onClick={() => { setDisplayedText(normalTextResult); setIsTyping(false); }}
                                 className="text-zinc-400 hover:text-white px-2.5 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 cursor-pointer text-xs"
                               >
-                                Skip ⏩
+                                Skip
                               </button>
                             </div>
                           )}
                           <div className="whitespace-pre-wrap leading-relaxed font-sans text-zinc-100">
                             {isTyping ? displayedText : normalTextResult}
                             {isTyping && (
-                              <span className="inline-block w-2 h-4 bg-[#ccff00] ml-1 animate-pulse align-middle" />
+                              <span className="inline-block w-2 h-4 bg-[#05b187] ml-1 animate-pulse align-middle" />
                             )}
                           </div>
                         </div>
@@ -1694,7 +1728,7 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                             <div className="p-3 rounded-xl bg-zinc-900 border border-zinc-800">
                               <span className="text-[10px] text-zinc-500 font-mono block">MOTION TRAJECTORY</span>
-                              <span className="text-[#ccff00] font-bold text-sm">{activeMotionObj.label}</span>
+                              <span className="text-[#05b187] font-bold text-sm">{activeMotionObj.label}</span>
                             </div>
                             <div className="p-3 rounded-xl bg-zinc-900 border border-zinc-800">
                               <span className="text-[10px] text-zinc-500 font-mono block">CADENCE &amp; FPS</span>
@@ -1720,40 +1754,40 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                 </div>
 
                 {/* Popup Footer */}
-                <div className="px-5 py-4 border-t border-zinc-800/90 bg-[#07090c] flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
+                <div className="px-3.5 sm:px-5 py-3 sm:py-4 border-t border-zinc-800/90 bg-[#07090c] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+                  <div className="flex items-center justify-between sm:justify-start gap-2">
                     <button
                       type="button"
                       onClick={() => { setShowResultPopup(false); setShowSimModal(true); }}
-                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-200 hover:text-white text-xs font-semibold cursor-pointer"
+                      className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-200 hover:text-white text-xs font-semibold cursor-pointer"
                     >
-                      <Play className="w-3.5 h-3.5 text-[#ccff00]" />
-                      <span>3D Motion Simulator</span>
+                      <Play className="w-3.5 h-3.5 text-[#05b187]" />
+                      <span>3D Simulator</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => setShowResultPopup(false)}
-                      className="px-3 py-2 rounded-xl text-zinc-400 hover:text-zinc-200 text-xs cursor-pointer"
+                      className="px-2.5 py-1.5 rounded-xl text-zinc-400 hover:text-zinc-200 text-xs cursor-pointer"
                     >
-                      Dock to Beside Card
+                      Dock Beside
                     </button>
                   </div>
 
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
                     <button
                       type="button"
                       onClick={handleCopy}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-white hover:bg-zinc-800 text-xs font-bold transition cursor-pointer"
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-white hover:bg-zinc-800 text-xs font-bold transition cursor-pointer"
                     >
                       {copied ? (
                         <>
-                          <Check className="w-3.5 h-3.5 text-[#ccff00]" />
-                          <span className="text-[#ccff00]">Copied Full Prompt</span>
+                          <Check className="w-3.5 h-3.5 text-[#05b187]" />
+                          <span className="text-[#05b187]">Copied</span>
                         </>
                       ) : (
                         <>
                           <Copy className="w-3.5 h-3.5" />
-                          <span>Copy Full Prompt</span>
+                          <span>Copy Prompt</span>
                         </>
                       )}
                     </button>
@@ -1764,10 +1798,10 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                         handleCopy();
                         window.open('https://higgsfield.ai', '_blank');
                       }}
-                      className="flex items-center gap-1.5 px-5 py-2 rounded-xl bg-[#ccff00] text-black font-extrabold hover:shadow-[0_0_25px_rgba(204,255,0,0.5)] transition text-xs cursor-pointer"
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-[#05b187] text-black font-extrabold hover:shadow-[0_0_25px_rgba(5,177,135,0.5)] transition text-xs cursor-pointer truncate"
                     >
-                      Open in Higgsfield / Veo
-                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Higgsfield / Veo</span>
+                      <ExternalLink className="w-3.5 h-3.5 shrink-0" />
                     </button>
                   </div>
                 </div>
@@ -1786,7 +1820,7 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
               onClick={() => setSelectedModel(model)}
               className={`px-2 py-0.5 rounded cursor-pointer transition ${
                 selectedModel === model 
-                  ? 'bg-zinc-800 text-[#ccff00] font-bold border border-zinc-700' 
+                  ? 'bg-zinc-800 text-[#05b187] font-bold border border-zinc-700' 
                   : 'hover:text-zinc-300'
               }`}
             >
@@ -1797,10 +1831,10 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
 
       </main>
 
-      {/* 🌟 MODAL: INTERACTIVE 3D CAMERA MOTION & ANIMATION SIMULATOR */}
+      {/* MODAL: INTERACTIVE 3D CAMERA MOTION & ANIMATION SIMULATOR */}
       <AnimatePresence>
         {showSimModal && (
-          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in">
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 animate-in fade-in">
             <motion.div 
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -1809,10 +1843,10 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
             >
               
               {/* Header */}
-              <div className="p-4 sm:p-5 border-b border-zinc-800 flex items-center justify-between bg-[#0a0b0e]">
+              <div className="p-3 sm:p-5 border-b border-zinc-800 flex items-center justify-between gap-2 bg-[#0a0b0e]">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-[#ccff00]/10 border border-[#ccff00]/30 text-[#ccff00] flex items-center justify-center">
-                    <Play className="w-4 h-4 text-[#ccff00]" />
+                  <div className="w-8 h-8 rounded-lg bg-[#05b187]/10 border border-[#05b187]/30 text-[#05b187] flex items-center justify-center">
+                    <Play className="w-4 h-4 text-[#05b187]" />
                   </div>
                   <div>
                     <h3 className="font-sans text-sm sm:text-base font-bold text-white">
@@ -1850,7 +1884,7 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                   }`}
                   style={{
                     backgroundImage: `
-                      radial-gradient(circle, #ccff00 1px, transparent 1px),
+                      radial-gradient(circle, #05b187 1px, transparent 1px),
                       linear-gradient(to right, #2c3340 1px, transparent 1px),
                       linear-gradient(to bottom, #2c3340 1px, transparent 1px)
                     `,
@@ -1874,13 +1908,13 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                     repeat: Infinity, 
                     ease: "easeInOut" 
                   }}
-                  className="relative z-10 w-32 h-32 rounded-2xl bg-gradient-to-tr from-[#ccff00]/20 via-[#00d2ff]/20 to-purple-500/20 border-2 border-[#ccff00] shadow-[0_0_30px_rgba(204,255,0,0.3)] flex flex-col items-center justify-center backdrop-blur-xs"
+                  className="relative z-10 w-32 h-32 rounded-2xl bg-gradient-to-tr from-[#05b187]/20 via-[#00d2ff]/20 to-purple-500/20 border-2 border-[#05b187] shadow-[0_0_30px_rgba(5,177,135,0.3)] flex flex-col items-center justify-center backdrop-blur-xs"
                 >
-                  <Camera className="w-8 h-8 text-[#ccff00] mb-1" />
+                  <Camera className="w-8 h-8 text-[#05b187] mb-1" />
                   <span className="text-[10px] font-mono text-white font-bold uppercase tracking-wider text-center px-1">
                     {activeMotionObj.label}
                   </span>
-                  <span className="text-[8px] font-mono text-[#ccff00]/80">
+                  <span className="text-[8px] font-mono text-[#05b187]/80">
                     {framerate}
                   </span>
                 </motion.div>
@@ -1926,8 +1960,8 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
               </div>
 
               {/* Modal Controls Footer */}
-              <div className="p-4 bg-[#0a0b0e] flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+              <div className="p-3 sm:p-4 bg-[#0a0b0e] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1 sm:pb-0 w-full sm:w-auto">
                   {CAMERA_MOTIONS.map(m => (
                     <button
                       key={m.id}
@@ -1935,7 +1969,7 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                       onClick={() => setSelectedCameraMotion(m.id)}
                       className={`px-2.5 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap ${
                         selectedCameraMotion === m.id
-                          ? 'bg-[#ccff00] text-black font-bold'
+                          ? 'bg-[#05b187] text-black font-bold'
                           : 'bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800'
                       }`}
                     >

@@ -27,17 +27,40 @@
   --color-stone: #8e91a0;
   --color-muted: #a5a8b5;
 
-  --font-sans: "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-display: "Plus Jakarta Sans", sans-serif;
+  --font-logo: "Tektur", "Google Sans", sans-serif;
+  --font-headline: "Oswald", "Google Sans", sans-serif;
+  --font-sans: "Google Sans", "Roboto", "Noto Sans Myanmar", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: "Oswald", "Google Sans", sans-serif;
+  --font-myanmar: "Noto Sans Myanmar", sans-serif;
+  --font-retro: "Press Start 2P", monospace;
 }
 
 body {
-  background-color: #fafbfc;
-  color: #1c1c1e;
-  font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: #0a0d14;
+  color: #f1f5f9;
+  font-family: 'Google Sans', 'Roboto', 'Noto Sans Myanmar', -apple-system, BlinkMacSystemFont, sans-serif;
   overflow-x: hidden;
   margin: 0;
   padding: 0;
+}
+
+/* Custom Typography Utilities */
+.font-logo {
+  font-family: 'Tektur', 'Google Sans', sans-serif;
+  letter-spacing: 0.05em;
+}
+
+.font-headline {
+  font-family: 'Oswald', 'Google Sans', sans-serif;
+  letter-spacing: 0.02em;
+}
+
+.font-myanmar {
+  font-family: 'Noto Sans Myanmar', sans-serif;
+}
+
+.font-retro {
+  font-family: 'Press Start 2P', monospace;
 }
 
 /* Miro Canvas Subtle Dot Pattern */
@@ -105,4 +128,83 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #847469;
+}
+
+/* Infinite Horizontal Scroll Marquee Animation for SHOW AI PROMPT STUDIO */
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 28s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(0, 180, 115, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(0, 180, 115, 0.6);
+  }
+}
+
+.glow-emerald {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+/* Stitch Redesign Custom Effects */
+.title-gradient {
+  background: linear-gradient(90deg, #34d399 0%, #22d3ee 50%, #facc15 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.glass-card {
+  background: rgba(13, 16, 23, 0.68);
+  backdrop-filter: blur(20px) saturate(190%);
+  -webkit-backdrop-filter: blur(20px) saturate(190%);
+  border: none;
+  box-shadow: 
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.4),
+    0 20px 40px -15px rgba(0, 0, 0, 0.75);
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card:hover {
+  background: rgba(17, 22, 32, 0.8);
+  box-shadow: 
+    inset 0 1px 2px 0 rgba(255, 255, 255, 0.18),
+    0 28px 56px -12px rgba(0, 0, 0, 0.9),
+    0 0 35px -5px rgba(52, 211, 153, 0.16);
+  transform: translateY(-4px);
+}
+
+.glass-pill {
+  background: rgba(13, 18, 25, 0.72);
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  box-shadow: 
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.1),
+    0 10px 25px -8px rgba(0, 0, 0, 0.6);
+}
+
+.glass-circle {
+  background: rgba(11, 15, 22, 0.78);
+  backdrop-filter: blur(20px) saturate(190%);
+  -webkit-backdrop-filter: blur(20px) saturate(190%);
+  box-shadow: 
+    inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.15),
+    0 14px 34px rgba(0, 0, 0, 0.75);
 }

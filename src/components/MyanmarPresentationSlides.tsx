@@ -253,48 +253,6 @@ const SLIDES_DATA: SlideItem[] = [
     illustrationBadge: '🎨 Custom FX'
   },
   {
-    id: 'photo-to-text',
-    sectionId: 'photo-to-text',
-    categoryMm: 'AI ပြောင်းပြန် စနစ်',
-    categoryEn: 'AI Reverse Engineering',
-    titleMm: 'Photo to Text Generator (ဓာတ်ပုံမှ စာသား/Prompt ထုတ်ယူနည်း)',
-    titleEn: 'Photo to Text AI Reverse Engineering Guide',
-    subtitleMm: 'မိမိ ကြိုက်နှစ်သက်သော ဓာတ်ပုံကို တင်သွင်းရုံဖြင့် AI က ကင်မရာ၊ ဝတ်စုံနှင့် အလင်းအမှောင် Prompt ပြန်ထုတ်ပေးခြင်း',
-    subtitleEn: 'Reverse engineer any reference photo into professional Midjourney & Flux prompt blueprints',
-    icon: 'auto_fix_normal',
-    badge: 'AI Reverse',
-    badgeColor: 'bg-[#ffd02f] text-[#1c1c1e]',
-    summaryMm: 'ဖောက်သည် သို့မဟုတ် မိမိထံတွင် ရှိပြီးသား ဓာတ်ပုံတစ်ပုံကို Upload တင်သွင်းလိုက်ရုံဖြင့် အဆိုပါပုံ၏ ဝတ်စုံဒီဇိုင်း၊ ခေတ်ကာလ၊ အလင်းထောင့်၊ ကင်မရာအမျိုးအစားနှင့် အနုစိတ်အချက်အလက်များကို AI ဖြင့် ခွဲခြမ်းစိတ်ဖြာပြီး Master Prompt အဖြစ် ပြောင်းလဲပေးပါသည်။',
-    summaryEn: 'Upload any existing photo to dissect its garment details, era markers, light angles, camera hardware, and color tones into a clean, reusable prompt.',
-    stepsMm: [
-      { step: 'အဆင့် ၁', desc: 'Drag & Drop ဖြင့် ဓာတ်ပုံကို Upload Box ထဲသို့ ဆွဲထည့်ပါ (သို့မဟုတ် နမူနာပုံကို ရွေးပါ)။' },
-      { step: 'အဆင့် ၂', desc: 'Analysis Mode တွင် Detail Analysis သို့မဟုတ် Style Extraction ကို ရွေးချယ်ပါ။' },
-      { step: 'အဆင့် ၃', desc: 'ခွဲခြမ်းစိတ်ဖြာပြီး ထွက်လာသော Prompt ကို Prompt Matrix ထဲသို့ ပေးပို့ပြင်ဆင်နိုင်ပါသည်။' }
-    ],
-    stepsEn: [
-      { step: 'Step 1', desc: 'Drag & drop any reference photo into the reverse analysis dropzone.' },
-      { step: 'Step 2', desc: 'Choose between Full Structural Deconstruction or Style Palette Extraction.' },
-      { step: 'Step 3', desc: 'Review detected attributes and send directly to Matrix or Studio Desk.' }
-    ],
-    keyFeaturesMm: [
-      'ပုံတစ်ပုံလုံး၏ ပိုးထည်ဒီဇိုင်းနှင့် လက်ဝတ်ရတနာ ခွဲခြမ်းစိတ်ဖြာမှု',
-      'အလင်းရောင်နှင့် ကင်မရာ အနေအထား အလိုအလျောက် တွက်ချက်ဖော်ပြခြင်း',
-      'Midjourney v6.1 Multi-Weight (::2, ::1) Syntax အလိုအလျောက် ထုတ်ပေးခြင်း',
-      'Burmese Cultural Tags ခွဲခြားသတ်မှတ်ခြင်း'
-    ],
-    keyFeaturesEn: [
-      'Automatic silk pattern and jewelry deconstruction',
-      'Lighting topology and camera sensor estimation',
-      'Multi-prompt weighted syntax creation (::2, ::1.5)',
-      'Burmese cultural heritage tagging'
-    ],
-    proTipMm: 'ထွက်ပေါ်လာသော Prompt ထဲမှ အနုတ်လက္ခဏာ (Negative elements) များကို Prompt Utility ဖြင့် အလွယ်တကူ သန့်စင်နိုင်ပါသည်။',
-    proTipEn: 'Clean up unnecessary background clutter from the reversed prompt using the Negative Matrix in Utility suite.',
-    speakerNotesMm: 'ဖောက်သည်က "ဒီပုံစံမျိုးလေး လိုချင်တယ်" ဟု ပုံပြလာပါက ဤ Photo to Text ကဏ္ဍဖြင့် ချက်ချင်း Prompt ပြောင်းလဲပြသနိုင်ပါသည်။',
-    speakerNotesEn: 'Show users how to reproduce client inspiration images faithfully without guessing parameters.',
-    illustrationBadge: '🔍 Smart Deconstruct'
-  },
-  {
     id: 'prompt-builder',
     sectionId: 'prompt-builder',
     categoryMm: 'အဓိက စနစ်',

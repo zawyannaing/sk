@@ -826,9 +826,9 @@ export const PhotoEditStudio: React.FC<PhotoEditStudioProps> = ({
                     setSavedToast(true);
                     setTimeout(() => setSavedToast(false), 2200);
                   }}
-                  className="flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl bg-white border border-[#d6c3b6]/60 text-[#704112] hover:bg-[#faf2ee] text-xs font-semibold transition-all cursor-pointer"
+                  className="flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl bg-[#141b2a] border border-zinc-800 text-zinc-200 hover:bg-[#1a2234] text-xs font-semibold transition-all cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-[16px]">
+                  <span className="material-symbols-outlined text-[16px] text-emerald-400">
                     {savedToast ? 'bookmark_added' : 'bookmark'}
                   </span>
                   <span>{savedToast ? 'Saved!' : 'Save Prompt'}</span>

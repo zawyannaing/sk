@@ -156,24 +156,23 @@ export function buildComprehensiveMasterPrompt(
     const locCustom = selection?.customLocationDetails ? `, ${selection.customLocationDetails.trim()}` : '';
     const lighting = selection?.timeAndLighting || 'golden hour warm directional sunlight with volumetric mist';
     const lightCustom = selection?.customLightingDetails ? `, ${selection.customLightingDetails.trim()}` : '';
-    const mood = selection?.moodEmotion && selection.moodEmotion !== 'skip' ? `, ${selection.moodEmotion} atmosphere` : '';
+    const mood = selection?.moodEmotion && selection.moodEmotion !== 'skip' ? `${selection.moodEmotion} atmosphere` : 'serene and timeless aesthetic';
     const event = selection?.event && selection.event !== 'skip' ? `, inspired by ${selection.event}` : '';
     const camera = selection?.camera || 'Hasselblad X2D 100C with 35mm f/2.8 architectural prime lens';
-    const angle = selection?.cameraAngle && selection.cameraAngle !== 'skip' ? `, ${selection.cameraAngle}` : '';
+    const angle = selection?.cameraAngle && selection.cameraAngle !== 'skip' ? selection.cameraAngle : 'Wide architectural landscape framing';
     const style = selection?.photoStyle || 'Photorealistic Architectural & Environmental Scenery';
-    const quality = selection?.qualityProfile || '8K UHD resolution, tack-sharp focus, rich tonal dynamic range, masterwork';
-    const color = selection?.colorGrade && selection.colorGrade !== 'skip' ? `, ${selection.colorGrade} color grading` : '';
+    const quality = selection?.qualityProfile || '8k resolution, highly detailed architectural textures, photorealistic, museum archival quality, cinematic color grading';
+    const color = selection?.colorGrade && selection.colorGrade !== 'skip' ? `${selection.colorGrade} color grading` : '16-bit natural film tones';
 
-    const coreScene = `A breathtaking standalone environmental background photograph of ${locMapped}${locCustom}${event}, illuminated by ${lighting}${lightCustom}${mood}${angle}, ${style}, captured on ${camera}${color}, ${quality}${safeCustomText}, purely architectural and natural scenery with zero human presence`;
-    const masterPrompt = `${coreScene} --ar ${targetAr}`;
+    const masterPrompt = `[Subject]: Purely environmental scenery, majestic architectural heritage with zero human presence, no persons. [Action]: Atmospheric stillness, serene natural wind and gentle ambient presence. [Environment]: A breathtaking standalone environmental photograph of ${locMapped}${locCustom}${event}. [Cinematography]: ${angle}, captured on ${camera}, f/8.0 deep depth of field. [Lighting/Style]: ${lighting}${lightCustom}, ${mood}, ${style}, ${color}. [Technical]: ${quality} --ar ${targetAr}`.replace(/\s+/g, ' ').trim();
     const negativePrompt = `person, human, face, woman, man, girl, boy, model, people, portrait, body, hands, limbs, clothing, crowd, silhouette, blurry, low quality, distorted architecture, watermark`;
 
     return {
       masterPrompt,
       negativePrompt,
-      midjourneyFormat: `/imagine prompt: ${coreScene} --ar ${targetAr} --v 6.1 --style raw --no person, human, face, people, crowd`,
-      fluxFormat: `${coreScene}. Shot in ${targetAr} aspect ratio with ultra-clean architectural geometry, deep atmospheric perspective, and natural lighting physics.`,
-      sdxlFormat: `${coreScene} | Negative: ${negativePrompt}`,
+      midjourneyFormat: `/imagine prompt: ${masterPrompt} --v 6.1 --style raw --no person, human, face, people, crowd`,
+      fluxFormat: `${masterPrompt.replace(/--ar\s+[0-9:]+/gi, '').trim()}`,
+      sdxlFormat: `${masterPrompt} | Negative: ${negativePrompt}`,
       descriptionMm:
         `【နောက်ခံရှုခင်း သီးသန့် မုဒ် (Background-Only Engine)】\n` +
         `၁။ တည်နေရာနှင့် ရှုခင်း: ${locMm}${locCustom}\n` +
@@ -194,18 +193,17 @@ export function buildComprehensiveMasterPrompt(
     const loc = selection?.location || 'authentic Myanmar heritage architectural setting';
     const light = selection?.timeAndLighting || 'soft directional Rembrandt studio lighting with warm golden rim light';
     const cam = selection?.camera || 'Sony A7R V with 85mm f/1.2 GM portrait prime lens';
-    const quality = selection?.qualityProfile || '8K UHD resolution, photorealistic masterpiece, real epidermal skin micro-pores';
+    const quality = selection?.qualityProfile || '8k resolution, highly detailed fabric textures, photorealistic, professional photography, cinematic color grading';
 
-    const coreScene = `Subject / Identity: 100% exact facial likeness, preserving identical eyes, nose, lips, facial bone geometry, hairstyle, and warm honey-olive skin tone of the person from User Image (${eth} ${sub}, zero facial alteration, consistent character). Outfit: Accurately recreating the attire from Reference Image, wearing ${outfit} with authentic handwoven silk weft texture, metallic gold Zari embroidery, and tailored drape. Pose: Replicating the exact body posture, shoulder angle, hand placement, and graceful stance from Reference Image (${pose}). Composition: Balanced medium portrait framing, eye-level perspective. Background: Set against ${loc} with creamy f/1.2 bokeh separation. Lighting: ${light}, natural subsurface skin scattering, crisp catchlights in irises. Optics: Shot on ${cam}, ${quality}${safeCustomText}`;
-    const masterPrompt = `${coreScene} --ar ${targetAr}`;
+    const masterPrompt = `[Subject]: 100% exact facial likeness, preserving identical eyes, nose, lips, facial bone geometry, hairstyle, and warm honey-olive skin tone of the person from User Image (${eth} ${sub}, zero facial alteration, consistent character). Recreating attire from Reference Image: wearing ${outfit} with authentic silk weft texture and gold embroidery. [Action]: Replicating exact body posture, shoulder angle, hand placement, and graceful stance from Reference Image (${pose}). [Environment]: Set against ${loc} with creamy depth of field separation. [Cinematography]: Balanced medium portrait framing, eye-level perspective, shot on ${cam}, f/1.8 aperture for shallow depth of field. [Lighting/Style]: ${light}, natural subsurface skin scattering, crisp catchlights in irises. [Technical]: ${quality} --ar ${targetAr}`.replace(/\s+/g, ' ').trim();
     const negativePrompt = `different face, altered face, changed eyes, changed nose, changed lips, distorted face, facial asymmetry, face swap artifact, mismatched identity, deformed hands, extra fingers, plastic airbrushed skin, Indian saree, Chinese hanfu, Japanese kimono, blurry, low resolution`;
 
     return {
       masterPrompt,
       negativePrompt,
-      midjourneyFormat: `/imagine prompt: ${coreScene} --ar ${targetAr} --v 6.1 --style raw --cw 100`,
-      fluxFormat: `${coreScene}. Rendered in ${targetAr} aspect ratio with lifelike textile physics and authentic studio optics.`,
-      sdxlFormat: `${coreScene} | Negative: ${negativePrompt}`,
+      midjourneyFormat: `/imagine prompt: ${masterPrompt} --v 6.1 --style raw --cw 100`,
+      fluxFormat: `${masterPrompt.replace(/--ar\s+[0-9:]+/gi, '').trim()}`,
+      sdxlFormat: `${masterPrompt} | Negative: ${negativePrompt}`,
       descriptionMm:
         `【Reference Image Outfit & Pose စနစ် (ပုံစံတူ ဝတ်စုံနှင့် ကိုယ်နေဟန်ထား ပေါင်းစပ်မှု)】\n` +
         `၁။ မျက်နှာသွင်ပြင် ထိန်းသိမ်းမှု: User ပုံမှ မူရင်းမျက်နှာ၊ မျက်လုံး၊ နှာတံ၊ နှုတ်ခမ်းနှင့် အသားအရောင်ကို ၁၀၀% အတိအကျ ထိန်းသိမ်းထားပါသည်။\n` +
@@ -242,20 +240,19 @@ export function buildComprehensiveMasterPrompt(
     const locCustom = selection?.customLocationDetails ? `, ${selection.customLocationDetails.trim()}` : '';
     const lightBase = selection?.timeAndLighting || 'warm golden hour directional key lighting with soft fill';
     const camera = selection?.camera || 'Hasselblad X2D 100C with 85mm f/1.2 portrait prime lens';
-    const angle = selection?.cameraAngle && selection.cameraAngle !== 'skip' ? `, ${selection.cameraAngle}` : '';
+    const angle = selection?.cameraAngle && selection.cameraAngle !== 'skip' ? selection.cameraAngle : 'Medium-full shot, eye-level angle';
     const style = selection?.photoStyle || 'High-End Editorial Studio Portrait';
-    const quality = selection?.qualityProfile || '8K UHD resolution, tack-sharp micro-textures, realistic fabric weave';
+    const quality = selection?.qualityProfile || '8k resolution, highly detailed fabric textures, photorealistic, professional photography, cinematic color grading';
 
-    const coreScene = `Keep the exact same person, face, facial bone structure, body proportions, pose, skin tone, and expression from Image 1 (100% exact face match, identical eyes nose lips, zero face alteration, preserved identity). Replace ONLY the clothing with the outfit from Image 2: ${garmentChecklist}. Maintain natural lighting harmony set against ${locBase}${locCustom}, illuminated by ${lightBase}${angle}, ${style}, shot on ${camera}, ${quality}${safeCustomText}`;
-    const masterPrompt = `${coreScene} --ar ${targetAr}`;
+    const masterPrompt = `[Subject]: Keep the exact same person, face, facial bone structure, body proportions, and skin tone from Image 1 (100% exact face match, identical eyes nose lips, zero face alteration, preserved identity). Replace ONLY the clothing with the outfit from Image 2: ${garmentChecklist}. [Action]: Preserving the exact body posture, stance, and natural expression from Image 1. [Environment]: Set against ${locBase}${locCustom}. [Cinematography]: ${angle}, shot on ${camera}, f/2.0 aperture for shallow depth of field. [Lighting/Style]: ${lightBase}, ${style}, natural unretouched epidermal skin micro-pores. [Technical]: ${quality} --ar ${targetAr}`.replace(/\s+/g, ' ').trim();
     const negativePrompt = `different face, altered face, changed eyes, changed nose, changed lips, distorted face, facial asymmetry, face swap artifact, mismatched identity, wrong cultural clothing, Indian saree, Chinese hanfu, plastic skin, low quality, blurry`;
 
     return {
       masterPrompt,
       negativePrompt,
-      midjourneyFormat: `/imagine prompt: ${coreScene} --ar ${targetAr} --v 6.1 --style raw --cw 100`,
-      fluxFormat: `${coreScene}. Framed in ${targetAr} aspect ratio with hyper-realistic silk thread reflections and natural skin pores.`,
-      sdxlFormat: `${coreScene} | Negative: ${negativePrompt}`,
+      midjourneyFormat: `/imagine prompt: ${masterPrompt} --v 6.1 --style raw --cw 100`,
+      fluxFormat: `${masterPrompt.replace(/--ar\s+[0-9:]+/gi, '').trim()}`,
+      sdxlFormat: `${masterPrompt} | Negative: ${negativePrompt}`,
       descriptionMm:
         `【ဝတ်စုံလဲလှယ်ခြင်း အထူးစနစ် (Strict Clothes-Swap Engine)】\n` +
         `၁။ မူရင်းရုပ်သွင် ထိန်းသိမ်းမှု: Image 1 မှ လူ၏ မျက်နှာ၊ ခန္ဓာကိုယ်အချိုးအစား၊ ကိုယ်ဟန် (Pose) နှင့် အသားအရောင်ကို ၁၀၀% မပျက်မစီး အတိအကျ ထိန်းသိမ်းထားပါသည်။\n` +
@@ -276,7 +273,7 @@ export function buildComprehensiveMasterPrompt(
     subjectText = 'A handsome Burmese gentleman with noble Southeast Asian bone structure and warm olive complexion';
     subjectMm = 'ခန့်ညားသော မြန်မာအမျိုးသား';
   } else if (sub === 'couple') {
-    subjectText = 'An elegant Myanmar couple (a handsome Burmese groom and a graceful Burmese bride)';
+    subjectText = 'A beautiful young Myanmar bridal couple in elegant traditional wedding attire';
     subjectMm = 'ကျက်သရေရှိသော မြန်မာမင်္ဂလာစုံတွဲ (သတို့သားနှင့် သတို့သမီး)';
   } else if (sub === 'monk') {
     subjectText = 'A serene Burmese Buddhist monk in authentic deep terracotta-saffron robes with peaceful mindfulness';
@@ -294,7 +291,7 @@ export function buildComprehensiveMasterPrompt(
     subjectText = 'A luxury commercial product showcase gracefully presented by an elegant Burmese model';
     subjectMm = 'မြန်မာမော်ဒယ်နှင့် အဆင့်မြင့် ကုန်ပစ္စည်းကြော်ငြာ';
   } else {
-    subjectText = 'A gorgeous Burmese woman with graceful regal poise, authentic Myanmar facial features, and luminous honey-olive skin with real micro-pores';
+    subjectText = 'A gorgeous Burmese woman with graceful regal poise, authentic Myanmar facial features, and luminous honey-olive skin with natural micro-pores';
     subjectMm = 'ကျက်သရေရှိပြီး လှပသော မြန်မာအမျိုးသမီး';
   }
 
@@ -537,11 +534,158 @@ export function buildComprehensiveMasterPrompt(
   // 12. Quality Profile & Render Specifications
   const qualityText = (selection?.qualityProfile && selection.qualityProfile !== 'skip')
     ? selection.qualityProfile
-    : '8K UHD resolution, museum archival print quality, tack-sharp iris focus, lifelike textile weave fidelity';
+    : '8k resolution, highly detailed fabric textures, photorealistic, professional wedding photography, cinematic color grading';
 
-  // Assemble Complete Core Scene (without Midjourney flags for FLUX/OpenAI compatibility)
-  const coreScene = `${subjectText}${identityText}${poseText}${coupleText}${outfitText}${culturalPropsText}${eventText}${locationText}${lightingText}${makeupText}${retouchText}${photoStyleText}, ${qualityText}${safeCustomText}`;
-  const masterPrompt = `${coreScene} --ar ${targetAr}`;
+  // =========================================================================
+  // STRUCTURED TAGGED PROMPT ASSEMBLY ([Subject], [Action], [Environment], [Cinematography], [Lighting/Style], [Technical])
+  // =========================================================================
+  
+  // 1. [Subject] Section
+  const subjectParts: string[] = [];
+  if (sub === 'couple' || selection?.coupleOutfitType) {
+    subjectParts.push(
+      selection?.customSubjectDetails
+        ? `A beautiful young Myanmar bridal couple (${selection.customSubjectDetails.trim()}) in elegant traditional wedding attire`
+        : 'A beautiful young Myanmar bridal couple in elegant traditional wedding attire'
+    );
+    if (selection?.ethnicity && selection.ethnicity !== 'skip') {
+      const ethOpt = ETHNICITY_OPTIONS.find((e) => e.id === selection.ethnicity);
+      subjectParts.push(ethOpt?.promptText ? ethOpt.promptText : `authentic ${selection.ethnicity} Myanmar ethnic heritage`);
+    }
+    if (selection?.ageRange && selection.ageRange !== 'skip') {
+      subjectParts.push(`age ${selection.ageRange.replace('_', '-')}`);
+    }
+    if (identityText) {
+      subjectParts.push(identityText.replace(/^,\s*/, ''));
+    }
+
+    // Groom Attire
+    const groomDetails: string[] = [];
+    if (selection?.groomOutfit) groomDetails.push(selection.groomOutfit);
+    if (selection?.groomTop) groomDetails.push(`top: ${selection.groomTop}`);
+    if (selection?.groomBottom) groomDetails.push(`bottom: ${selection.groomBottom}`);
+    if (selection?.groomHair) groomDetails.push(`hair: ${selection.groomHair}`);
+    if (selection?.groomPoseAccessory) groomDetails.push(`accessory: ${selection.groomPoseAccessory}`);
+    if (groomDetails.length > 0) {
+      subjectParts.push(`The groom wears ${groomDetails.join(', ')}`);
+    } else {
+      subjectParts.push('The groom wears traditional Myanmar formal wedding attire with silk longyi and matching formal jacket');
+    }
+
+    // Bride Attire
+    const brideDetails: string[] = [];
+    if (selection?.brideOutfit) brideDetails.push(selection.brideOutfit);
+    if (selection?.brideTop) brideDetails.push(`top: ${selection.brideTop}`);
+    if (selection?.brideBottom) brideDetails.push(`bottom: ${selection.brideBottom}`);
+    if (selection?.brideHair) brideDetails.push(`hair: ${selection.brideHair}`);
+    if (selection?.bridePoseAccessory) brideDetails.push(`accessory: ${selection.bridePoseAccessory}`);
+    if (brideDetails.length > 0) {
+      subjectParts.push(`The bride wears ${brideDetails.join(', ')}`);
+    } else {
+      subjectParts.push('The bride wears a stunning traditional Myanmar royal bridal gown with gold embroidery, traditional gold jewelry, and a fragrant jasmine garland');
+    }
+
+    // Royal Regalia
+    const regaliaParts: string[] = [];
+    if (selection?.weddingEthnicGroup) regaliaParts.push(`authentic ${selection.weddingEthnicGroup} royal wedding regalia`);
+    if (selection?.weddingEra) regaliaParts.push(`${selection.weddingEra} era historical styling`);
+    if (selection?.weddingAccessoryProps) regaliaParts.push(`ceremonial props: ${selection.weddingAccessoryProps}`);
+    if (regaliaParts.length > 0) {
+      subjectParts.push(`Adorned with ${regaliaParts.join(', ')}`);
+    }
+  } else {
+    subjectParts.push(subjectText);
+    if (identityText) {
+      subjectParts.push(identityText.replace(/^,\s*/, ''));
+    }
+    if (outfitText) {
+      subjectParts.push(outfitText.replace(/^,\s*/, ''));
+    }
+    if (culturalPropsText) {
+      subjectParts.push(culturalPropsText.replace(/^,\s*/, ''));
+    }
+  }
+  if (safeCustomText) {
+    subjectParts.push(safeCustomText.replace(/^,\s*/, ''));
+  }
+  const subjectSection = subjectParts.join('. ').replace(/\.\./g, '.').trim();
+
+  // 2. [Action] Section
+  const actionParts: string[] = [];
+  if (sub === 'couple' || selection?.coupleOutfitType) {
+    if (selection?.couplePose) {
+      actionParts.push(selection.couplePose);
+    } else {
+      actionParts.push('Standing close together, holding hands affectionately, posing for a romantic wedding portrait, looking directly at the camera with gentle smiles');
+    }
+    if (selection?.groomExpression) actionParts.push(`The groom has a ${selection.groomExpression}`);
+    if (selection?.brideExpression) actionParts.push(`The bride has a ${selection.brideExpression}`);
+  } else {
+    if (selection?.poseExpression && selection.poseExpression !== 'skip') {
+      actionParts.push(`Posing with ${selection.poseExpression}, looking towards the camera with gentle poise`);
+    } else {
+      actionParts.push('Standing with natural regal grace and poise, looking directly towards the camera with a gentle, serene smile');
+    }
+    if (selection?.customPoseDetails && selection.customPoseDetails.trim()) {
+      actionParts.push(selection.customPoseDetails.trim());
+    }
+  }
+  const actionSection = actionParts.join('. ').replace(/\.\./g, '.').trim();
+
+  // 3. [Environment] Section
+  const envParts: string[] = [];
+  const locMapped = LOCATION_TAXONOMY[locKey]?.en || selection?.location || 'an atmospheric Myanmar heritage architectural setting';
+  envParts.push(`A breathtaking ${locMapped} at golden hour`);
+  if (selection?.customLocationDetails && selection.customLocationDetails.trim()) {
+    envParts.push(selection.customLocationDetails.trim());
+  }
+  if (selection?.weddingStudioBackdropProps && selection.weddingStudioBackdropProps.trim()) {
+    envParts.push(`studio backdrop featuring ${selection.weddingStudioBackdropProps.trim()}`);
+  }
+  if (selection?.event && selection.event !== 'skip') {
+    envParts.push(`celebrating traditional ${selection.event}`);
+  }
+  if (selection?.customEventDetails && selection.customEventDetails.trim()) {
+    envParts.push(selection.customEventDetails.trim());
+  }
+  const environmentSection = envParts.join('. ').replace(/\.\./g, '.').trim();
+
+  // 4. [Cinematography] Section
+  const cineParts: string[] = [];
+  const framing = selection?.cameraAngle && selection.cameraAngle !== 'skip' ? selection.cameraAngle : 'Medium-full shot';
+  cineParts.push(`${framing}`);
+  const lensAperture = cameraBase.includes('85mm')
+    ? '85mm portrait prime lens, f/1.8 aperture for a beautiful shallow depth of field, keeping the couple in sharp focus while softly blurring the background'
+    : '50mm prime lens, f/2.8 aperture for a beautiful shallow depth of field, keeping the couple in sharp focus while softly blurring the background';
+  cineParts.push(lensAperture);
+  cineParts.push(`Eye-level angle, captured on ${cameraBase}`);
+  const cinematographySection = cineParts.join(', ').trim();
+
+  // 5. [Lighting/Style] Section
+  const lightParts: string[] = [];
+  const lighting = selection?.timeAndLighting && selection.timeAndLighting !== 'skip'
+    ? selection.timeAndLighting
+    : 'Golden hour natural lighting, soft warm sunlight illuminating their faces, gentle rim light on their attire from the setting sun';
+  lightParts.push(lighting);
+  const mood = selection?.moodEmotion && selection.moodEmotion !== 'skip' ? `${selection.moodEmotion} aesthetic` : 'romantic and elegant aesthetic';
+  lightParts.push(mood);
+  if (selection?.colorGrade && selection.colorGrade !== 'skip') {
+    lightParts.push(`${selection.colorGrade} color grading`);
+  } else {
+    lightParts.push('cinematic color grading, 16-bit natural warm film tones');
+  }
+  if (makeupText) lightParts.push(makeupText.replace(/^,\s*/, ''));
+  lightParts.push(retouchText.replace(/^,\s*/, ''));
+  const lightingStyleSection = lightParts.join(', ').trim();
+
+  // 6. [Technical] Section
+  const technicalSection = `${qualityText} --ar ${targetAr}`.trim();
+
+  // Complete Tagged Master Prompt
+  const masterPrompt = `[Subject]: ${subjectSection}. [Action]: ${actionSection}. [Environment]: ${environmentSection}. [Cinematography]: ${cinematographySection}. [Lighting/Style]: ${lightingStyleSection}. [Technical]: ${technicalSection}`
+    .replace(/\s+/g, ' ')
+    .replace(/\.\./g, '.')
+    .trim();
 
   const negativePrompt = `different face, altered face, swapped face, distorted facial features, facial asymmetry, Indian saree, bindi, Chinese hanfu, Japanese kimono, Western casual clothes, plastic airbrushed skin, doll face, blurry, low resolution, bad eyes, deformed hands, extra fingers, overexposed, watermark, text`;
 
@@ -570,9 +714,9 @@ export function buildComprehensiveMasterPrompt(
   return {
     masterPrompt,
     negativePrompt,
-    midjourneyFormat: `/imagine prompt: ${coreScene} --ar ${targetAr} --v 6.1 --style raw --no Indian saree, Chinese hanfu, Japanese kimono, plastic skin, altered face`,
-    fluxFormat: `${coreScene}. Framed in ${targetAr} aspect ratio. Ultra-realistic Burmese cultural photography with authentic handwoven silk weft textures, natural epidermal skin pores, and crisp medium-format studio optics.`,
-    sdxlFormat: `${coreScene} | Camera: ${cameraNotes} | Negative: ${negativePrompt}`,
+    midjourneyFormat: `/imagine prompt: ${masterPrompt} --v 6.1 --style raw --no Indian saree, Chinese hanfu, Japanese kimono, plastic skin, altered face`,
+    fluxFormat: `${masterPrompt.replace(/--ar\s+[0-9:]+/gi, '').trim()}`,
+    sdxlFormat: `${masterPrompt} | Camera: ${cameraNotes} | Negative: ${negativePrompt}`,
     descriptionMm,
     descriptionEn,
     cameraNotes,

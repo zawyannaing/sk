@@ -11,7 +11,6 @@ interface ReferencePhotoUploadBoxProps {
   language: Language;
   onPhotoSelected?: (photoDataUrl: string, slotType: 'face' | 'outfit' | 'lighting') => void;
   onClearPhoto?: (slotType: 'face' | 'outfit' | 'lighting') => void;
-  onOpenPhotoToText?: (photoDataUrl: string) => void;
   onSendToStudioDesk?: (extractedParams: any) => void;
   activeSlot?: 'face' | 'outfit' | 'lighting';
   initialPhotos?: Partial<ReferencePhotoSlots>;
@@ -86,7 +85,6 @@ export const ReferencePhotoUploadBox: React.FC<ReferencePhotoUploadBoxProps> = (
   language,
   onPhotoSelected,
   onClearPhoto,
-  onOpenPhotoToText,
   onSendToStudioDesk,
   activeSlot = 'face',
   initialPhotos,
@@ -199,17 +197,6 @@ export const ReferencePhotoUploadBox: React.FC<ReferencePhotoUploadBoxProps> = (
 
   const currentPhotoUrl = photos[`${selectedSlot}Ref`];
 
-  // Quick Analyze / Photo-to-Text trigger
-  const handleTriggerPhotoToText = () => {
-    if (!currentPhotoUrl) {
-      showToast(isMm ? 'ကျေးဇူးပြု၍ စစ်ဆေးရန် Reference Photo အရင်တင်ပါ' : 'Please upload a reference photo first');
-      return;
-    }
-    if (onOpenPhotoToText) {
-      onOpenPhotoToText(currentPhotoUrl);
-    }
-  };
-
   return (
     <div className={`bg-white rounded-2xl border border-[#e0e2e8] p-5 shadow-xs flex flex-col gap-4 relative ${className}`}>
       
@@ -233,29 +220,16 @@ export const ReferencePhotoUploadBox: React.FC<ReferencePhotoUploadBoxProps> = (
                 {isMm ? 'Reference Photo တင်ရန် နေရာ' : 'Studio Reference Photo Uploads'}
               </h3>
               <span className="bg-[#ffd02f] text-[#1c1c1e] text-[9px] font-black px-2 py-0.2 rounded-full uppercase tracking-wider">
-                Photo → Prompt Ready
+                Identity & Outfit Sync
               </span>
             </div>
             <p className="font-sans text-[11px] text-[#6b6f7e]">
               {isMm
                 ? 'မျက်နှာသွင်ပြင်၊ ဝတ်စုံဒီဇိုင်းနှင့် စတူဒီယိုအလင်းတို့ကို ဓာတ်ပုံမှ တိုက်ရိုက် ရယူအသုံးပြုခြင်း'
-                : 'Upload real studio portraits to preserve likeness, transfer outfits, or reverse-engineer prompts.'}
+                : 'Upload real studio portraits to preserve facial likeness, transfer traditional outfits, and lock cultural attributes.'}
             </p>
           </div>
         </div>
-
-        {/* ⚡ Quick Photo to Text Action */}
-        {currentPhotoUrl && (
-          <button
-            type="button"
-            onClick={handleTriggerPhotoToText}
-            className="flex items-center gap-1.5 bg-[#1c1c1e] text-[#ffd02f] hover:bg-black px-3.5 py-1.5 rounded-full font-sans text-xs font-bold cursor-pointer shadow-xs transition-transform active:scale-95"
-            title="Deconstruct photo into full AI prompt"
-          >
-            <span className="material-symbols-outlined text-[16px] text-[#ffd02f]">auto_awesome</span>
-            <span>{isMm ? 'Photo မှ Prompt ထုတ်မည်' : 'Deconstruct Photo to Text'}</span>
-          </button>
-        )}
       </div>
 
       {/* 3 Reference Target Slots (Miro Style Segmented Pills) */}
@@ -337,14 +311,6 @@ export const ReferencePhotoUploadBox: React.FC<ReferencePhotoUploadBoxProps> = (
                     Slot: {selectedSlot.toUpperCase()} REFERENCE
                   </span>
                   <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={handleTriggerPhotoToText}
-                      className="bg-white/90 hover:bg-white text-[#1c1c1e] text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-xs cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-[14px] text-[#4262ff]">psychology</span>
-                      <span>{isMm ? 'ခွဲခြမ်းစိတ်ဖြာမည်' : 'Analyze'}</span>
-                    </button>
                     <button
                       type="button"
                       onClick={() => handleRemovePhoto(selectedSlot)}

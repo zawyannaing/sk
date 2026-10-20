@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Language, MatrixSelection } from '../types';
 import { RETOUCH_OPTIONS } from '../data/presetData';
-import { Sparkles, ChevronLeft, ChevronRight, Check, ChevronDown, Sliders } from 'lucide-react';
+import { Sparkles, ChevronLeft, ChevronRight, Check, ChevronDown, Sliders, X } from 'lucide-react';
 
 interface SkinRetouchSelectionCarouselProps {
   language: Language;
@@ -9,11 +9,14 @@ interface SkinRetouchSelectionCarouselProps {
   onUpdateSelection: (updates: Partial<MatrixSelection>) => void;
 }
 
+const cleanEmoji = (text: string = '') =>
+  text.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}]/gu, '').trim();
+
 const SKIN_CATEGORIES = [
-  { id: 'all', labelMm: 'အကုန်လုံး (All Skin Styles)', labelEn: 'All Skin Styles' },
-  { id: 'beauty_glow', labelMm: '👑 High-End Beauty & Glow', labelEn: '👑 High-End Beauty & Glow' },
-  { id: 'natural_raw', labelMm: '🌿 သဘာဝ မွေးညှင်းပေါက် / RAW', labelEn: '🌿 Natural & RAW Texture' },
-  { id: 'special_style', labelMm: '✨ ဖက်ရှင် / သနပ်ခါး / ဖလင် စတိုင်', labelEn: '✨ Special & Fashion Styles' },
+  { id: 'all', labelMm: 'အကုန်လုံး (၁၈ မျိုး)', labelEn: 'All Skin Styles (18)' },
+  { id: 'beauty_glow', labelMm: 'High-End Beauty & Glow (၈ မျိုး)', labelEn: 'High-End Beauty & Glow' },
+  { id: 'natural_raw', labelMm: 'သဘာဝ မွေးညှင်းပေါက် / RAW (၅ မျိုး)', labelEn: 'Natural & RAW Texture' },
+  { id: 'special_style', labelMm: 'ဖက်ရှင် / သနပ်ခါး / ဖလင် စတိုင် (၅ မျိုး)', labelEn: 'Special & Fashion Styles' },
 ];
 
 export const SkinRetouchSelectionCarousel: React.FC<SkinRetouchSelectionCarouselProps> = ({
@@ -39,6 +42,14 @@ export const SkinRetouchSelectionCarousel: React.FC<SkinRetouchSelectionCarousel
     return 'special_style';
   };
 
+  const getCategoryLabel = (catId: string) => {
+    switch (catId) {
+      case 'beauty_glow': return 'Beauty & Glow';
+      case 'natural_raw': return isMyanmar ? 'သဘာဝ RAW' : 'Natural RAW';
+      default: return isMyanmar ? 'ဖက်ရှင် / သနပ်ခါး' : 'Fashion & Thanaka';
+    }
+  };
+
   // Filter retouching options
   const filteredOptions = RETOUCH_OPTIONS.filter((r) => {
     if (r.id === 'skip') return false; // Shown in header skip button
@@ -55,15 +66,15 @@ export const SkinRetouchSelectionCarousel: React.FC<SkinRetouchSelectionCarousel
   };
 
   return (
-    <div className="space-y-3.5 rounded-2xl bg-slate-950/90 border border-slate-800/80 p-4 backdrop-blur-md shadow-xl">
+    <div className="space-y-4 rounded-xl bg-[#0f1420] border border-zinc-800 p-4 sm:p-5 shadow-xs text-zinc-100">
       
       {/* Header Row */}
-      <div className="flex items-center justify-between flex-wrap gap-2 pb-1 border-b border-slate-800/80">
-        <label className="flex items-center gap-2 text-xs font-bold text-purple-400 uppercase tracking-wider">
-          <Sliders className="h-4 w-4 text-purple-400" />
+      <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-zinc-800">
+        <label className="flex items-center gap-2 text-xs font-bold text-emerald-400 uppercase tracking-wider">
+          <Sliders className="h-4 w-4 text-emerald-400" />
           <span>
             {isMyanmar
-              ? `အသားအရေ ပြင်ဆင်မှု / Skin Retouching (${RETOUCH_OPTIONS.length - 1} မျိုး):`
+              ? `အသားအရေ ပြင်ဆင်မှု (${RETOUCH_OPTIONS.length - 1} မျိုး):`
               : `Skin Retouching & Complexion (${RETOUCH_OPTIONS.length - 1} Options):`}
           </span>
         </label>
@@ -72,47 +83,47 @@ export const SkinRetouchSelectionCarousel: React.FC<SkinRetouchSelectionCarousel
           <button
             type="button"
             onClick={() => onUpdateSelection({ retouching: 'skip' })}
-            className="text-[10px] bg-slate-800 hover:bg-slate-700 text-purple-300 font-bold px-2.5 py-1 rounded-lg border border-slate-700 transition-all flex items-center gap-1 shadow"
+            className="text-[11px] bg-zinc-800 hover:bg-red-500/20 text-zinc-300 hover:text-red-400 font-semibold px-2.5 py-1 rounded-md border border-zinc-700 transition-all flex items-center gap-1 cursor-pointer"
           >
-            🚫 {isMyanmar ? 'မရွေးပါ (မူလအတိုင်း)' : 'Skip / Natural'}
+            <X className="w-3 h-3" />
+            <span>{isMyanmar ? 'မရွေးပါ (မူလအတိုင်း)' : 'Skip / Natural'}</span>
           </button>
 
-          <span className="text-[11px] text-purple-200 font-bold bg-purple-950/90 px-2.5 py-1 rounded-lg border border-purple-700/80 shadow">
-            {currentRetouchObj.emoji || '✨'}{' '}
-            {isMyanmar ? currentRetouchObj.labelMm : currentRetouchObj.labelEn}
+          <span className="text-[11px] text-emerald-300 font-bold bg-emerald-500/15 px-2.5 py-1 rounded-md border border-emerald-500/30 max-w-[200px] truncate">
+            {cleanEmoji(isMyanmar ? currentRetouchObj.labelMm : currentRetouchObj.labelEn)}
           </span>
         </div>
       </div>
 
       {/* Filter Category Tabs */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-purple-600/40">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
         {SKIN_CATEGORIES.map((cat) => (
           <button
             key={cat.id}
             type="button"
             onClick={() => setSelectedCategory(cat.id)}
-            className={`px-2.5 py-1 text-[11px] whitespace-nowrap rounded-lg border transition-all ${
+            className={`px-3 py-1 text-xs whitespace-nowrap rounded-full border transition-all cursor-pointer ${
               selectedCategory === cat.id
-                ? 'bg-purple-950/90 border-purple-400 text-purple-200 font-bold shadow-[0_0_12px_rgba(168,85,247,0.3)]'
-                : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                ? 'bg-emerald-500 text-black font-extrabold border-emerald-400 shadow-xs'
+                : 'bg-[#161c2a] text-zinc-400 border-zinc-800 hover:bg-[#1e2438] hover:text-white'
             }`}
           >
-            {isMyanmar ? cat.labelMm : cat.labelEn}
+            {cleanEmoji(isMyanmar ? cat.labelMm : cat.labelEn)}
           </button>
         ))}
       </div>
 
-      {/* 🌟 HORIZONTAL SCROLLABLE CAROUSEL (အသားအရေ ပြင်ဆင်မှု ရွေးချယ်ရန် ဘေးတိုက် ဆွဲကြည့်နိုင်သည်) */}
-      <div className="space-y-1.5 bg-slate-900/60 border border-slate-800 rounded-xl p-2.5 relative">
-        <div className="flex items-center justify-between text-[11px] text-purple-300 font-bold">
+      {/* 🌟 HORIZONTAL SCROLLABLE CAROUSEL */}
+      <div className="space-y-2 bg-[#161c2a] border border-zinc-800 rounded-xl p-3 relative">
+        <div className="flex items-center justify-between text-xs text-emerald-400 font-bold">
           <span className="flex items-center gap-1.5">
-            <Sparkles className="h-3.5 w-3.5 text-purple-400" />
+            <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
             <span>
               {isMyanmar
                 ? `အသားအရေ စတိုင်များ ဘေးတိုက် ဆွဲကြည့်ပါ (↔):`
                 : `Skin Retouching Styles (Scroll Horizontally ↔):`}
             </span>
-            <span className="text-[10px] text-purple-400/80 font-mono">
+            <span className="text-[10px] text-zinc-400 font-mono">
               ({filteredOptions.length} Options)
             </span>
           </span>
@@ -122,7 +133,7 @@ export const SkinRetouchSelectionCarousel: React.FC<SkinRetouchSelectionCarousel
             <button
               type="button"
               onClick={() => handleScroll('left')}
-              className="p-1 rounded-lg bg-slate-800 hover:bg-purple-500 hover:text-slate-950 text-purple-300 border border-slate-700 transition-all shadow"
+              className="p-1 rounded-md bg-zinc-800 hover:bg-emerald-500 text-zinc-300 hover:text-black border border-zinc-700 transition-all cursor-pointer"
               title="Scroll Left"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
@@ -130,7 +141,7 @@ export const SkinRetouchSelectionCarousel: React.FC<SkinRetouchSelectionCarousel
             <button
               type="button"
               onClick={() => handleScroll('right')}
-              className="p-1 rounded-lg bg-slate-800 hover:bg-purple-500 hover:text-slate-950 text-purple-300 border border-slate-700 transition-all shadow"
+              className="p-1 rounded-md bg-zinc-800 hover:bg-emerald-500 text-zinc-300 hover:text-black border border-zinc-700 transition-all cursor-pointer"
               title="Scroll Right"
             >
               <ChevronRight className="h-3.5 w-3.5" />
@@ -141,44 +152,46 @@ export const SkinRetouchSelectionCarousel: React.FC<SkinRetouchSelectionCarousel
         {/* Horizontal Strip */}
         <div
           ref={scrollContainerRef}
-          className="flex gap-2 overflow-x-auto py-1 px-0.5 scrollbar-thin scrollbar-thumb-purple-500/50 scrollbar-track-slate-950 snap-x snap-mandatory"
+          className="flex gap-2.5 overflow-x-auto py-1 px-0.5 scrollbar-thin snap-x snap-mandatory"
           style={{ scrollBehavior: 'smooth' }}
         >
           {filteredOptions.map((ret) => {
             const isSelected = currentRetouchId === ret.id;
+            const categoryTag = getCategoryLabel(getCategory(ret.id));
+
             return (
               <button
                 key={ret.id}
                 type="button"
                 onClick={() => onUpdateSelection({ retouching: isSelected ? 'skip' : ret.id })}
-                className={`snap-start shrink-0 min-w-[200px] max-w-[240px] p-2.5 rounded-xl border text-left transition-all relative flex flex-col justify-between gap-1.5 group cursor-pointer ${
+                className={`snap-start shrink-0 min-w-[190px] max-w-[240px] p-3 rounded-lg border text-left transition-all relative flex flex-col justify-between gap-2 cursor-pointer ${
                   isSelected
-                    ? 'bg-purple-950/90 border-purple-400 text-purple-100 font-bold shadow-[0_0_15px_rgba(168,85,247,0.3)] ring-1 ring-purple-400/80'
-                    : 'bg-slate-950/80 border-slate-800 text-slate-300 hover:border-purple-500/60 hover:bg-slate-900/90'
+                    ? 'bg-emerald-500/15 border-2 border-emerald-500 text-white font-bold shadow-[0_0_15px_rgba(5,177,135,0.2)]'
+                    : 'bg-[#141b2a] border-zinc-800 text-zinc-300 hover:border-emerald-500/40 hover:bg-[#1b2336]'
                 }`}
               >
-                <div className="flex items-start justify-between gap-1">
-                  <span className="text-2xl p-1 rounded-lg bg-slate-900/90 border border-slate-800 group-hover:scale-110 transition-transform">
-                    {ret.emoji || '✨'}
+                <div className="flex items-center justify-between gap-1 w-full">
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isSelected ? 'text-emerald-400' : 'text-zinc-400'}`}>
+                    {categoryTag}
                   </span>
                   {isSelected ? (
-                    <span className="p-0.5 rounded-full bg-purple-400 text-slate-950 shrink-0">
-                      <Check className="h-3.5 w-3.5 stroke-[3]" />
+                    <span className="p-0.5 rounded-full bg-emerald-500 text-black font-extrabold shrink-0">
+                      <Check className="h-3 w-3 stroke-[3]" />
                     </span>
                   ) : (
-                    <span className="p-0.5 rounded-full border border-slate-700 text-slate-600 group-hover:border-purple-400 group-hover:text-purple-400 transition-colors">
+                    <span className="p-0.5 rounded-full border border-zinc-700 text-transparent">
                       <Check className="h-3 w-3" />
                     </span>
                   )}
                 </div>
 
                 <div>
-                  <p className="text-[11px] font-semibold leading-tight line-clamp-2">
-                    {isMyanmar ? ret.labelMm : ret.labelEn}
+                  <p className={`text-xs leading-tight line-clamp-2 ${isSelected ? 'font-bold text-emerald-300' : 'font-medium text-white'}`}>
+                    {cleanEmoji(isMyanmar ? ret.labelMm : ret.labelEn)}
                   </p>
                   {ret.details && (
-                    <p className="text-[10px] text-slate-400/90 font-normal mt-1 line-clamp-2">
-                      {ret.details}
+                    <p className="text-[10px] text-zinc-400 font-normal mt-1 line-clamp-2">
+                      {cleanEmoji(ret.details)}
                     </p>
                   )}
                 </div>
@@ -190,16 +203,16 @@ export const SkinRetouchSelectionCarousel: React.FC<SkinRetouchSelectionCarousel
 
       {/* 🌟 FAST ACCESS DROPDOWN MENU */}
       <div className="space-y-1">
-        <div className="flex items-center justify-between text-[11px] text-slate-400">
-          <span className="font-semibold text-slate-300">
-            {isMyanmar ? 'သို့မဟုတ် Dropdown မနူးမှ တိုက်ရိုက် ရွေးချယ်ရန်:' : 'Or Fast Select via Dropdown Menu:'}
+        <div className="flex items-center justify-between text-xs text-zinc-400">
+          <span className="font-semibold">
+            {isMyanmar ? 'သို့မဟုတ် Dropdown မနူးမှ တိုက်ရိုက် ရွေးချယ်ရန်:' : 'Or Select via Dropdown Menu:'}
           </span>
         </div>
         <div className="relative">
           <select
             value={currentRetouchId}
             onChange={(e) => onUpdateSelection({ retouching: e.target.value })}
-            className="w-full rounded-xl bg-slate-900 border border-purple-500/40 hover:border-purple-400 px-3 py-2 text-xs font-semibold text-purple-200 focus:outline-none appearance-none cursor-pointer pr-10 shadow-inner"
+            className="w-full rounded-lg bg-[#161c2a] border border-zinc-800 hover:border-emerald-500/40 px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:border-emerald-500 appearance-none cursor-pointer pr-10 shadow-2xs"
           >
             {SKIN_CATEGORIES.filter((c) => c.id !== 'all').map((cat) => {
               const catOptions = RETOUCH_OPTIONS.filter((r) => getCategory(r.id) === cat.id && r.id !== 'skip');
@@ -208,16 +221,16 @@ export const SkinRetouchSelectionCarousel: React.FC<SkinRetouchSelectionCarousel
               return (
                 <optgroup
                   key={cat.id}
-                  label={isMyanmar ? cat.labelMm : cat.labelEn}
-                  className="bg-slate-950 text-purple-400 font-bold"
+                  label={cleanEmoji(isMyanmar ? cat.labelMm : cat.labelEn)}
+                  className="bg-[#161c2a] text-emerald-400 font-bold"
                 >
                   {catOptions.map((ret) => (
                     <option
                       key={ret.id}
                       value={ret.id}
-                      className="bg-slate-900 text-slate-100 py-1"
+                      className="bg-[#161c2a] text-white py-1"
                     >
-                      {ret.emoji || '✨'} {isMyanmar ? ret.labelMm : ret.labelEn}
+                      {cleanEmoji(isMyanmar ? ret.labelMm : ret.labelEn)}
                     </option>
                   ))}
                 </optgroup>
@@ -225,7 +238,7 @@ export const SkinRetouchSelectionCarousel: React.FC<SkinRetouchSelectionCarousel
             })}
           </select>
 
-          <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-purple-400">
+          <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-emerald-400">
             <ChevronDown className="h-4 w-4" />
           </div>
         </div>

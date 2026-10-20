@@ -7,7 +7,6 @@ export type NavView =
   | 'photo-prompt-studio'
   | 'studio-suite'
   | 'pro-workstation'
-  | 'photo-to-text'
   | 'prompt-builder'
   | 'preset-library'
   | 'composite-harmonizer'
@@ -46,22 +45,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => onViewChange('prompt-builder')}
             className="flex items-center gap-2.5 cursor-pointer group"
           >
-            {/* Signature Miro Canary Yellow Brand Icon */}
-            <div className="h-9 w-9 rounded-xl bg-[#ffd02f] text-[#1c1c1e] flex items-center justify-center font-black text-sm tracking-tight shadow-xs shrink-0 group-hover:scale-105 transition-transform border border-[#fcb900]/40">
-              SK
+            {/* Signature Brand Icon with new logo */}
+            <div className="h-9 w-9 rounded-xl overflow-hidden bg-white/80 flex items-center justify-center shadow-xs shrink-0 group-hover:scale-105 transition-transform border border-emerald-500/40">
+              <img
+                src="/logo.png"
+                alt="SHOW AI PROMPT STUDIO"
+                className="w-full h-full object-contain p-0.5"
+              />
             </div>
             {!isCollapsed && (
               <div className="flex flex-col overflow-hidden">
                 <div className="flex items-center gap-1.5">
-                  <span className="font-sans text-sm text-[#1c1c1e] font-extrabold leading-tight tracking-tight">
-                    Show Prompt
-                  </span>
-                  <span className="bg-[#ffd02f] text-[#1c1c1e] text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded-full">
-                    PRO
+                  <span className="font-logo text-xs text-white font-extrabold leading-tight tracking-wider">
+                    SHOW AI PROMPT STUDIO
                   </span>
                 </div>
-                <span className="font-sans text-[11px] text-[#6b6f7e] truncate font-medium">
-                  Studio Workspace
+                <span className="font-sans text-[10px] text-emerald-600 font-bold truncate">
+                  Show Care Myanmar
                 </span>
               </div>
             )}
@@ -139,11 +139,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
           <nav className="flex flex-col gap-1">
             {[
-              { id: 'video-prompt-studio' as NavView, icon: 'videocam', label: 'Video Prompt Studio', tag: 'VIDEO', tagColor: 'bg-[#ccff00] text-black font-extrabold' },
+              { id: 'video-prompt-studio' as NavView, icon: 'videocam', label: 'Video Prompt Studio', tag: 'VIDEO', tagColor: 'bg-[#05b187] text-black font-extrabold' },
               { id: 'photo-prompt-studio' as NavView, icon: 'photo_camera', label: 'Photo Prompt Studio', tag: 'PHOTO', tagColor: 'bg-[#ffd02f] text-black font-extrabold' },
-              { id: 'studio-suite' as NavView, icon: 'grid_view', label: '8-Room Studio Suite', tag: 'Ajax Spec', tagColor: 'bg-[#1c1c1e] text-[#ffd02f]' },
               { id: 'pro-workstation' as NavView, icon: 'wb_iridescent', label: 'Pro Workstation', tag: 'Capture One', tagColor: 'bg-[#ffd02f] text-[#1c1c1e]' },
-              { id: 'photo-to-text' as NavView, icon: 'auto_fix_normal', label: 'Photo to Text', tag: 'AI Reverse', tagColor: 'bg-[#ffd02f] text-[#1c1c1e]' },
               { id: 'prompt-builder' as NavView, icon: 'auto_fix_high', label: 'Prompt Matrix', tag: null, tagColor: '' },
               { id: 'preset-library' as NavView, icon: 'collections_bookmark', label: 'Preset & Eras Library', tag: null, tagColor: '' }
             ].map((item) => {
@@ -190,7 +188,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {[
               { id: 'composite-harmonizer' as NavView, icon: 'wallpaper', label: 'Background Changer', tag: 'Presets', tagColor: 'bg-[#fff8e0] text-[#746019]' },
               { id: 'photo-manipulation' as NavView, icon: 'auto_fix_high', label: 'Photo Manipulation', tag: 'FX Styles', tagColor: 'bg-[#ede9fe] text-[#5b21b6]' },
-              { id: 'old-to-new' as NavView, icon: 'photo_camera_back', label: 'Old to New Photo', tag: 'Restore', tagColor: 'bg-[#c3faf5] text-[#187574]' },
               { id: 'baby-studio' as NavView, icon: 'child_care', label: 'Baby Studio', tag: '12 Themes', tagColor: 'bg-[#ffebee] text-[#c62828]' },
               { id: 'photo-edit' as NavView, icon: 'brush', label: 'Photo Edit Studio', tag: 'Inpaint', tagColor: 'bg-[#f5f3ff] text-[#4262ff]' },
               { id: 'prompt-utility' as NavView, icon: 'build', label: 'Prompt Utilities', tag: 'Pro Tools', tagColor: 'bg-[#e8f5e9] text-[#2e7d32]' }

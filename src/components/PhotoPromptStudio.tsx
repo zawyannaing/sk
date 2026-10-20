@@ -3,7 +3,8 @@ import {
   ArrowLeft, Sparkles, Wand2, Image as ImageIcon, Download, Copy, Check, X,
   Loader2, Upload, RefreshCw, ChevronDown, ExternalLink, AlertTriangle, Camera,
   Zap, Star, Flame, ShieldCheck, Folder, FolderPlus, FolderOpen, Heart, Trash2,
-  Search, Tag, Eye, Edit3, SlidersHorizontal, Clock, Bookmark
+  Search, Tag, Eye, Edit3, SlidersHorizontal, Clock, Bookmark, Cloud, Plus, Minus,
+  LogIn, Menu, Home, Video, Layers, ChevronRight, Coins
 } from 'lucide-react';
 import type { NavView } from './Sidebar';
 import { SupabaseService } from '../utils/supabaseClient';
@@ -14,6 +15,11 @@ interface PhotoPromptStudioProps {
   onSendToMatrix?: (promptText: string) => void;
   onBackToPortal?: () => void;
   language?: any;
+  initialPrompt?: string;
+  initialRatio?: string;
+  initialRefPhoto?: string | null;
+  initialRefPhotos?: (string | { url: string; name?: string; id?: string })[];
+  initialChosenOptions?: { label: string; value: string; emoji?: string }[];
 }
 
 interface ModelInfo {
@@ -26,11 +32,22 @@ interface ModelInfo {
   available: boolean;
 }
 
-interface UploadedRefPhoto {
+export type PhotoRole = 'character' | 'background' | 'style' | 'outfit' | 'general';
+
+export interface UploadedRefPhoto {
   id: string;
   url: string;
   name: string;
+  role?: PhotoRole;
 }
+
+const PHOTO_ROLES: { id: PhotoRole; label: string; short: string; desc: string }[] = [
+  { id: 'character', label: 'Character / Subject', short: 'Character', desc: 'Preserves face, identity and bodily features' },
+  { id: 'background', label: 'Background / Scene', short: 'Background', desc: 'Environment, location and atmosphere' },
+  { id: 'style', label: 'Style / Lighting', short: 'Style', desc: 'Cinematic color grading and lighting' },
+  { id: 'outfit', label: 'Outfit / Wardrobe', short: 'Outfit', desc: 'Clothing style and fabric texture' },
+  { id: 'general', label: 'General Reference', short: 'General', desc: 'Standard visual guidance' },
+];
 
 interface ResultImage {
   id: string;
@@ -58,9 +75,20 @@ const LIBRARY_STORAGE_KEY = 'infinity_photo_studio_library_items_v2';
 const FOLDERS_STORAGE_KEY = 'infinity_photo_studio_library_folders_v2';
 const DEFAULT_FOLDERS = ['General', 'Cinematic', 'Portraits', 'Characters', 'Cyberpunk', 'Concept Art'];
 
+const getUserLibraryKey = () => {
+  try {
+    const session = SupabaseService.getSession();
+    if (session?.user?.id) {
+      return `infinity_photo_studio_library_items_${session.user.id}`;
+    }
+  } catch {}
+  return LIBRARY_STORAGE_KEY;
+};
+
 const safeLoadLibrary = (): LibraryPhotoItem[] => {
   try {
-    const raw = localStorage.getItem(LIBRARY_STORAGE_KEY);
+    const userKey = getUserLibraryKey();
+    const raw = localStorage.getItem(userKey) || localStorage.getItem(LIBRARY_STORAGE_KEY);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -78,15 +106,17 @@ const safeLoadFolders = (): string[] => {
 };
 
 const safeSaveLibrary = (items: LibraryPhotoItem[]) => {
+  const userKey = getUserLibraryKey();
   try {
-    localStorage.setItem(LIBRARY_STORAGE_KEY, JSON.stringify(items));
+    localStorage.setItem(userKey, JSON.stringify(items));
+    localStorage.setItem(LIBRARY_STORAGE_KEY, JSON.stringify(items.slice(0, 40)));
   } catch {
     // If quota exceeded, retain all favorites and newest 20 items
     console.warn('Storage quota warning in Photo Library, optimizing storage...');
     const favs = items.filter(x => x.favorite);
     const nonFavs = items.filter(x => !x.favorite).slice(0, 16);
     try {
-      localStorage.setItem(LIBRARY_STORAGE_KEY, JSON.stringify([...favs, ...nonFavs]));
+      localStorage.setItem(userKey, JSON.stringify([...favs, ...nonFavs]));
     } catch (err) {
       console.error('Critical quota error saving library', err);
     }
@@ -102,8 +132,8 @@ const safeSaveFolders = (folders: string[]) => {
 // Offline default list (replaced by /api/photo-studio/models once loaded)
 const DEFAULT_MODELS: ModelInfo[] = [
   // Flagships & Nano Banana
-  { id: 'nano-banana-2', name: 'Nano Banana 2 (Google Gemini)', category: 'Nano Banana', badge: 'TOP', desc: 'Google Gemini 2.5 Flash Image engine, ultra-fast & photorealistic', envKey: 'GEMINI_API_KEY', available: true },
-  { id: 'nano-banana-pro', name: 'Nano Banana Pro (Imagen 3)', category: 'Nano Banana', badge: 'PRO', desc: 'Google Imagen 3.0 Ultra studio fidelity with rich micro-textures', envKey: 'GEMINI_API_KEY', available: true },
+  { id: 'nano-banana-2', name: 'Nano Banana 2 (OpenRouter Pro)', category: 'Nano Banana', badge: 'TOP', desc: 'Google Gemini 2.5 Flash Image engine via OpenRouter, ultra-fast & photorealistic', envKey: 'OPENROUTER_API_KEY', available: true },
+  { id: 'nano-banana-pro', name: 'Nano Banana Pro (OpenRouter Ultra)', category: 'Nano Banana', badge: 'PRO', desc: 'Google Gemini 3 Pro / Imagen via OpenRouter with rich micro-textures', envKey: 'OPENROUTER_API_KEY', available: true },
   
   // OpenAI Suite
   { id: 'gpt-image-2', name: 'GPT Image 2 (OpenAI Flagship)', category: 'OpenAI', badge: 'TOP', desc: 'OpenAI generation engine with HD composition & prompt precision', envKey: 'OPENROUTER_API_KEY', available: true },
@@ -122,44 +152,201 @@ const DEFAULT_MODELS: ModelInfo[] = [
   { id: 'openrouter-gemini-image', name: 'Gemini Image (OpenRouter)', category: 'Cloud Pro', badge: 'KEY', desc: 'OpenRouter multi-provider gateway for Gemini image', envKey: 'OPENROUTER_API_KEY', available: true },
 ];
 
-const RATIOS: { id: string; label: string; box: string }[] = [
-  { id: '1:1', label: 'Square', box: 'w-4 h-4' },
-  { id: '4:5', label: 'Portrait', box: 'w-3.5 h-4' },
-  { id: '9:16', label: 'Story', box: 'w-2.5 h-4' },
-  { id: '16:9', label: 'Wide', box: 'w-5 h-3' },
-  { id: '21:9', label: 'Cinema', box: 'w-6 h-2.5' },
+interface RatioOption {
+  id: string;
+  label: string;
+  box: string;
+  res: string;
+  desc: string;
+}
+
+const RATIOS: RatioOption[] = [
+  { id: '1:1', label: '1:1 Square', box: 'w-4 h-4', res: '1024 × 1024', desc: 'Instagram Post / Square Avatar' },
+  { id: '4:5', label: '4:5 Portrait', box: 'w-3.5 h-4', res: '1080 × 1350', desc: 'Instagram Portrait / Editorial Feed' },
+  { id: '9:16', label: '9:16 Story / Reel', box: 'w-2.5 h-4', res: '1080 × 1920', desc: 'TikTok / Stories / Phone Vertical' },
+  { id: '16:9', label: '16:9 Landscape', box: 'w-5 h-3', res: '1920 × 1080', desc: 'YouTube / Cinema Landscape' },
+  { id: '21:9', label: '21:9 Cinema Scope', box: 'w-6 h-2.5', res: '2560 × 1080', desc: 'Ultrawide Panoramic Screen' },
+  { id: '3:4', label: '3:4 Vertical', box: 'w-3 h-4', res: '1536 × 2048', desc: 'Print Portrait / Studio Editorial' },
+  { id: '2:3', label: '2:3 Standard', box: 'w-3 h-4.5', res: '1200 × 1800', desc: '35mm Photography Standard' },
 ];
 
-const IDEAS = [
-  { label: 'Cinematic Portrait', prompt: 'Cinematic studio portrait of a confident woman, natural skin texture, Rembrandt lighting, 85mm f/1.4 lens, shallow depth of field' },
-  { label: 'Cyberpunk Rain', prompt: 'Futuristic courier on a hoverbike in a neon rain-drenched alley, reflections on wet asphalt, volumetric fog' },
-  { label: 'Editorial Fashion', prompt: 'High-fashion editorial photograph, flowing silk drapery, gold jewelry, rim lighting, magazine cover composition' },
-  { label: 'Macro Nature', prompt: 'Macro photograph of morning dew droplets on emerald leaf veins, extreme detail, soft bokeh background' },
-  { label: 'Vintage Film', prompt: '1970s Kodachrome street photograph, warm analog colors, natural film grain, candid moment' },
-  { label: 'Product Shot', prompt: 'Luxury perfume bottle on black marble, dramatic studio lighting, crisp reflections, commercial product photography' },
+type ResolutionTier = '1k' | '2k' | '4k' | '8k';
+
+interface ResolutionTierOption {
+  id: ResolutionTier;
+  label: string;
+  badge: string;
+  multiplier: number;
+  desc: string;
+}
+
+const RESOLUTION_TIERS: ResolutionTierOption[] = [
+  { id: '1k', label: '1K Standard', badge: '1024p', multiplier: 1, desc: 'Fast generation, web & preview' },
+  { id: '2k', label: '2K High-Res', badge: '1440p', multiplier: 1.5, desc: 'Retina clarity, skin micro-pores' },
+  { id: '4k', label: '4K Ultra HD', badge: '2160p', multiplier: 2, desc: 'Ultra-clear commercial photography' },
+  { id: '8k', label: '8K Master', badge: '4320p', multiplier: 3, desc: 'Museum gallery print quality' },
 ];
 
-// Remove Midjourney-style flags so other engines get a clean sentence
-const cleanForImage = (p: string) =>
-  p.replace(/\/imagine prompt:\s*/gi, '').replace(/--[a-z]+(\s+[\w:.]+)?/gi, '').replace(/\s{2,}/g, ' ').trim();
+const TIER_CREDIT_RATES: Record<ResolutionTier, number> = {
+  '1k': 5,
+  '2k': 8,
+  '4k': 12,
+  '8k': 20
+};
+
+const RESOLUTION_MAP: Record<string, Record<ResolutionTier, string>> = {
+  '1:1': {
+    '1k': '1024 × 1024',
+    '2k': '1536 × 1536',
+    '4k': '2160 × 2160',
+    '8k': '4320 × 4320',
+  },
+  '4:5': {
+    '1k': '1080 × 1350',
+    '2k': '1440 × 1800',
+    '4k': '2160 × 2700',
+    '8k': '4320 × 5400',
+  },
+  '9:16': {
+    '1k': '1080 × 1920',
+    '2k': '1440 × 2560',
+    '4k': '2160 × 3840',
+    '8k': '4320 × 7680',
+  },
+  '16:9': {
+    '1k': '1920 × 1080',
+    '2k': '2560 × 1440',
+    '4k': '3840 × 2160',
+    '8k': '7680 × 4320',
+  },
+  '21:9': {
+    '1k': '2560 × 1080',
+    '2k': '3440 × 1440',
+    '4k': '5120 × 2160',
+    '8k': '10240 × 4320',
+  },
+  '3:4': {
+    '1k': '1536 × 2048',
+    '2k': '2048 × 2730',
+    '4k': '3072 × 4096',
+    '8k': '6144 × 8192',
+  },
+  '2:3': {
+    '1k': '1200 × 1800',
+    '2k': '1600 × 2400',
+    '4k': '2400 × 3600',
+    '8k': '4800 × 7200',
+  },
+};
+
+// Sanitize prompt into clean natural photography prose:
+// 1. Remove Midjourney flags (--ar, --v, etc.) and /imagine
+// 2. Remove OpenArt bracket headers ([Subject]:, [Action]:, [Environment]:, [Cinematography]:, [Lighting/Style]:, [Technical]:, etc.)
+// 3. Fix corrupted bracket nesting/fragments ([Subjec[Subject]:, t]:, etc.)
+// 4. Eliminate sentence-level duplicates caused by multiple enhance presses
+const cleanForImage = (p: string | null | undefined): string => {
+  if (!p || typeof p !== 'string') return '';
+  let s = p.trim();
+
+  // 1. Remove Midjourney imagine prefixes and non-ar parameter flags (preserve --ar)
+  s = s.replace(/\/imagine\s+prompt:\s*/gi, '');
+  s = s.replace(/--(?:v\s+[\d.]+|style\s+\w+|s\s+\d+|c\s+\d+|q\s+\d+|repeat\s+\d+|weird\s+\d+|no\s+[^\n-]+)/gi, '');
+
+  // 2. Fix broken bracket nesting / corrupted fragments like [Subjec[Subject]: or [Subjec...t]:
+  s = s.replace(/\[Subjec(?:t)?\s*(?:\[Subject\]\s*:?)?/gi, ' ');
+  s = s.replace(/(?:^|\n)\s*t\]\s*:?\s*/gi, ' ');
+
+  // 3. Remove all bracket section headers (OpenArt, Midjourney, SD syntax)
+  s = s.replace(/\[\s*(Subject|Action|Environment|Cinematography|Lighting(?:\/Style)?|Style|Technical|Camera|Composition|Setting|Scene|Atmosphere|Details|Wardrobe|Attire|Pose|Expression|Character(?:\/Subject)?)\s*\]\s*:?\s*/gi, ' ');
+
+  // 4. Clean any other bracket tags and stray brackets
+  s = s.replace(/\[[a-zA-Z0-9_\s\/-]{1,25}\]\s*:?\s*/g, ' ');
+  s = s.replace(/[\[\]]/g, ' ');
+
+  // 5. Clean up leading colons, hyphens, semicolons
+  s = s.replace(/^\s*[:;,-]+\s*/g, '');
+
+  // 6. Clean up extra spaces
+  s = s.replace(/\s{2,}/g, ' ').trim();
+
+  // 7. Sentence-level deduplication to eliminate repeated phrases/sections
+  const sentences = s.split(/(?<=[.!?])\s+/).map(x => x.trim()).filter(Boolean);
+  const seenSentences = new Set<string>();
+  const deduped: string[] = [];
+
+  for (const sentence of sentences) {
+    const normalized = sentence.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (normalized.length > 10) {
+      if (!seenSentences.has(normalized)) {
+        seenSentences.add(normalized);
+        deduped.push(sentence);
+      }
+    } else {
+      deduped.push(sentence);
+    }
+  }
+
+  s = deduped.join(' ');
+
+  // 8. Clean punctuation spacing, colons, and double punctuation
+  s = s.replace(/^\s*[:;,-]+\s*/g, '');
+  s = s.replace(/\s+([.,;:!?])/g, '$1').replace(/([.,;:!?]){2,}/g, '$1 ').replace(/\s{2,}/g, ' ').trim();
+
+  return s;
+};
 
 export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
+  onNavigateView,
   onBackToPortal,
-  onSendToMatrix
+  onBackToMatrix,
+  onSendToMatrix,
+  initialPrompt,
+  initialRatio,
+  initialRefPhoto,
+  initialRefPhotos,
+  initialChosenOptions
 }) => {
   const [models, setModels] = useState<ModelInfo[]>(DEFAULT_MODELS);
   const [modelId, setModelId] = useState('nano-banana-2');
   const [modelOpen, setModelOpen] = useState(false);
-  const [prompt, setPrompt] = useState('');
-  const [ratio, setRatio] = useState('1:1');
+  const [prompt, setPrompt] = useState(() => (initialPrompt ? cleanForImage(initialPrompt) : ''));
+  const [chosenBurmeseOptions, setChosenBurmeseOptions] = useState<{ label: string; value: string; emoji?: string }[]>(
+    () => initialChosenOptions || []
+  );
+  const [ratio, setRatio] = useState(() =>
+    initialRatio && RATIOS.some(r => r.id === initialRatio) ? initialRatio : '1:1'
+  );
+  const activeRatioObj = RATIOS.find(r => r.id === ratio) || RATIOS[0];
+  const [resolutionTier, setResolutionTier] = useState<ResolutionTier>('2k');
+  const currentResString = (RESOLUTION_MAP[ratio] && RESOLUTION_MAP[ratio][resolutionTier]) || '1440 × 1800';
+  const currentTierObj = RESOLUTION_TIERS.find(t => t.id === resolutionTier) || RESOLUTION_TIERS[1];
   const [count, setCount] = useState(2);
   const [polish, setPolish] = useState(true);
+
+  // User credit balance state synced with Supabase
+  const [userCredits, setUserCredits] = useState<number>(0);
+
+  useEffect(() => {
+    const fetchBalance = async () => {
+      if (SupabaseService.getSession()) {
+        const p = await SupabaseService.getUserProfile();
+        if (p?.credits !== undefined) setUserCredits(p.credits);
+      }
+    };
+    fetchBalance();
+    window.addEventListener('supabase-cloud-refresh', fetchBalance);
+    return () => window.removeEventListener('supabase-cloud-refresh', fetchBalance);
+  }, []);
+
+  const currentCreditRate = TIER_CREDIT_RATES[resolutionTier] || 5;
+  const currentCreditCost = currentCreditRate * count;
 
   // Folder & Library System
   const [folders, setFolders] = useState<string[]>(safeLoadFolders);
   const [targetFolder, setTargetFolder] = useState<string>('General');
   const [libraryItems, setLibraryItems] = useState<LibraryPhotoItem[]>(safeLoadLibrary);
   const [activeMainTab, setActiveMainTab] = useState<'current' | 'library'>('current');
+  const [mobileTab, setMobileTab] = useState<'studio' | 'outputs' | 'library'>('studio');
   const [activeFolderFilter, setActiveFolderFilter] = useState<string>('all');
   const [librarySearch, setLibrarySearch] = useState<string>('');
 
@@ -171,7 +358,21 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
 
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [results, setResults] = useState<ResultImage[]>([]);
+  const [isDownloadingAll, setIsDownloadingAll] = useState(false);
+  const [isCloudSyncing, setIsCloudSyncing] = useState(false);
+  const [results, setResults] = useState<ResultImage[]>(() => {
+    const lib = safeLoadLibrary();
+    return lib.slice(0, 12).map(item => ({
+      id: item.id,
+      url: item.url,
+      prompt: item.prompt,
+      provider: item.provider,
+      ratio: item.ratio,
+      folder: item.folder,
+      createdAt: item.createdAt,
+      favorite: item.favorite
+    }));
+  });
   const [notice, setNotice] = useState<{ type: 'info' | 'warn' | 'error'; text: string } | null>(null);
   const [promptCopied, setPromptCopied] = useState(false);
 
@@ -190,10 +391,183 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
   const [p2pPrompt, setP2pPrompt] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const selected = models.find(m => m.id === modelId) || models[0];
   const activeRefPhoto = uploadedRefImages.find(img => img.id === activeRefId) || uploadedRefImages[0] || null;
   const activeP2pPhoto = p2pImages.find(img => img.id === p2pActiveId) || p2pImages[0] || null;
+
+  // Sync incoming prompt / aspect ratio / reference image from Detail Burmese Studio
+  useEffect(() => {
+    if (initialPrompt && initialPrompt.trim()) {
+      let cleaned = cleanForImage(initialPrompt);
+      const targetRatio = initialRatio && RATIOS.some(r => r.id === initialRatio) ? initialRatio : ratio;
+      if (/--ar\s+[0-9:]+/i.test(cleaned)) {
+        cleaned = cleaned.replace(/--ar\s+[0-9:]+/gi, `--ar ${targetRatio}`);
+      } else {
+        cleaned = `${cleaned.trim()} --ar ${targetRatio}`;
+      }
+      setPrompt(cleaned);
+      setActiveMainTab('current');
+      setNotice({
+        type: 'info',
+        text: '✓ Prompt loaded from Detail Burmese Studio — Ready to Generate Image!'
+      });
+      const timer = setTimeout(() => setNotice(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [initialPrompt]);
+
+  useEffect(() => {
+    if (initialRatio && RATIOS.some(r => r.id === initialRatio)) {
+      setRatio(initialRatio);
+      setPrompt(prev => {
+        const trimmed = prev.trim();
+        if (!trimmed) return trimmed;
+        if (/--ar\s+[0-9:]+/i.test(trimmed)) {
+          return trimmed.replace(/--ar\s+[0-9:]+/gi, `--ar ${initialRatio}`);
+        }
+        return `${trimmed} --ar ${initialRatio}`;
+      });
+    }
+  }, [initialRatio]);
+
+  const changeRatio = (newRatio: string) => {
+    setRatio(newRatio);
+    setPrompt(prev => {
+      const trimmed = prev.trim();
+      if (!trimmed) return trimmed;
+      if (/--ar\s+[0-9:]+/i.test(trimmed)) {
+        return trimmed.replace(/--ar\s+[0-9:]+/gi, `--ar ${newRatio}`);
+      }
+      return `${trimmed} --ar ${newRatio}`;
+    });
+  };
+
+  const changeResolutionTier = (newTier: ResolutionTier) => {
+    setResolutionTier(newTier);
+    setPrompt(prev => {
+      const trimmed = prev.trim();
+      if (!trimmed) return trimmed;
+      let p = trimmed.replace(/(?:,\s*)?(?:1k\s+standard|2k\s+high-res(?:olution)?|4k\s+ultra\s+hd|8k\s+master(?:work)?|8k\s+ultra-detailed(?:\s+resolution)?|8k\s+resolution|4k\s+uhd\s+resolution|2k\s+resolution|1024p\s+resolution)[^,\n]*/gi, '');
+      const resWord = newTier === '8k' ? '8k ultra-detailed resolution, museum-grade fine art sharpness' : newTier === '4k' ? '4k UHD resolution, tack-sharp optical clarity' : newTier === '2k' ? '2k high-resolution, sharp focus, natural skin micro-textures' : '1024p resolution';
+      if (/--ar\s+[0-9:]+/i.test(p)) {
+        return p.replace(/--ar\s+([0-9:]+)/i, `, ${resWord} --ar $1`);
+      }
+      return `${p.trim()}, ${resWord}`;
+    });
+  };
+
+  useEffect(() => {
+    if (initialRefPhoto && initialRefPhoto.trim()) {
+      setUploadedRefImages(prev => {
+        if (prev.some(p => p.url === initialRefPhoto)) return prev;
+        const newRef: UploadedRefPhoto = {
+          id: `burmese-ref-${Date.now()}`,
+          url: initialRefPhoto,
+          name: 'Detail Burmese Reference'
+        };
+        setActiveRefId(newRef.id);
+        return [newRef, ...prev];
+      });
+      setUseAllRefImages(true);
+    }
+  }, [initialRefPhoto]);
+
+  useEffect(() => {
+    if (initialRefPhotos && initialRefPhotos.length > 0) {
+      setUploadedRefImages(prev => {
+        const next = [...prev];
+        let hasNew = false;
+        initialRefPhotos.forEach((item, idx) => {
+          const url = typeof item === 'string' ? item : item.url;
+          const name = typeof item === 'string' ? `Burmese Reference #${idx + 1}` : (item.name || `Burmese Reference #${idx + 1}`);
+          const id = typeof item === 'object' && item.id ? item.id : `burmese-ref-${Date.now()}-${idx}`;
+          if (url && url.trim() && !next.some(p => p.url === url)) {
+            next.unshift({ id, url, name });
+            hasNew = true;
+          }
+        });
+        if (hasNew && next.length > 0) {
+          setActiveRefId(next[0].id);
+        }
+        return next;
+      });
+      setUseAllRefImages(true);
+    }
+  }, [initialRefPhotos]);
+
+  useEffect(() => {
+    if (initialChosenOptions && initialChosenOptions.length > 0) {
+      setChosenBurmeseOptions(initialChosenOptions);
+    }
+  }, [initialChosenOptions]);
+
+  // Sync with Supabase Cloud user_history
+  const syncWithSupabaseCloud = async (showToast = false) => {
+    if (!SupabaseService.isConfigured() || !SupabaseService.getSession()?.user?.id) {
+      if (showToast) flash('warn', 'Cloud sync requires logging in to your account.');
+      return;
+    }
+    setIsCloudSyncing(true);
+    try {
+      const rows = await SupabaseService.fetchUserHistory();
+      if (rows && rows.length > 0) {
+        const cloudItems: LibraryPhotoItem[] = rows
+          .filter(r => r.generated_image_url)
+          .map(r => ({
+            id: r.id,
+            url: r.generated_image_url || '',
+            prompt: r.master_prompt,
+            provider: r.provider || 'Nano Banana 2',
+            ratio: r.aspect_ratio || '1:1',
+            folder: r.folder || 'General',
+            createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+            favorite: !!r.is_favorite
+          }));
+
+        setLibraryItems(prev => {
+          const map = new Map<string, LibraryPhotoItem>();
+          // Cloud items take precedence
+          cloudItems.forEach(item => map.set(item.id, item));
+          // Preserve local items not in cloud
+          prev.forEach(item => {
+            if (!map.has(item.id)) map.set(item.id, item);
+          });
+          const merged = Array.from(map.values()).sort((a, b) => b.createdAt - a.createdAt);
+          safeSaveLibrary(merged);
+          return merged;
+        });
+
+        setResults(prev => {
+          if (prev.length === 0) {
+            return cloudItems.slice(0, 12).map(item => ({
+              id: item.id,
+              url: item.url,
+              prompt: item.prompt,
+              provider: item.provider,
+              ratio: item.ratio,
+              folder: item.folder,
+              createdAt: item.createdAt,
+              favorite: item.favorite
+            }));
+          }
+          return prev;
+        });
+
+        if (showToast) {
+          flash('info', `Cloud Synced: Restored ${cloudItems.length} photo(s) from your account! `);
+        }
+      } else if (showToast) {
+        flash('info', 'Cloud is connected. No previous cloud photos found for this account.');
+      }
+    } catch (e: any) {
+      console.warn('Failed to sync cloud history:', e);
+      if (showToast) flash('error', 'Cloud sync failed. Check your connection.');
+    } finally {
+      setIsCloudSyncing(false);
+    }
+  };
 
   // Refresh available models from server & load user cloud library from Supabase
   useEffect(() => {
@@ -202,26 +576,45 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
       .then(d => { if (d?.models?.length) setModels(d.models); })
       .catch(() => { /* keep defaults */ });
 
-    if (SupabaseService.isConfigured() && SupabaseService.getSession()) {
-      SupabaseService.fetchUserHistory().then(rows => {
-        if (rows && rows.length > 0) {
-          const cloudItems: LibraryPhotoItem[] = rows
-            .filter(r => r.generated_image_url)
-            .map(r => ({
-              id: r.id,
-              url: r.generated_image_url || '',
-              prompt: r.master_prompt,
-              provider: r.provider || 'Nano Banana 2',
-              ratio: r.aspect_ratio || '1:1',
-              folder: r.folder || 'General',
-              createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
-              favorite: !!r.is_favorite
-            }));
-          setLibraryItems(cloudItems);
-        }
-      });
-    }
+    // Initial sync
+    syncWithSupabaseCloud();
+
+    const handleCloudRefresh = () => {
+      const reloadedLib = safeLoadLibrary();
+      setLibraryItems(reloadedLib);
+      if (reloadedLib.length > 0) {
+        setResults(prev => (prev.length === 0 ? reloadedLib.slice(0, 12) : prev));
+      }
+      syncWithSupabaseCloud();
+    };
+
+    window.addEventListener('supabase-cloud-refresh', handleCloudRefresh);
+    window.addEventListener('storage', handleCloudRefresh);
+
+    return () => {
+      window.removeEventListener('supabase-cloud-refresh', handleCloudRefresh);
+      window.removeEventListener('storage', handleCloudRefresh);
+    };
   }, []);
+
+  const handleRestoreRecentPhotos = () => {
+    const lib = safeLoadLibrary();
+    if (lib.length > 0) {
+      setResults(lib.slice(0, 12).map(item => ({
+        id: item.id,
+        url: item.url,
+        prompt: item.prompt,
+        provider: item.provider,
+        ratio: item.ratio,
+        folder: item.folder,
+        createdAt: item.createdAt,
+        favorite: item.favorite
+      })));
+      flash('info', `Restored ${Math.min(lib.length, 12)} recent photo(s)!`);
+    } else {
+      syncWithSupabaseCloud(true);
+    }
+  };
 
   const flash = (type: 'info' | 'warn' | 'error', text: string, ms = 5000) => {
     setNotice({ type, text });
@@ -230,20 +623,54 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
 
   const copyText = (t: string) => {
     navigator.clipboard.writeText(t).catch(() => {});
-    flash('info', 'Prompt copied to clipboard! 📋', 2000);
+    flash('info', 'Prompt copied to clipboard!', 2000);
   };
 
   const downloadImage = async (url: string, id: string) => {
     try {
-      const blob = await (await fetch(url)).blob();
+      if (url.startsWith('data:')) {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `photo-studio-${id}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        return;
+      }
+      const response = await fetch(url);
+      const blob = await response.blob();
       const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
+      const blobUrl = URL.createObjectURL(blob);
+      a.href = blobUrl;
       a.download = `photo-studio-${id}.png`;
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(a.href);
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
     } catch {
       window.open(url, '_blank');
     }
+  };
+
+  const handleDownloadAllToDevice = async (itemsToDownload: { url: string; id: string }[]) => {
+    if (!itemsToDownload.length || isDownloadingAll) return;
+    setIsDownloadingAll(true);
+    flash('info', `ဓာတ်ပုံ (${itemsToDownload.length}) ပုံကို စက်ထဲသို့ တစ်ပုံချင်း ဒေါင်းလုဒ်စတင်ဆွဲယူနေပါသည်...`, 3000);
+    
+    let downloadedCount = 0;
+    for (let i = 0; i < itemsToDownload.length; i++) {
+      const item = itemsToDownload[i];
+      try {
+        await downloadImage(item.url, item.id || `batch-${i + 1}`);
+        downloadedCount++;
+        // Small delay between downloads so the browser doesn't block multiple popups
+        await new Promise(r => setTimeout(r, 350));
+      } catch (err) {
+        console.error('Download error for item', i, err);
+      }
+    }
+    setIsDownloadingAll(false);
+    flash('info', `ဓာတ်ပုံ (${downloadedCount}) ပုံကို မိမိစက်ထဲသို့ အောင်မြင်စွာ သိမ်းဆည်းပြီးပါပြီ!`, 4000);
   };
 
   // ---- Upload Unlimited Reference Images directly inside Prompt Box ----
@@ -277,16 +704,31 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
     const loaded = (await Promise.all(readPromises)).filter(Boolean) as UploadedRefPhoto[];
     if (loaded.length > 0) {
       setUploadedRefImages(prev => {
-        const next = [...prev, ...loaded];
+        const next = [...prev];
+        loaded.forEach((item, idx) => {
+          const totalIdx = prev.length + idx;
+          const defaultRole: PhotoRole =
+            totalIdx === 0 ? 'character' :
+            totalIdx === 1 ? 'background' :
+            totalIdx === 2 ? 'style' :
+            totalIdx === 3 ? 'outfit' : 'general';
+          next.push({ ...item, role: item.role || defaultRole });
+        });
         return next;
       });
       setActiveRefId(loaded[loaded.length - 1].id);
       flash(
         'info',
-        `📸 Added ${loaded.length} photo${loaded.length > 1 ? 's' : ''}! Total attached: ${uploadedRefImages.length + loaded.length} (Unlimited upload active).`,
+        `Added ${loaded.length} photo${loaded.length > 1 ? 's' : ''}. Total attached: ${uploadedRefImages.length + loaded.length}. Roles assigned for master compositing.`,
         4000
       );
     }
+  };
+
+  const handleUpdateRefPhotoRole = (id: string, newRole: PhotoRole) => {
+    setUploadedRefImages(prev =>
+      prev.map(item => item.id === id ? { ...item, role: newRole } : item)
+    );
   };
 
   const handleRemoveRefPhoto = (id: string, e?: React.MouseEvent) => {
@@ -336,7 +778,7 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
         setPrompt(extracted);
         flash(
           'info',
-          `✨ Extracted detailed master prompt from ${targetImages.length > 1 ? `${targetImages.length} reference photos` : 'uploaded photo'}!`,
+          `Extracted detailed master prompt from ${targetImages.length > 1 ? `${targetImages.length} reference photos` : 'uploaded photo'}!`,
           3500
         );
       } else {
@@ -358,14 +800,17 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
     }
     setIsEnhancing(true);
     try {
+      const sanitizedCurrentPrompt = cleanForImage(prompt.trim());
       const res = await fetch('/api/generate-photo-prompt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: prompt.trim(), model: 'Flux', format: 'normal', aspectRatio: ratio })
+        body: JSON.stringify({ prompt: sanitizedCurrentPrompt, model: 'Flux', format: 'normal', aspectRatio: ratio })
       });
       const data = await res.json();
       if (data?.resultText) {
-        setPrompt(cleanForImage(data.resultText));
+        let enhanced = cleanForImage(data.resultText);
+        enhanced = `${enhanced.replace(/--ar\s+[0-9:]+/gi, '').trim()} --ar ${ratio}`;
+        setPrompt(enhanced);
         flash('info', data.isFallback ? 'Enhanced with built-in photography rules.' : 'Prompt enhanced with AI.', 3000);
       }
     } catch {
@@ -378,30 +823,51 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
   // ---- Generate photos with Auto-Save into Supabase Cloud & Section Library ----
   const handleGenerate = async () => {
     if ((!prompt.trim() && uploadedRefImages.length === 0) || isGenerating) return;
+
+    const session = SupabaseService.getSession();
+    if (!session) {
+      window.dispatchEvent(new CustomEvent('open-supabase-auth', { detail: { targetSection: 'photo-prompt' } }));
+      setNotice({
+        type: 'error',
+        text: 'Please sign in to generate photos and use your credits / ဓာတ်ပုံထုတ်ယူရန်နှင့် ကရက်ဒစ်အသုံးပြုရန် ကျေးဇူးပြု၍ အကောင့်ဝင်ပါ'
+      });
+      return;
+    }
+
     setIsGenerating(true);
+    setMobileTab('outputs');
+    setActiveMainTab('current');
     setNotice(null);
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      setTimeout(() => {
+        document.getElementById('photo-studio-outputs')?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
     try {
-      const creditCost = 5 * count;
-      if (SupabaseService.isConfigured() && SupabaseService.getSession()) {
+      const creditCost = (TIER_CREDIT_RATES[resolutionTier] || 5) * count;
+      if (SupabaseService.isConfigured()) {
         const creditRes = await SupabaseService.deductCredits(
           creditCost,
           'photo_generation',
-          `Generated ${count} photo(s) via ${selected.name}`
+          `Generated ${count} ${resolutionTier.toUpperCase()} photo(s) via ${selected.name}`
         );
         if (!creditRes.success) {
           throw new Error(creditRes.error || `Insufficient credits (Requires ${creditCost} Credits)`);
         }
+        window.dispatchEvent(new CustomEvent('supabase-cloud-refresh'));
       }
 
       let finalPrompt = cleanForImage(prompt.trim() || 'Ultra-detailed photorealistic studio portrait preserving exact subject identity, lighting, and aesthetics from the reference image');
       if (polish && finalPrompt.length < 160) {
         finalPrompt += ', professional photography, highly detailed, sharp focus, natural lighting, 8k';
       }
-      const refUrls = useAllRefImages
-        ? uploadedRefImages.map(x => x.url)
+      finalPrompt = `${finalPrompt.replace(/--ar\s+[0-9:]+/gi, '').trim()} --ar ${ratio}`;
+      const activeRefObjects = useAllRefImages
+        ? uploadedRefImages
         : activeRefPhoto
-        ? [activeRefPhoto.url]
+        ? [activeRefPhoto]
         : [];
+      const refUrls = activeRefObjects.map(x => x.url);
 
       const res = await fetch('/api/photo-studio/generate-image', {
         method: 'POST',
@@ -410,9 +876,16 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
           prompt: finalPrompt,
           model: modelId,
           aspectRatio: ratio,
+          resolution: resolutionTier,
+          resolutionDimensions: currentResString,
           count,
           referenceImage: activeRefPhoto?.url || refUrls[0] || null,
-          referenceImages: refUrls
+          referenceImages: refUrls,
+          referenceImagesWithRoles: activeRefObjects.map((x, idx) => ({
+            url: x.url,
+            name: x.name,
+            role: x.role || (idx === 0 ? 'character' : idx === 1 ? 'background' : 'general')
+          }))
         })
       });
       const data = await res.json();
@@ -479,7 +952,7 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
       });
 
       window.dispatchEvent(new Event('supabase-cloud-refresh'));
-      flash('info', `✨ Generated & saved ${count} photo(s) to Supabase Cloud folder "${assignedFolder}" (-${creditCost} Credits)!`, 4000);
+      flash('info', `Generated & saved ${count} photo(s) to Supabase Cloud folder "${assignedFolder}" (-${creditCost} Credits)!`, 4000);
     } catch (e: any) {
       flash('error', e?.message || 'Generation failed. Try again.');
     } finally {
@@ -502,7 +975,7 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
     setTargetFolder(name);
     setNewFolderName('');
     setNewFolderModal(false);
-    flash('info', `Folder "📁 ${name}" created successfully!`);
+    flash('info', `Folder "${name}" created successfully!`);
   };
 
   const handleDeleteFolder = (folderNameToDelete: string) => {
@@ -567,22 +1040,55 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
       SupabaseService.updateHistoryRecord(id, { folder: newFolder });
     }
     setMoveFolderModal(null);
-    flash('info', `Moved photo to "📁 ${newFolder}".`);
+    flash('info', `Moved photo to "${newFolder}".`);
+  };
+
+  const handleRemoveResultPhoto = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const target = results.find(item => item.id === id) || libraryItems.find(item => item.id === id);
+    const targetUrl = target?.url;
+
+    setResults(prev => prev.filter(item => item.id !== id && (!targetUrl || item.url !== targetUrl)));
+    setLibraryItems(prev => {
+      const updated = prev.filter(item => item.id !== id && (!targetUrl || item.url !== targetUrl));
+      safeSaveLibrary(updated);
+      return updated;
+    });
+
+    if (lightboxItem && (lightboxItem.id === id || (targetUrl && lightboxItem.url === targetUrl))) {
+      setLightboxItem(null);
+    }
+
+    if (SupabaseService.isConfigured() && SupabaseService.getSession()) {
+      SupabaseService.deleteHistoryRecord(id, targetUrl);
+    }
+    flash('info', 'Photo removed.');
+  };
+
+  const handleClearAllResults = () => {
+    if (results.length === 0) return;
+    setResults([]);
+    flash('info', 'All photo results cleared.');
   };
 
   const handleDeleteLibraryItem = (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    if (!confirm('Are you sure you want to remove this photo and prompt from your library?')) return;
+    const target = libraryItems.find(item => item.id === id) || results.find(item => item.id === id);
+    const targetUrl = target?.url;
+
     setLibraryItems(prev => {
-      const updated = prev.filter(item => item.id !== id);
+      const updated = prev.filter(item => item.id !== id && (!targetUrl || item.url !== targetUrl));
       safeSaveLibrary(updated);
       return updated;
     });
-    if (lightboxItem && lightboxItem.id === id) {
+    setResults(prev => prev.filter(item => item.id !== id && (!targetUrl || item.url !== targetUrl)));
+
+    if (lightboxItem && (lightboxItem.id === id || (targetUrl && lightboxItem.url === targetUrl))) {
       setLightboxItem(null);
     }
+
     if (SupabaseService.isConfigured() && SupabaseService.getSession()) {
-      SupabaseService.deleteHistoryRecord(id);
+      SupabaseService.deleteHistoryRecord(id, targetUrl);
     }
     flash('info', 'Photo removed from Library.');
   };
@@ -595,7 +1101,7 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
       if (match) setModelId(match.id);
     }
     setLightboxItem(null);
-    flash('info', 'Loaded prompt and settings into generator! ✨', 2500);
+    flash('info', 'Loaded prompt and settings into generator! ', 2500);
   };
 
   // ---- Photo → Prompt (vision) Unlimited Upload & Analysis ----
@@ -686,191 +1192,357 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
     <div className="min-h-screen w-full bg-[#0a0b0e] text-zinc-100 font-sans overflow-x-hidden selection:bg-pink-500/30">
       {/* ========== HEADER ========== */}
       <header className="sticky top-0 z-30 bg-[#0a0b0e]/95 backdrop-blur-md border-b border-zinc-800/80">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 h-14 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            {onBackToPortal && (
-              <button
-                type="button"
-                onClick={onBackToPortal}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs font-semibold text-zinc-300 hover:text-white transition-colors shrink-0"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span className="hidden xs:inline sm:inline">Sections</span>
-              </button>
-            )}
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-pink-500/20 to-fuchsia-600/20 border border-pink-500/30 flex items-center justify-center shrink-0">
-                <Camera className="w-4 h-4 text-pink-400" />
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 h-15 flex items-center justify-between gap-2.5">
+          {/* Left Corner: Clean Logo (No white border) & Brand Text */}
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center shrink-0">
+              <img
+                src="/logo.png"
+                alt="SHOW AI Logo"
+                className="w-full h-full object-contain drop-shadow-[0_2px_8px_rgba(5,177,135,0.45)]"
+              />
+            </div>
+
+            <div className="flex flex-col min-w-0">
+              <div className="flex items-center gap-1.5 leading-tight">
+                <span className="text-sm sm:text-base font-extrabold text-white tracking-tight truncate">
+                  SHOW AI
+                </span>
+                <span className="text-pink-400 text-xs font-semibold shrink-0">·</span>
+                <span className="text-xs sm:text-sm font-semibold text-zinc-300 truncate">
+                  Photo Studio
+                </span>
               </div>
-              <h1 className="text-sm sm:text-base font-bold truncate tracking-tight">Photo Prompt Studio</h1>
-              <span className="hidden md:inline-block px-2 py-0.5 rounded-full bg-pink-500/10 border border-pink-500/30 text-[10px] font-mono text-pink-300">
-                Studio Hub v2.5
+              <span className="text-[10px] text-zinc-500 font-mono tracking-wider uppercase mt-0.5 leading-none hidden xs:inline">
+                PROMPT SUITE v2.5
               </span>
             </div>
           </div>
 
+          {/* Right Corner: Quick Action Buttons & Navigation Menu Bar */}
           <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={() => setActiveMainTab('library')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-                activeMainTab === 'library'
-                  ? 'bg-cyan-500/20 border-cyan-500/60 text-cyan-200 shadow-sm shadow-cyan-500/20'
-                  : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
-              }`}
-            >
-              <Folder className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Library</span>
-              <span className="px-1.5 py-0.2 rounded-full bg-cyan-950/80 text-[10px] text-cyan-300 font-mono">
-                {libraryItems.length}
-              </span>
-            </button>
+            {/* Desktop Back to Menu Button */}
+            {onBackToPortal && (
+              <button
+                type="button"
+                onClick={onBackToPortal}
+                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs font-semibold text-zinc-300 hover:text-white transition-colors cursor-pointer"
+                title="Back to Main Menu"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Back to Menu</span>
+              </button>
+            )}
 
+            {/* Direct Sign In / Login Button for Guests */}
+            {!SupabaseService.getSession() ? (
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new CustomEvent('open-supabase-auth'))}
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-emerald-400 to-teal-300 text-slate-950 font-black text-xs cursor-pointer shadow-sm hover:brightness-105 transition-all"
+                title="Sign in / Register"
+              >
+                <LogIn className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>Sign In</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new CustomEvent('open-supabase-cloud', { detail: { tab: 'topup' } }))}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-amber-300 font-bold text-xs cursor-pointer transition-all shadow-xs active:scale-95"
+                title="Credit Store: Buy Credits & Claim Daily 250 Free Credits"
+              >
+                <Coins className="w-3.5 h-3.5 text-amber-400" />
+                <span className="font-mono">{userCredits.toLocaleString()} Credits</span>
+                <span className="text-[10px] bg-gradient-to-r from-amber-400 to-yellow-400 text-black font-extrabold px-1.5 py-0.5 rounded-full shadow leading-none">
+                  +Top-Up
+                </span>
+              </button>
+            )}
+
+            {/* 📱 Mobile Menu Bar Button (Go to any session and output) */}
             <button
               type="button"
-              onClick={() => setP2pOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-pink-500/10 hover:bg-pink-500/20 border border-pink-500/30 text-pink-300 text-xs font-semibold transition-colors"
+              onClick={() => setMobileMenuOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-900/95 hover:bg-zinc-800 border border-zinc-700/80 hover:border-zinc-600 text-zinc-200 hover:text-white text-xs font-semibold shadow-xs transition-all cursor-pointer active:scale-95"
+              title="Open Navigation Menu"
             >
-              <ImageIcon className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Photo to Prompt</span>
+              <Menu className="w-4 h-4 text-emerald-400" />
+              <span className="font-semibold text-xs">Menu</span>
             </button>
           </div>
         </div>
       </header>
 
+      {/* 🧭 FULL NAVIGATION DRAWER (Go to any session, outputs, library, and back to menu) */}
+      {mobileMenuOpen && (
+        <div 
+          className="fixed inset-0 z-50 flex justify-end bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setMobileMenuOpen(false)}
+        >
+          <div 
+            className="w-full max-w-sm h-full bg-[#11131a] border-l border-zinc-800 p-5 flex flex-col justify-between overflow-y-auto shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="space-y-6">
+              {/* Drawer Top Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <img src="/logo.png" alt="SHOW AI Logo" className="w-full h-full object-contain" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white leading-none">SHOW AI Studio</h3>
+                    <p className="text-[10px] text-zinc-400 font-mono mt-1">Navigation Menu</p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-8 h-8 rounded-full bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                  title="Close Menu"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* SECTION 1: ALL STUDIO SESSIONS */}
+              <div className="space-y-2">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 px-1">
+                  Studio Sessions
+                </p>
+
+                {/* Back to Main Menu / 3 Sections Hub */}
+                {onBackToPortal && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onBackToPortal();
+                    }}
+                    className="w-full flex items-center justify-between p-3 rounded-xl bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-left transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 group-hover:scale-105 transition-transform">
+                        <Home className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-white group-hover:text-emerald-300 transition-colors">
+                          Back to Menu (3 Sections)
+                        </p>
+                        <p className="text-[10px] text-zinc-500">Return to Portal Hub</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-zinc-600 group-hover:text-zinc-300 transition-colors" />
+                  </button>
+                )}
+
+                {/* Video Prompt Studio */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    onNavigateView?.('video-prompt-studio');
+                  }}
+                  className="w-full flex items-center justify-between p-3 rounded-xl bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-left transition-all cursor-pointer group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-teal-500/15 border border-teal-500/30 flex items-center justify-center text-teal-400 group-hover:scale-105 transition-transform">
+                      <Video className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-white group-hover:text-teal-300 transition-colors">
+                        Video Prompt Studio
+                      </p>
+                      <p className="text-[10px] text-zinc-500">Kling, Runway Gen-3, Luma & Sora</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-zinc-600 group-hover:text-zinc-300 transition-colors" />
+                </button>
+
+                {/* Detail Burmese Studio */}
+                {onBackToMatrix && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onBackToMatrix();
+                    }}
+                    className="w-full flex items-center justify-between p-3 rounded-xl bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-left transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 group-hover:scale-105 transition-transform">
+                        <Sparkles className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-white group-hover:text-amber-300 transition-colors">
+                          Detail Burmese Studio
+                        </p>
+                        <p className="text-[10px] text-zinc-500">Cultural Prompt Matrix</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-zinc-600 group-hover:text-zinc-300 transition-colors" />
+                  </button>
+                )}
+
+                {/* Current Active Studio indicator */}
+                <div className="w-full flex items-center justify-between p-3 rounded-xl bg-pink-500/10 border border-pink-500/30 text-left">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-pink-500/20 border border-pink-500/40 flex items-center justify-center text-pink-300">
+                      <Camera className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-pink-200">
+                        Photo Prompt Studio (Active)
+                      </p>
+                      <p className="text-[10px] text-pink-400/80">Photorealistic Image Generator</p>
+                    </div>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full bg-pink-500/20 text-[9px] font-mono font-bold text-pink-300">
+                    HERE
+                  </span>
+                </div>
+              </div>
+
+              {/* SECTION 2: OUTPUTS & PHOTO TOOLS */}
+              <div className="space-y-2">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 px-1">
+                  Outputs & Tools
+                </p>
+
+                {/* Go to Live Outputs */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    setActiveMainTab('current');
+                    setMobileTab('outputs');
+                    setTimeout(() => {
+                      document.getElementById('photo-studio-outputs')?.scrollIntoView({ behavior: 'smooth' });
+                    }, 120);
+                  }}
+                  className="w-full flex items-center justify-between p-2.5 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 text-left transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Zap className="w-4 h-4 text-pink-400" />
+                    <span className="text-xs font-semibold text-zinc-200">Go to Live Outputs</span>
+                  </div>
+                  {results.length > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full bg-pink-500/20 text-[10px] text-pink-300 font-mono">
+                      {results.length} photos
+                    </span>
+                  )}
+                </button>
+
+                {/* Go to Studio Library */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    setActiveMainTab('library');
+                    setMobileTab('library');
+                    setTimeout(() => {
+                      document.getElementById('photo-studio-outputs')?.scrollIntoView({ behavior: 'smooth' });
+                    }, 120);
+                  }}
+                  className="w-full flex items-center justify-between p-2.5 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 text-left transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Folder className="w-4 h-4 text-cyan-400" />
+                    <span className="text-xs font-semibold text-zinc-200">Go to Studio Library</span>
+                  </div>
+                  <span className="px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-[10px] text-cyan-300 font-mono">
+                    {libraryItems.length} items
+                  </span>
+                </button>
+
+                {/* Photo to Prompt Vision Tool */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    setP2pOpen(true);
+                  }}
+                  className="w-full flex items-center justify-between p-2.5 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 text-left transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <ImageIcon className="w-4 h-4 text-pink-400" />
+                    <span className="text-xs font-semibold text-zinc-200">Photo to Prompt (Vision AI)</span>
+                  </div>
+                  <span className="text-[10px] text-pink-400 font-mono font-semibold">Open</span>
+                </button>
+              </div>
+
+              {/* Cloud & Device Storage Info */}
+              <div className="p-3 rounded-xl bg-zinc-900/60 border border-zinc-800/80 flex items-center gap-2.5 text-xs text-zinc-400">
+                <Cloud className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span className="leading-tight">All photos save directly to your device and Supabase Cloud.</span>
+              </div>
+            </div>
+
+            {/* Drawer Bottom Footer: Account / Sign In */}
+            <div className="pt-4 border-t border-zinc-800/80">
+              {!SupabaseService.getSession() ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    window.dispatchEvent(new CustomEvent('open-supabase-auth'));
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-300 text-slate-950 font-bold text-xs cursor-pointer shadow-md"
+                >
+                  <LogIn className="w-4 h-4 stroke-[2.5]" />
+                  <span>Sign In / Create Account</span>
+                </button>
+              ) : (
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs">
+                  <div className="flex items-center gap-2 text-zinc-300 truncate">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span className="truncate">{SupabaseService.getSession()?.user?.email || 'Logged in'}</span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-[9px] text-emerald-300 font-mono">
+                    ONLINE
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ========== BODY ========== */}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 pb-28 lg:pb-8 grid grid-cols-1 lg:grid-cols-[410px_minmax(0,1fr)] xl:grid-cols-[450px_minmax(0,1fr)] gap-4 lg:gap-6 items-start">
 
         {/* ---------- LEFT: CONTROLS ---------- */}
-        <section className="space-y-4 lg:sticky lg:top-20">
+        <section className={`space-y-4 lg:sticky lg:top-20 ${mobileTab !== 'studio' ? 'hidden lg:block' : ''}`}>
 
-          {/* Model picker */}
-          <div className="relative space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-[11px] font-mono uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-pink-400" />
-                <span>AI Photo Model & Engine</span>
-              </label>
-              <span className="text-[10px] text-zinc-500 font-mono">
-                {models.length} Models
-              </span>
+          {/* AI Model Engine Selector above Prompt Box */}
+          <div className="flex items-center justify-between gap-2.5 p-2.5 sm:p-3 rounded-2xl border border-zinc-800 bg-[#14161d]">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-pink-500/15 border border-pink-500/30 flex items-center justify-center text-pink-400 shrink-0">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 leading-tight">AI Model Engine</span>
+                <span className="text-xs font-bold text-zinc-200 truncate">{selected.name}</span>
+              </div>
             </div>
 
-            {/* Quick-toggle top models pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-              {[
-                { id: 'nano-banana-2', label: '🍌 Nano Banana 2', badge: 'TOP' },
-                { id: 'nano-banana-pro', label: '👑 Nano Banana Pro', badge: 'PRO' },
-                { id: 'gpt-image-2', label: '🤖 GPT Image 2', badge: 'TOP' },
-                { id: 'flux-realism', label: '📸 FLUX Photoreal', badge: 'TOP' },
-                { id: 'sd-3-5', label: '⚡ SD 3.5 Large', badge: 'FREE' },
-              ].map(m => {
-                const isAct = modelId === m.id;
-                return (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => setModelId(m.id)}
-                    className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-all ${
-                      isAct
-                        ? 'bg-pink-500/20 border-pink-500/60 text-pink-200 shadow-sm shadow-pink-500/20 font-semibold'
-                        : 'bg-zinc-900/80 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
-                    }`}
-                  >
-                    <span>{m.label}</span>
-                    <span className={`text-[9px] font-bold px-1 rounded ${
-                      m.badge === 'TOP' ? 'bg-amber-500/25 text-amber-300' :
-                      m.badge === 'PRO' ? 'bg-purple-500/25 text-purple-300' : 'bg-emerald-500/25 text-emerald-300'
-                    }`}>
-                      {m.badge}
-                    </span>
-                  </button>
-                );
-              })}
+            <div className="relative shrink-0">
+              <select
+                value={modelId}
+                onChange={e => setModelId(e.target.value)}
+                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold px-3 py-1.5 rounded-xl border border-zinc-700 focus:outline-none focus:border-pink-500 transition-colors cursor-pointer appearance-none pr-8"
+              >
+                {models.map(m => (
+                  <option key={m.id} value={m.id} className="bg-[#12141c] text-zinc-200 py-1">
+                    {m.name} {m.badge ? `[${m.badge}]` : ''}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-zinc-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
-
-            {/* Active Model Button */}
-            <button
-              type="button"
-              onClick={() => setModelOpen(o => !o)}
-              className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-[#14161d] border border-zinc-800 hover:border-pink-500/40 hover:bg-[#181a24] transition-all text-left group"
-            >
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-sm text-zinc-100 group-hover:text-pink-300 transition-colors truncate">
-                    {selected.name}
-                  </span>
-                  {selected.badge && (
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider ${
-                      selected.badge === 'TOP' ? 'bg-amber-500/15 border-amber-500/40 text-amber-300' :
-                      selected.badge === 'PRO' ? 'bg-purple-500/15 border-purple-500/40 text-purple-300' :
-                      selected.badge === 'FREE' ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300' :
-                      'bg-blue-500/15 border-blue-500/40 text-blue-300'
-                    }`}>
-                      {selected.badge}
-                    </span>
-                  )}
-                </div>
-                <div className="text-[11px] text-zinc-400 truncate mt-0.5">
-                  {selected.desc || (selected.available ? 'Ready to synthesize high-resolution images' : `Needs ${selected.envKey}`)}
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${selected.available ? 'bg-emerald-500/15 text-emerald-300' : 'bg-amber-500/15 text-amber-300'}`}>
-                  {selected.available ? (selected.envKey ? 'ACTIVE' : 'FREE') : 'KEY'}
-                </span>
-                <ChevronDown className={`w-4 h-4 text-zinc-500 transition-transform ${modelOpen ? 'rotate-180 text-pink-400' : ''}`} />
-              </div>
-            </button>
-
-            {/* Model Dropdown Menu */}
-            {modelOpen && (
-              <div className="absolute z-30 left-0 right-0 mt-2 max-h-[70vh] overflow-y-auto rounded-2xl bg-[#161822] border border-zinc-700 shadow-2xl p-2 space-y-3 backdrop-blur-xl">
-                {['Nano Banana', 'OpenAI', 'Top Open Tier', 'Cloud Pro'].map(cat => {
-                  const group = models.filter(m => (m.category || 'Top Open Tier') === cat);
-                  if (!group.length) return null;
-                  const catTitle =
-                    cat === 'Nano Banana' ? '🍌 Nano Banana & Google DeepMind' :
-                    cat === 'OpenAI' ? '🤖 OpenAI Flagships' :
-                    cat === 'Top Open Tier' ? '✨ Top Open-Source & Photoreal' : '☁️ Cloud Pro APIs';
-
-                  return (
-                    <div key={cat} className="space-y-1">
-                      <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 px-2 pt-1 font-semibold">
-                        {catTitle}
-                      </div>
-                      <div className="space-y-1">
-                        {group.map(m => {
-                          const isAct = m.id === modelId;
-                          return (
-                            <button
-                              key={m.id}
-                              type="button"
-                              onClick={() => { setModelId(m.id); setModelOpen(false); }}
-                              className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-left transition-colors ${
-                                isAct ? 'bg-pink-500/15 border border-pink-500/40 text-pink-200' : 'hover:bg-zinc-800 text-zinc-300'
-                              }`}
-                            >
-                              <div className="min-w-0">
-                                <div className="text-xs font-semibold truncate">{m.name}</div>
-                                <div className="text-[11px] text-zinc-500 truncate">{m.desc || m.category}</div>
-                              </div>
-                              <span className={`text-[10px] font-mono uppercase px-1.5 py-0.5 rounded font-bold shrink-0 ${
-                                m.badge === 'TOP' ? 'bg-amber-500/20 text-amber-300' :
-                                m.badge === 'PRO' ? 'bg-purple-500/20 text-purple-300' :
-                                m.badge === 'FREE' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-blue-500/20 text-blue-300'
-                              }`}>
-                                {m.badge}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
 
           {/* Prompt input (Supports Unlimited Multi-Photo Upload & Drag-and-Drop) */}
@@ -909,9 +1581,6 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
                     <span className="text-xs font-semibold text-pink-200 truncate">
                       Reference Photos ({uploadedRefImages.length})
                     </span>
-                    <span className="px-1.5 py-0.5 rounded bg-pink-500/15 border border-pink-500/30 text-[9px] font-mono text-pink-300 uppercase">
-                      Unlimited
-                    </span>
                   </div>
 
                   <div className="flex items-center gap-1.5 flex-wrap">
@@ -920,7 +1589,7 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
                         type="button"
                         onClick={() => setUseAllRefImages(v => !v)}
                         title="Toggle between using all uploaded photos or only the active selected photo"
-                        className={`px-2 py-1 rounded-lg border text-[10px] font-mono font-semibold transition-colors ${
+                        className={`px-2 py-1 rounded-lg border text-[10px] font-mono font-semibold transition-colors cursor-pointer ${
                           useAllRefImages
                             ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
                             : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:text-white'
@@ -932,60 +1601,72 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
 
                     <button
                       type="button"
-                      onClick={() => handleExtractFromRefImage()}
-                      disabled={isExtractingRef}
-                      title="Extract master prompt from attached reference photo(s)"
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-pink-500/20 hover:bg-pink-500/30 border border-pink-500/40 text-pink-200 text-[11px] font-semibold transition-colors disabled:opacity-50"
-                    >
-                      {isExtractingRef ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : (
-                        <Sparkles className="w-3 h-3 text-pink-400" />
-                      )}
-                      <span>{isExtractingRef ? 'Reading…' : 'Photo → Text'}</span>
-                    </button>
-
-                    <button
-                      type="button"
                       onClick={handleClearAllRefPhotos}
                       title="Remove all attached photos"
-                      className="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-red-500/20 text-zinc-400 hover:text-red-300 text-[10px] font-semibold transition-colors"
+                      className="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-red-500/20 text-zinc-400 hover:text-red-300 text-[11px] font-semibold transition-colors flex items-center gap-1 cursor-pointer"
                     >
-                      Clear All
+                      <Trash2 className="w-3 h-3" />
+                      <span>Clear All</span>
                     </button>
                   </div>
                 </div>
 
-                {/* Multi-Photo Scrollable Thumbnail Strip */}
-                <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-0.5 scrollbar-thin">
+                {/* Multi-Photo Scrollable Thumbnail Strip with Role Selectors */}
+                <div className="flex items-start gap-2.5 overflow-x-auto pb-2 pt-0.5 scrollbar-thin">
                   {uploadedRefImages.map((img, idx) => {
                     const isSelected = activeRefPhoto?.id === img.id;
+                    const role = img.role || (idx === 0 ? 'character' : idx === 1 ? 'background' : 'general');
+                    const roleMeta = PHOTO_ROLES.find(r => r.id === role) || PHOTO_ROLES[0];
                     return (
                       <div
                         key={img.id}
-                        onClick={() => setActiveRefId(img.id)}
-                        className={`group relative w-14 h-14 rounded-lg overflow-hidden shrink-0 cursor-pointer border-2 transition-all ${
+                        className={`flex flex-col gap-1.5 shrink-0 p-1.5 rounded-xl border transition-all ${
                           isSelected
-                            ? 'border-pink-400 ring-2 ring-pink-500/30 scale-[1.02]'
-                            : 'border-zinc-700/80 hover:border-pink-500/50 opacity-85 hover:opacity-100'
+                            ? 'bg-zinc-800/80 border-pink-500/60 shadow-lg'
+                            : 'bg-zinc-950/60 border-zinc-800 hover:border-zinc-700'
                         }`}
                       >
-                        <img
-                          src={img.url}
-                          alt={img.name}
-                          className="w-full h-full object-cover"
-                        />
-                        <span className="absolute bottom-0.5 left-0.5 px-1 rounded bg-black/75 text-[9px] font-mono text-zinc-200">
-                          #{idx + 1}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={e => handleRemoveRefPhoto(img.id, e)}
-                          title="Remove this photo"
-                          className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/80 hover:bg-red-500 text-zinc-200 hover:text-white flex items-center justify-center transition-colors"
+                        <div
+                          onClick={() => setActiveRefId(img.id)}
+                          className={`relative w-20 h-20 rounded-lg overflow-hidden cursor-pointer border transition-all ${
+                            isSelected
+                              ? 'border-pink-400 ring-2 ring-pink-500/30 scale-[1.01]'
+                              : 'border-zinc-700/80 hover:border-pink-500/50'
+                          }`}
                         >
-                          <X className="w-2.5 h-2.5" />
-                        </button>
+                          <img
+                            src={img.url}
+                            alt={img.name}
+                            className="w-full h-full object-cover"
+                          />
+                          <span className="absolute bottom-0.5 left-0.5 px-1 rounded bg-black/80 text-[9px] font-mono text-zinc-200">
+                            #{idx + 1}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={e => handleRemoveRefPhoto(img.id, e)}
+                            title="Remove this photo"
+                            className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/80 hover:bg-red-500 text-zinc-200 hover:text-white flex items-center justify-center transition-colors"
+                          >
+                            <X className="w-2.5 h-2.5" />
+                          </button>
+                        </div>
+
+                        {/* Role Selector Dropdown */}
+                        <div className="w-20">
+                          <select
+                            value={role}
+                            onChange={e => handleUpdateRefPhotoRole(img.id, e.target.value as PhotoRole)}
+                            className="w-full text-[9px] font-mono font-bold bg-zinc-900 border border-zinc-700 hover:border-pink-500/60 text-pink-300 rounded px-1 py-1 focus:outline-none cursor-pointer truncate"
+                            title={roleMeta.desc}
+                          >
+                            {PHOTO_ROLES.map(r => (
+                              <option key={r.id} value={r.id} className="bg-zinc-900 text-zinc-200 text-xs">
+                                {r.short}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
                     );
                   })}
@@ -995,19 +1676,56 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
                     type="button"
                     onClick={() => promptImageInputRef.current?.click()}
                     title="Upload more photos (Unlimited)"
-                    className="w-14 h-14 rounded-lg border-2 border-dashed border-zinc-700 hover:border-pink-400/70 bg-zinc-950/60 hover:bg-pink-500/10 flex flex-col items-center justify-center gap-0.5 text-zinc-400 hover:text-pink-300 shrink-0 transition-colors"
+                    className="w-20 h-28 rounded-xl border-2 border-dashed border-zinc-700 hover:border-pink-400/70 bg-zinc-950/60 hover:bg-pink-500/10 flex flex-col items-center justify-center gap-1 text-zinc-400 hover:text-pink-300 shrink-0 transition-colors"
                   >
-                    <Upload className="w-3.5 h-3.5 text-pink-400" />
-                    <span className="text-[9px] font-semibold leading-none">+ Add</span>
+                    <Upload className="w-4 h-4 text-pink-400" />
+                    <span className="text-[10px] font-semibold leading-tight text-center">+ Add Photo</span>
                   </button>
                 </div>
+
+
 
                 <div className="flex items-center justify-between text-[10px] text-zinc-400">
                   <span className="truncate">
                     {useAllRefImages && uploadedRefImages.length > 1
-                      ? `All ${uploadedRefImages.length} photos active for Face/Style Reference & Prompt Extraction`
+                      ? `All ${uploadedRefImages.length} photos active for Multi-Image Role Compositing`
                       : `Active focus: ${activeRefPhoto?.name || 'Photo #1'} (Click any thumbnail to switch)`}
                   </span>
+                </div>
+              </div>
+            )}
+
+            {/* Detail Burmese Studio Options Tray */}
+            {chosenBurmeseOptions.length > 0 && (
+              <div className="mx-3 mt-3 p-2.5 rounded-xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-[15px] text-amber-400">tune</span>
+                    <span className="text-xs font-bold text-amber-200">
+                      Burmese Studio Chosen Options ({chosenBurmeseOptions.length})
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setChosenBurmeseOptions([])}
+                    className="text-[10px] text-zinc-400 hover:text-red-300 transition-colors flex items-center gap-0.5 cursor-pointer"
+                    title="Dismiss options banner"
+                  >
+                    <X className="w-3 h-3" />
+                    <span>Clear</span>
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {chosenBurmeseOptions.map((opt, i) => (
+                    <span
+                      key={i}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-zinc-900/90 border border-amber-500/25 text-[11px] text-zinc-200 shadow-2xs"
+                    >
+                      {opt.emoji && <span className="text-xs">{opt.emoji}</span>}
+                      <strong className="text-amber-300 font-semibold">{opt.label}:</strong>
+                      <span>{opt.value}</span>
+                    </span>
+                  ))}
                 </div>
               </div>
             )}
@@ -1015,11 +1733,24 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
             <textarea
               value={prompt}
               onChange={e => setPrompt(e.target.value)}
+              onPaste={e => {
+                const pasted = e.clipboardData.getData('text');
+                if (pasted && (/\[(Subject|Action|Environment|Cinematography|Lighting|Style|Technical|Subjec)/i.test(pasted) || pasted.includes('t]:') || pasted.includes('[Subject]'))) {
+                  e.preventDefault();
+                  const sanitized = cleanForImage(pasted);
+                  const target = e.currentTarget;
+                  const start = target.selectionStart || 0;
+                  const end = target.selectionEnd || 0;
+                  const nextVal = prompt.slice(0, start) + sanitized + prompt.slice(end);
+                  setPrompt(cleanForImage(nextVal));
+                  flash('info', 'Sanitized OpenArt tags into clean prompt.', 2500);
+                }
+              }}
               onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleGenerate(); }}
               placeholder={
                 uploadedRefImages.length > 0
-                  ? `Add custom instructions for your ${uploadedRefImages.length} uploaded photo(s), or click Enhance / Generate…`
-                  : "Describe the photo you want to create, or click Upload Image (supports unlimited photos)…"
+                  ? `Add custom prompt instructions for your attached reference photo(s), or click Enhance / Generate…`
+                  : "Describe the photo you want to create, or attach reference images…"
               }
               rows={4}
               maxLength={1500}
@@ -1036,6 +1767,23 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
                   {isEnhancing || isExtractingRef ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
                   Enhance
                 </button>
+
+                {/* OpenArt Bracket Cleaner Button */}
+                {Boolean(prompt && (/\[(Subject|Action|Environment|Cinematography|Lighting|Style|Technical|Subjec)/i.test(prompt) || prompt.includes('[') || prompt.includes('t]:'))) && (
+                  <button
+                    type="button"
+                    title="Clean OpenArt bracket tags and duplicate sentences"
+                    onClick={() => {
+                      const cleaned = cleanForImage(prompt);
+                      setPrompt(cleaned);
+                      flash('info', 'Cleaned prompt into natural photography prose.', 2500);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 text-amber-300 text-xs font-medium transition-colors"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    Clean Tags
+                  </button>
+                )}
 
                 {/* Unlimited Upload Image Button right beside Enhance button */}
                 <button
@@ -1080,111 +1828,169 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
             </div>
           </div>
 
-          {/* Destination Folder Selector */}
-          <div className="rounded-xl border border-zinc-800/80 bg-[#12141c] p-3 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 min-w-0">
-              <Folder className="w-4 h-4 text-cyan-400 shrink-0" />
-              <div className="min-w-0">
-                <div className="text-[10px] uppercase font-mono tracking-wider text-zinc-400">Save Destination Folder</div>
-                <div className="text-xs font-semibold text-zinc-200 truncate">📁 {targetFolder}</div>
-              </div>
+
+          {/* Aspect ratio with Option Box (Hidden on mobile, visible on desktop web app) */}
+          <div className="hidden lg:block rounded-xl border border-zinc-800/80 bg-[#12141c] p-3 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] font-mono uppercase tracking-wider text-zinc-400 font-semibold">
+                Aspect Ratio
+              </label>
+              <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-pink-500/10 border border-pink-500/30 text-pink-300">
+                {activeRatioObj.res}
+              </span>
             </div>
 
-            <div className="flex items-center gap-1.5 shrink-0">
+            {/* Option Box (Select Dropdown) */}
+            <div className="relative">
               <select
-                value={targetFolder}
-                onChange={e => {
-                  if (e.target.value === '__NEW__') {
-                    setNewFolderModal(true);
-                  } else {
-                    setTargetFolder(e.target.value);
-                  }
-                }}
-                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs px-2.5 py-1.5 rounded-lg border border-zinc-700 focus:outline-none focus:border-cyan-400 transition-colors"
+                value={ratio}
+                onChange={e => changeRatio(e.target.value)}
+                className="w-full bg-[#161822] hover:bg-[#1a1d2b] text-zinc-200 text-xs px-3 py-2.5 rounded-xl border border-zinc-700/80 focus:outline-none focus:border-pink-500 transition-colors font-medium cursor-pointer appearance-none pr-9"
               >
-                {folders.map(f => (
-                  <option key={f} value={f}>📁 {f}</option>
+                {RATIOS.map(r => (
+                  <option key={r.id} value={r.id} className="bg-[#12141c] text-zinc-200 py-1">
+                    {r.label} — {r.res} ({r.desc})
+                  </option>
                 ))}
-                <option value="__NEW__">➕ New Folder…</option>
               </select>
-
-              <button
-                type="button"
-                title="Create New Folder"
-                onClick={() => setNewFolderModal(true)}
-                className="p-1.5 rounded-lg bg-zinc-800 hover:bg-cyan-500/20 text-zinc-400 hover:text-cyan-300 border border-zinc-700 transition-colors"
-              >
-                <FolderPlus className="w-3.5 h-3.5" />
-              </button>
+              <ChevronDown className="w-4 h-4 text-zinc-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
-          </div>
 
-          {/* Idea chips */}
-          <div>
-            <div className="text-[11px] font-mono uppercase tracking-wider text-zinc-500 mb-1.5 flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-pink-400" /> Ideas & Inspiration
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {IDEAS.map(i => (
-                <button
-                  key={i.label}
-                  type="button"
-                  onClick={() => setPrompt(i.prompt)}
-                  className="px-3 py-1.5 rounded-full text-xs bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-pink-500/50 text-zinc-300 transition-colors"
-                >
-                  {i.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Aspect ratio */}
-          <div>
-            <label className="block text-[11px] font-mono uppercase tracking-wider text-zinc-500 mb-1.5">Aspect ratio</label>
-            <div className="grid grid-cols-5 gap-1.5">
+            {/* Quick Option Pills */}
+            <div className="grid grid-cols-7 gap-1 pt-0.5">
               {RATIOS.map(r => (
                 <button
                   key={r.id}
                   type="button"
-                  onClick={() => setRatio(r.id)}
-                  className={`flex flex-col items-center gap-1.5 py-2.5 rounded-xl border text-[11px] transition-colors ${
-                    ratio === r.id ? 'bg-pink-500/10 border-pink-500/50 text-pink-200' : 'bg-[#14161d] border-zinc-800 hover:border-zinc-700 text-zinc-400'
+                  onClick={() => changeRatio(r.id)}
+                  title={`${r.label} (${r.res})`}
+                  className={`flex flex-col items-center gap-1 py-1.5 px-0.5 rounded-lg border text-[10px] transition-all ${
+                    ratio === r.id
+                      ? 'bg-pink-500/20 border-pink-500 text-pink-200 font-bold shadow-sm shadow-pink-500/20'
+                      : 'bg-zinc-900/60 border-zinc-800/80 hover:border-zinc-700 text-zinc-400 hover:text-zinc-200'
                   }`}
                 >
-                  <span className={`${r.box} rounded-[3px] border-2 ${ratio === r.id ? 'border-pink-400' : 'border-zinc-500'}`} />
-                  <span className="font-semibold">{r.id}</span>
+                  <span className={`${r.box} rounded-[2px] border ${ratio === r.id ? 'border-pink-400 bg-pink-500/30' : 'border-zinc-600'}`} />
+                  <span className="font-mono text-[9px] truncate max-w-full">{r.id}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Count + polish */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[11px] font-mono uppercase tracking-wider text-zinc-500 mb-1.5">Images count</label>
-              <div className="flex rounded-xl overflow-hidden border border-zinc-800 bg-[#14161d]">
-                {[1, 2, 3, 4].map(n => (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setCount(n)}
-                    className={`flex-1 py-2 text-sm font-semibold transition-colors ${count === n ? 'bg-pink-500 text-white' : 'text-zinc-400 hover:bg-zinc-800'}`}
-                  >
-                    {n}
-                  </button>
-                ))}
+          {/* Photo Resolution Option Box */}
+          <div className="rounded-xl border border-zinc-800/80 bg-[#12141c] p-3 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] font-mono uppercase tracking-wider text-zinc-400 font-semibold">
+                Photo Resolution
+              </label>
+              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-pink-500/10 border border-pink-500/30 text-[10px] font-mono text-pink-300 font-semibold">
+                <span>{resolutionTier.toUpperCase()}</span>
+                <span className="text-pink-500/50">•</span>
+                <span>{currentResString}</span>
               </div>
             </div>
-            <div>
-              <label className="block text-[11px] font-mono uppercase tracking-wider text-zinc-500 mb-1.5">8K Auto-polish</label>
+
+            {/* Resolution Option Dropdown */}
+            <div className="relative">
+              <select
+                value={resolutionTier}
+                onChange={e => changeResolutionTier(e.target.value as ResolutionTier)}
+                className="w-full bg-[#161822] hover:bg-[#1a1d2b] text-zinc-200 text-xs px-3 py-2.5 rounded-xl border border-zinc-700/80 focus:outline-none focus:border-pink-500 transition-colors font-medium cursor-pointer appearance-none pr-9"
+              >
+                {RESOLUTION_TIERS.map(t => {
+                  const dims = (RESOLUTION_MAP[ratio] && RESOLUTION_MAP[ratio][t.id]) || '';
+                  const rate = TIER_CREDIT_RATES[t.id] || 5;
+                  return (
+                    <option key={t.id} value={t.id} className="bg-[#12141c] text-zinc-200 py-1">
+                      {t.label} ({rate} cr/photo) — {dims} px ({t.desc})
+                    </option>
+                  );
+                })}
+              </select>
+              <ChevronDown className="w-4 h-4 text-zinc-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+
+            {/* Quick Resolution Pills */}
+            <div className="grid grid-cols-4 gap-1.5 pt-0.5">
+              {RESOLUTION_TIERS.map(t => {
+                const dims = (RESOLUTION_MAP[ratio] && RESOLUTION_MAP[ratio][t.id]) || '';
+                const active = resolutionTier === t.id;
+                const rate = TIER_CREDIT_RATES[t.id] || 5;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => changeResolutionTier(t.id)}
+                    title={`${t.label}: ${dims} px (${t.desc}) — ${rate} Credits per photo`}
+                    className={`flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-lg border text-center transition-all cursor-pointer ${
+                      active
+                        ? 'bg-pink-500/20 border-pink-500 text-pink-200 font-bold shadow-sm shadow-pink-500/20'
+                        : 'bg-zinc-900/60 border-zinc-800/80 hover:border-zinc-700 text-zinc-400 hover:text-zinc-200'
+                    }`}
+                  >
+                    <span className="text-[11px] font-mono font-bold flex items-center gap-0.5">
+                      <span>{t.id.toUpperCase()}</span>
+                      <span className="text-[9px] text-amber-400 font-normal">({rate}c)</span>
+                    </span>
+                    <span className="text-[9px] font-mono text-zinc-400 leading-none">{dims.split(' ')[0]}p</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Count (+, - max 6) + 8K Auto-polish */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl border border-zinc-800/80 bg-[#12141c] p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-mono uppercase tracking-wider text-zinc-400 font-semibold">
+                  Image Count
+                </label>
+                <span className="text-[10px] font-mono text-pink-300 font-semibold">Max 6</span>
+              </div>
+              <div className="flex items-center justify-between bg-[#161822] rounded-xl border border-zinc-700/80 p-1">
+                <button
+                  type="button"
+                  onClick={() => setCount(c => Math.max(1, c - 1))}
+                  disabled={count <= 1}
+                  title="Decrease image count"
+                  className="w-8 h-8 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 disabled:hover:bg-zinc-800 text-white flex items-center justify-center transition-colors"
+                >
+                  <Minus className="w-3.5 h-3.5" />
+                </button>
+
+                <div className="flex items-baseline gap-1 font-mono font-bold">
+                  <span className="text-base text-pink-300">{count}</span>
+                  <span className="text-xs text-zinc-500">/ 6</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setCount(c => Math.min(6, c + 1))}
+                  disabled={count >= 6}
+                  title="Increase image count (max 6)"
+                  className="w-8 h-8 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 disabled:hover:bg-zinc-800 text-white flex items-center justify-center transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-zinc-800/80 bg-[#12141c] p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-mono uppercase tracking-wider text-zinc-400 font-semibold">
+                  8K Auto-polish
+                </label>
+                <span className="text-[10px] font-mono text-zinc-500">{polish ? 'Active' : 'Off'}</span>
+              </div>
               <button
                 type="button"
                 onClick={() => setPolish(p => !p)}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl border text-sm transition-colors ${
-                  polish ? 'bg-pink-500/10 border-pink-500/40 text-pink-200' : 'bg-[#14161d] border-zinc-800 text-zinc-400'
+                className={`w-full h-10 flex items-center justify-between px-3 rounded-xl border text-xs transition-colors ${
+                  polish ? 'bg-pink-500/10 border-pink-500/40 text-pink-200' : 'bg-[#161822] border-zinc-700/80 text-zinc-400'
                 }`}
               >
-                <span>{polish ? 'Enhanced' : 'Raw'}</span>
+                <span className="font-medium">{polish ? 'Enhanced' : 'Raw'}</span>
                 <span className={`w-8 h-4 rounded-full p-0.5 transition-colors ${polish ? 'bg-pink-500' : 'bg-zinc-700'}`}>
                   <span className={`block w-3 h-3 rounded-full bg-white transition-transform ${polish ? 'translate-x-4' : ''}`} />
                 </span>
@@ -1192,19 +1998,57 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
             </div>
           </div>
 
-          {/* Desktop generate */}
+          {/* Desktop generate with aspect ratio and resolution inside button */}
           <button
             type="button"
             onClick={handleGenerate}
             disabled={!canGenerate}
-            className="hidden lg:flex w-full items-center justify-center gap-2 py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 via-fuchsia-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 disabled:from-zinc-800 disabled:to-zinc-800 disabled:text-zinc-500 text-white font-bold text-sm shadow-lg shadow-pink-500/20 transition-all active:scale-[0.99]"
+            className="hidden lg:flex w-full items-center justify-between px-4 py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 via-fuchsia-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 disabled:from-zinc-800 disabled:to-zinc-800 disabled:text-zinc-500 text-white font-bold text-sm shadow-lg shadow-pink-500/20 transition-all active:scale-[0.99]"
           >
-            {isGenerating ? <><Loader2 className="w-4 h-4 animate-spin" /> Synthesizing Photos…</> : <><Sparkles className="w-4 h-4" /> Generate {count} photo{count > 1 ? 's' : ''}</>}
+            {isGenerating ? (
+              <div className="w-full flex items-center justify-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Synthesizing {count} Photo{count > 1 ? 's' : ''}…</span>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-pink-200" />
+                  <span>Generate {count} Photo{count > 1 ? 's' : ''}</span>
+                  <span className="text-amber-300 font-mono text-xs">({currentCreditCost} Credits)</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/35 border border-white/15 text-[11px] font-mono text-pink-100 font-semibold shadow-inner">
+                  <span>{activeRatioObj.id}</span>
+                  <span className="text-white/40">•</span>
+                  <span>{resolutionTier.toUpperCase()}</span>
+                  <span className="text-white/40">•</span>
+                  <span>{currentResString}</span>
+                </div>
+              </>
+            )}
           </button>
         </section>
 
         {/* ---------- RIGHT: RESULTS & INTEGRATED LIBRARY ---------- */}
-        <section className="min-w-0 space-y-4">
+        <section
+          id="photo-studio-outputs"
+          className={`min-w-0 space-y-4 pt-4 lg:pt-0 ${mobileTab === 'studio' ? 'hidden lg:block' : ''}`}
+        >
+          {/* Mobile Back to Prompt Studio Navigation */}
+          <div className="flex lg:hidden items-center justify-between p-2.5 rounded-2xl bg-[#12141c] border border-zinc-800">
+            <button
+              type="button"
+              onClick={() => setMobileTab('studio')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-pink-500/15 hover:bg-pink-500/25 text-pink-300 text-xs font-bold border border-pink-500/30 transition-colors cursor-pointer active:scale-95"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back to Prompt Studio</span>
+            </button>
+            <span className="text-[11px] font-semibold text-zinc-400 font-mono">
+              {activeMainTab === 'library' ? 'Studio Library' : 'Live Outputs'}
+            </span>
+          </div>
+
           {notice && (
             <div className={`flex items-start gap-2 px-4 py-3 rounded-xl border text-xs sm:text-sm ${noticeStyles[notice.type]}`}>
               <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
@@ -1213,13 +2057,16 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
             </div>
           )}
 
-          {/* Studio Section Tabs */}
-          <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2 gap-2">
-            <div className="flex items-center gap-2">
+          {/* Studio Section Tabs (Hidden on mobile version; all buttons & tags moved inside Menu Bar) */}
+          <div className="hidden lg:flex items-center justify-between border-b border-zinc-800/80 pb-2 gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
               <button
                 type="button"
-                onClick={() => setActiveMainTab('current')}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+                onClick={() => {
+                  setActiveMainTab('current');
+                  setMobileTab('outputs');
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
                   activeMainTab === 'current'
                     ? 'bg-zinc-800 text-pink-300 border border-pink-500/40 shadow-sm'
                     : 'text-zinc-400 hover:text-zinc-200'
@@ -1236,31 +2083,73 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
 
               <button
                 type="button"
-                onClick={() => setActiveMainTab('library')}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+                onClick={() => {
+                  setActiveMainTab('library');
+                  setMobileTab('library');
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
                   activeMainTab === 'library'
                     ? 'bg-zinc-800 text-cyan-300 border border-cyan-500/40 shadow-sm'
                     : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
                 <FolderOpen className="w-4 h-4 text-cyan-400" />
-                <span>Studio Library & Folders</span>
+                <span>Studio Library</span>
                 <span className="px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-[10px] text-cyan-300 font-mono">
                   {libraryItems.length}
                 </span>
               </button>
-            </div>
 
-            {activeMainTab === 'library' && (
+              {/* 🎨 Photo to Prompt Session Button (Moved right beside Outputs & Library) */}
               <button
                 type="button"
-                onClick={() => setNewFolderModal(true)}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-xs font-semibold transition-colors"
+                onClick={() => setP2pOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-pink-500/10 hover:bg-pink-500/20 border border-pink-500/30 text-pink-300 text-xs sm:text-sm font-semibold transition-colors cursor-pointer"
+                title="Photo to Prompt Vision Session"
               >
-                <FolderPlus className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">New Folder</span>
+                <ImageIcon className="w-4 h-4 text-pink-400" />
+                <span>Photo to Prompt</span>
               </button>
-            )}
+
+              {/* 🏠 Back to Menu Quick Button */}
+              {onBackToPortal && (
+                <button
+                  type="button"
+                  onClick={onBackToPortal}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white text-xs sm:text-sm font-semibold transition-colors cursor-pointer"
+                  title="Back to Menu / 3 Sections Hub"
+                >
+                  <Home className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Back to Menu</span>
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* Cloud Sync Status / Button */}
+              {SupabaseService.getSession()?.user ? (
+                <button
+                  type="button"
+                  onClick={() => syncWithSupabaseCloud(true)}
+                  disabled={isCloudSyncing}
+                  title="Supabase Cloud တွင် သိမ်းထားသော ဓာတ်ပုံများနှင့် ပြန်လည်ချိန်ညှိရန်"
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-medium transition-colors"
+                >
+                  <Cloud className={`w-3.5 h-3.5 ${isCloudSyncing ? 'animate-pulse text-amber-400' : 'text-emerald-400'}`} />
+                  <span className="hidden sm:inline">{isCloudSyncing ? 'Syncing...' : 'Cloud Synced'}</span>
+                  <RefreshCw className={`w-3 h-3 text-emerald-400/80 ${isCloudSyncing ? 'animate-spin' : ''}`} />
+                </button>
+              ) : (
+                <div
+                  title="ဓာတ်ပုံများကို အကောင့်ထဲတွင် အမြဲသိမ်းဆည်းထားနိုင်ရန် Login ဝင်ပါ"
+                  className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-800/80 border border-zinc-700/60 text-zinc-400 text-xs"
+                >
+                  <Cloud className="w-3.5 h-3.5 text-zinc-500" />
+                  <span>Device Storage</span>
+                </div>
+              )}
+
+            </div>
           </div>
 
           {/* TAB 1: LIVE SESSION RESULTS */}
@@ -1283,11 +2172,40 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
 
               {results.length > 0 ? (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between text-xs text-zinc-400 px-1">
-                    <span>Generated in this session ({results.length}):</span>
-                    <span className="text-[11px] text-emerald-400 flex items-center gap-1">
-                      <Bookmark className="w-3 h-3" /> Auto-saved to Library
-                    </span>
+                  <div className="flex items-center justify-between text-xs text-zinc-400 px-1 flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <span>Generated in this session ({results.length}):</span>
+                      <span className="text-[11px] text-emerald-400 flex items-center gap-1">
+                        <Bookmark className="w-3 h-3" /> Auto-saved
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleClearAllResults}
+                        className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-zinc-800/80 hover:bg-rose-950/40 border border-zinc-700/80 hover:border-rose-500/40 text-zinc-400 hover:text-rose-300 text-xs font-semibold transition-all shadow-sm active:scale-95 cursor-pointer"
+                        title="ရလဒ် ဓာတ်ပုံများအားလုံး ရှင်းလင်းရန်"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                        <span>Clear Results</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadAllToDevice(results)}
+                        disabled={isDownloadingAll || results.length === 0}
+                        className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-pink-500/15 hover:bg-pink-500/25 border border-pink-500/30 text-pink-300 text-xs font-semibold transition-all shadow-sm active:scale-95 disabled:opacity-50 cursor-pointer"
+                        title="လက်ရှိ ဓာတ်ပုံအားလုံးကို မိမိကွန်ပျူတာ/ဖုန်းထဲသို့ ဒေါင်းလုဒ်သိမ်းဆည်းရန်"
+                      >
+                        {isDownloadingAll ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-pink-400" />
+                        ) : (
+                          <Download className="w-3.5 h-3.5 text-pink-400" />
+                        )}
+                        <span>{isDownloadingAll ? 'စက်ထဲသိမ်းဆည်းနေပါသည်…' : 'မိမိစက်ထဲသို့ အားလုံးသိမ်းမည်'}</span>
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid gap-3.5 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
@@ -1325,19 +2243,30 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
                             {/* Top Badges */}
                             <div className="absolute top-2 inset-x-2 flex items-center justify-between gap-1 pointer-events-none">
                               <span className="px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-[10px] font-mono text-zinc-200 truncate">
-                                📁 {img.folder || targetFolder}
+                                {img.ratio}
                               </span>
-                              <button
-                                type="button"
-                                onClick={e => handleToggleFavorite(img.id, e)}
-                                className={`pointer-events-auto p-1.5 rounded-full backdrop-blur-md border transition-colors ${
-                                  isFav
-                                    ? 'bg-amber-500/30 border-amber-500/60 text-amber-300'
-                                    : 'bg-black/60 border-white/10 text-zinc-400 hover:text-amber-300'
-                                }`}
-                              >
-                                <Heart className={`w-3.5 h-3.5 ${isFav ? 'fill-amber-400' : ''}`} />
-                              </button>
+                              <div className="flex items-center gap-1.5 pointer-events-auto">
+                                <button
+                                  type="button"
+                                  onClick={e => handleToggleFavorite(img.id, e)}
+                                  title={isFav ? "Favorited" : "Add to favorites"}
+                                  className={`p-1.5 rounded-full backdrop-blur-md border transition-colors ${
+                                    isFav
+                                      ? 'bg-amber-500/30 border-amber-500/60 text-amber-300'
+                                      : 'bg-black/60 border-white/10 text-zinc-400 hover:text-amber-300'
+                                  }`}
+                                >
+                                  <Heart className={`w-3.5 h-3.5 ${isFav ? 'fill-amber-400' : ''}`} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={e => handleRemoveResultPhoto(img.id, e)}
+                                  title="Remove photo you don't like / မကြိုက်သော ဓာတ်ပုံဖျက်မည်"
+                                  className="p-1.5 rounded-full backdrop-blur-md border border-white/10 bg-black/70 text-zinc-400 hover:text-rose-400 hover:bg-rose-950/70 transition-colors shadow-xs"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             </div>
 
                             {/* Bottom Action overlay */}
@@ -1383,6 +2312,14 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
                                 >
                                   <Eye className="w-3.5 h-3.5" />
                                 </button>
+                                <button
+                                  type="button"
+                                  title="Remove photo / ဓာတ်ပုံဖျက်မည်"
+                                  onClick={e => handleRemoveResultPhoto(img.id, e)}
+                                  className="w-7 h-7 rounded-full bg-black/60 hover:bg-rose-600 text-white flex items-center justify-center transition-colors"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
                               </div>
                             </div>
                           </div>
@@ -1393,7 +2330,18 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
                               {img.prompt}
                             </p>
                             <div className="flex items-center justify-between text-[10px] text-zinc-500 font-mono">
-                              <span>Ratio: {img.ratio}</span>
+                              <div className="flex items-center gap-2">
+                                <span>Ratio: {img.ratio}</span>
+                                <button
+                                  type="button"
+                                  onClick={e => handleRemoveResultPhoto(img.id, e)}
+                                  className="text-zinc-500 hover:text-rose-400 flex items-center gap-1 transition-colors cursor-pointer"
+                                  title="Remove this photo"
+                                >
+                                  <Trash2 className="w-3 h-3 text-rose-400/80" />
+                                  <span>Remove</span>
+                                </button>
+                              </div>
                               <button
                                 type="button"
                                 onClick={() => handleUsePrompt(img.prompt, img.ratio, img.provider)}
@@ -1411,13 +2359,16 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
                   {/* Switch to full library view shortcut */}
                   <div className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 flex items-center justify-between gap-3 text-xs">
                     <div className="flex items-center gap-2 text-zinc-400">
-                      <Folder className="w-4 h-4 text-cyan-400" />
-                      <span>All generations are preserved in your <b>Studio Library & Folders</b>.</span>
+                      <Cloud className="w-4 h-4 text-emerald-400" />
+                      <span>All generations are saved directly to your <b>Device & Supabase Cloud</b>.</span>
                     </div>
                     <button
                       type="button"
-                      onClick={() => setActiveMainTab('library')}
-                      className="text-cyan-400 hover:text-cyan-300 font-semibold flex items-center gap-1"
+                      onClick={() => {
+                        setActiveMainTab('library');
+                        setMobileTab('library');
+                      }}
+                      className="text-cyan-400 hover:text-cyan-300 font-semibold flex items-center gap-1 cursor-pointer"
                     >
                       <span>Open Library ({libraryItems.length})</span>
                       <span>→</span>
@@ -1431,112 +2382,79 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
                   </div>
                   <h2 className="font-bold text-base">Your generated photos will appear here</h2>
                   <p className="text-xs sm:text-sm text-zinc-500 max-w-sm">
-                    Write a prompt, select your preferred engine and folder destination, then click Generate.
-                    Images are automatically stored in your local Library folders.
+                    Write a prompt, select your preferred engine and aspect ratio, then click Generate.
+                    Images save directly to your own device storage and Supabase Cloud.
                   </p>
-                  {libraryItems.length > 0 && (
+                  <div className="flex items-center gap-2 mt-2 flex-wrap justify-center">
+                    {libraryItems.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleRestoreRecentPhotos}
+                        className="px-4 py-2 rounded-xl bg-pink-500/20 hover:bg-pink-500/30 text-xs font-semibold text-pink-200 border border-pink-500/40 flex items-center gap-2 transition-colors shadow-sm cursor-pointer"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5 text-pink-400" />
+                        <span>မကြာသေးမီက ထုတ်ထားသော ဓာတ်ပုံများ ပြန်ပြရန် ({Math.min(libraryItems.length, 12)})</span>
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={() => setActiveMainTab('library')}
-                      className="mt-2 px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-cyan-300 border border-zinc-700 flex items-center gap-2 transition-colors"
+                      onClick={() => {
+                        setActiveMainTab('library');
+                        setMobileTab('library');
+                      }}
+                      className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-cyan-300 border border-zinc-700 flex items-center gap-2 transition-colors cursor-pointer"
                     >
                       <FolderOpen className="w-4 h-4" />
                       <span>Browse Saved Photos ({libraryItems.length})</span>
                     </button>
-                  )}
+                  </div>
                 </div>
               )}
             </div>
           )}
 
-          {/* TAB 2: STUDIO LIBRARY & FOLDERS */}
+          {/* TAB 2: STUDIO LIBRARY */}
           {activeMainTab === 'library' && (
             <div className="space-y-4">
-              {/* Folder Pills Bar */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs text-zinc-400">
-                  <span className="font-mono uppercase tracking-wider text-[11px] text-zinc-500 flex items-center gap-1.5">
-                    <Folder className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>Filter by Folder</span>
-                  </span>
-                  {activeFolderFilter !== 'all' && activeFolderFilter !== 'favorites' && !['General', 'Cinematic'].includes(activeFolderFilter) && (
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteFolder(activeFolderFilter)}
-                      className="text-[11px] text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                      <span>Delete this folder</span>
-                    </button>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-                  {/* All Photos */}
+              {/* Filter Pills Bar: All Photos & Favorites */}
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5">
                   <button
                     type="button"
                     onClick={() => setActiveFolderFilter('all')}
-                    className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
                       activeFolderFilter === 'all'
-                        ? 'bg-cyan-500/20 border-cyan-500/60 text-cyan-200 shadow-sm font-semibold'
-                        : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                        ? 'bg-cyan-500/20 border-cyan-500/60 text-cyan-200 shadow-sm'
+                        : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200'
                     }`}
                   >
-                    <span>🌐 All Photos</span>
+                    <ImageIcon className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>All Photos</span>
                     <span className="px-1.5 py-0.2 rounded-full bg-zinc-800 text-[10px] text-zinc-300 font-mono">
                       {libraryItems.length}
                     </span>
                   </button>
 
-                  {/* Favorites */}
                   <button
                     type="button"
                     onClick={() => setActiveFolderFilter('favorites')}
-                    className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
                       activeFolderFilter === 'favorites'
-                        ? 'bg-amber-500/20 border-amber-500/60 text-amber-200 shadow-sm font-semibold'
-                        : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                        ? 'bg-amber-500/20 border-amber-500/60 text-amber-200 shadow-sm'
+                        : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200'
                     }`}
                   >
-                    <Heart className="w-3 h-3 text-amber-400 fill-amber-400" />
+                    <Heart className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
                     <span>Favorites</span>
                     <span className="px-1.5 py-0.2 rounded-full bg-zinc-800 text-[10px] text-zinc-300 font-mono">
                       {libraryItems.filter(x => x.favorite).length}
                     </span>
                   </button>
+                </div>
 
-                  {/* Individual Folders */}
-                  {folders.map(f => {
-                    const countInFolder = libraryItems.filter(x => x.folder === f).length;
-                    const isAct = activeFolderFilter === f;
-                    return (
-                      <button
-                        key={f}
-                        type="button"
-                        onClick={() => setActiveFolderFilter(f)}
-                        className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
-                          isAct
-                            ? 'bg-cyan-500/20 border-cyan-500/60 text-cyan-200 shadow-sm font-semibold'
-                            : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
-                        }`}
-                      >
-                        <span>📁 {f}</span>
-                        <span className="px-1.5 py-0.2 rounded-full bg-zinc-800 text-[10px] text-zinc-300 font-mono">
-                          {countInFolder}
-                        </span>
-                      </button>
-                    );
-                  })}
-
-                  {/* Add Folder button */}
-                  <button
-                    type="button"
-                    onClick={() => setNewFolderModal(true)}
-                    className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-medium border border-dashed border-zinc-700 hover:border-cyan-400/60 text-zinc-400 hover:text-cyan-300 transition-colors"
-                  >
-                    <FolderPlus className="w-3.5 h-3.5" />
-                    <span>New Folder</span>
-                  </button>
+                <div className="flex items-center gap-2 text-xs text-zinc-400">
+                  <Cloud className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="text-[11px] text-zinc-400 font-mono">Device & Cloud Storage</span>
                 </div>
               </div>
 
@@ -1562,8 +2480,26 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
                   )}
                 </div>
 
-                <div className="flex items-center justify-between sm:justify-end gap-2 text-xs font-mono text-zinc-400 px-1">
+                <div className="flex items-center justify-between sm:justify-end gap-2 text-xs font-mono text-zinc-400 px-1 flex-wrap">
                   <span>Showing: <b>{filteredLibrary.length}</b> of {libraryItems.length}</span>
+
+                  {filteredLibrary.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadAllToDevice(filteredLibrary)}
+                      disabled={isDownloadingAll}
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 text-xs font-semibold transition-all shadow-sm active:scale-95 disabled:opacity-50 ml-1"
+                      title="ရွေးချယ်ထားသော ဓာတ်ပုံများကို မိမိကွန်ပျူတာ/ဖုန်းထဲသို့ ဒေါင်းလုဒ်သိမ်းဆည်းရန်"
+                    >
+                      {isDownloadingAll ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" />
+                      ) : (
+                        <Download className="w-3.5 h-3.5 text-cyan-400" />
+                      )}
+                      <span>Save ({filteredLibrary.length}) to Device</span>
+                    </button>
+                  )}
+
                   {libraryItems.length > 0 && (
                     <button
                       type="button"
@@ -1605,17 +2541,9 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
 
                         {/* Top Badges */}
                         <div className="absolute top-2 inset-x-2 flex items-center justify-between gap-1 pointer-events-none">
-                          <button
-                            type="button"
-                            onClick={e => {
-                              e.stopPropagation();
-                              setMoveFolderModal(item);
-                            }}
-                            className="pointer-events-auto px-2 py-0.5 rounded-full bg-black/75 backdrop-blur-md border border-white/10 text-[10px] font-mono text-cyan-200 hover:border-cyan-400 flex items-center gap-1 transition-colors"
-                          >
-                            <Folder className="w-3 h-3 text-cyan-400" />
-                            <span>{item.folder}</span>
-                          </button>
+                          <span className="px-2 py-0.5 rounded-full bg-black/75 backdrop-blur-md border border-white/10 text-[10px] font-mono text-cyan-200">
+                            {item.ratio}
+                          </span>
 
                           <button
                             type="button"
@@ -1723,16 +2651,47 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
         </section>
       </main>
 
-      {/* ========== MOBILE STICKY GENERATE BAR ========== */}
+      {/* ========== MOBILE STICKY GENERATE / BACK BAR ========== */}
       <div className="lg:hidden fixed bottom-0 inset-x-0 z-30 p-3 bg-gradient-to-t from-[#0a0b0e] via-[#0a0b0e]/95 to-transparent pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <button
-          type="button"
-          onClick={handleGenerate}
-          disabled={!canGenerate}
-          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 to-fuchsia-500 disabled:from-zinc-800 disabled:to-zinc-800 disabled:text-zinc-500 text-white font-bold text-sm shadow-lg shadow-pink-500/20"
-        >
-          {isGenerating ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating…</> : <><Sparkles className="w-4 h-4" /> Generate {count} photo{count > 1 ? 's' : ''}</>}
-        </button>
+        {mobileTab === 'studio' ? (
+          <button
+            type="button"
+            onClick={handleGenerate}
+            disabled={!canGenerate}
+            className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 to-fuchsia-500 disabled:from-zinc-800 disabled:to-zinc-800 disabled:text-zinc-500 text-white font-bold text-sm shadow-lg shadow-pink-500/20 active:scale-[0.99]"
+          >
+            {isGenerating ? (
+              <div className="w-full flex items-center justify-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Generating {count} Photo{count > 1 ? 's' : ''}…</span>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4" />
+                  <span>Generate {count} Photo{count > 1 ? 's' : ''}</span>
+                  <span className="text-amber-300 font-mono text-xs">({currentCreditCost}cr)</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-black/30 border border-white/10 text-[10px] font-mono text-pink-100 font-semibold">
+                  <span>{activeRatioObj.id}</span>
+                  <span className="text-white/40">•</span>
+                  <span>{resolutionTier.toUpperCase()}</span>
+                  <span className="text-white/40">•</span>
+                  <span>{currentResString}</span>
+                </div>
+              </>
+            )}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setMobileTab('studio')}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-pink-300 font-bold text-sm border border-pink-500/30 shadow-lg active:scale-[0.99] cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to Prompt Studio (New Photo)</span>
+          </button>
+        )}
       </div>
 
       {/* ========== FULLSCREEN LIGHTBOX & PROMPT INSPECTOR MODAL ========== */}
@@ -1766,7 +2725,7 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
               <div className="space-y-4">
                 <div className="flex items-center justify-between gap-2">
                   <span className="px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 font-mono text-xs font-semibold">
-                    📁 {lightboxItem.folder}
+                    {lightboxItem.ratio} • {lightboxItem.provider}
                   </span>
                   <div className="flex items-center gap-1.5">
                     <button
@@ -1823,20 +2782,6 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
                     <span className="text-zinc-300 block">{new Date(lightboxItem.createdAt).toLocaleString()}</span>
                   </div>
                 </div>
-
-                {/* Move to another folder */}
-                <div className="space-y-1">
-                  <label className="text-[10px] uppercase font-mono tracking-wider text-zinc-500">Move to Folder</label>
-                  <select
-                    value={lightboxItem.folder}
-                    onChange={e => handleMoveFolder(lightboxItem.id, e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-700 text-xs text-zinc-200 rounded-xl px-3 py-2 focus:outline-none focus:border-cyan-400"
-                  >
-                    {folders.map(f => (
-                      <option key={f} value={f}>📁 {f}</option>
-                    ))}
-                  </select>
-                </div>
               </div>
 
               {/* Action Buttons */}
@@ -1861,115 +2806,14 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleDeleteLibraryItem(lightboxItem.id)}
-                    className="py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/30 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                    onClick={e => handleDeleteLibraryItem(lightboxItem.id, e)}
+                    className="py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/30 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>Delete</span>
                   </button>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========== NEW FOLDER MODAL ========== */}
-      {newFolderModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
-          onClick={() => setNewFolderModal(false)}
-        >
-          <div
-            className="w-full max-w-sm rounded-3xl bg-[#14161f] border border-zinc-700 p-5 shadow-2xl space-y-4"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
-                  <FolderPlus className="w-4 h-4" />
-                </div>
-                <h3 className="font-bold text-sm text-zinc-100">Create New Folder</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setNewFolderModal(false)}
-                className="w-7 h-7 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white flex items-center justify-center"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateFolder} className="space-y-3">
-              <input
-                type="text"
-                autoFocus
-                value={newFolderName}
-                onChange={e => setNewFolderName(e.target.value)}
-                placeholder="Folder name (e.g. Neon Cars, Architecture)"
-                maxLength={30}
-                className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3.5 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-cyan-400"
-              />
-
-              <div className="flex items-center justify-end gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setNewFolderModal(false)}
-                  className="px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-zinc-300"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={!newFolderName.trim()}
-                  className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 disabled:opacity-40 text-black font-bold text-xs flex items-center gap-1.5 transition-colors"
-                >
-                  <FolderPlus className="w-3.5 h-3.5" />
-                  <span>Create</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ========== MOVE FOLDER MODAL ========== */}
-      {moveFolderModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
-          onClick={() => setMoveFolderModal(null)}
-        >
-          <div
-            className="w-full max-w-sm rounded-3xl bg-[#14161f] border border-zinc-700 p-5 shadow-2xl space-y-4"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-sm text-zinc-100">Move to Folder</h3>
-              <button
-                type="button"
-                onClick={() => setMoveFolderModal(null)}
-                className="w-7 h-7 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white flex items-center justify-center"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            <div className="space-y-1.5 max-h-60 overflow-y-auto">
-              {folders.map(f => (
-                <button
-                  key={f}
-                  type="button"
-                  onClick={() => handleMoveFolder(moveFolderModal.id, f)}
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-left text-xs font-medium border transition-colors ${
-                    moveFolderModal.folder === f
-                      ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-200'
-                      : 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800'
-                  }`}
-                >
-                  <span>📁 {f}</span>
-                  {moveFolderModal.folder === f && <Check className="w-3.5 h-3.5 text-cyan-400" />}
-                </button>
-              ))}
             </div>
           </div>
         </div>

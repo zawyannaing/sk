@@ -199,21 +199,21 @@ export const PromptUtilitySuite: React.FC<PromptUtilitySuiteProps> = ({
     <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-6">
       
       {/* 🌟 1. HEADER */}
-      <div className="bg-[#faf2ee] border border-[#d6c3b6]/40 rounded-2xl p-6 shadow-sm flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+      <div className="bg-[#0f1420] border border-zinc-800 rounded-2xl p-6 shadow-xs flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#704112] to-[#8c5828] text-white flex items-center justify-center shadow-md">
+          <div className="h-12 w-12 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shadow-xs">
             <span className="material-symbols-outlined text-[28px]">build</span>
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="font-serif text-2xl font-bold text-[#1e1b19] tracking-tight">
+              <h1 className="font-serif text-2xl font-bold text-white tracking-tight">
                 {isMm ? 'Prompt အသုံးချ ကိရိယာများနှင့် Pro Tools များ' : 'Prompt Utilities & Pro Photography Tools'}
               </h1>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#275546]/10 text-[#275546] border border-[#275546]/20">
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                 Studio Grade Toolkit
               </span>
             </div>
-            <p className="font-sans text-xs text-[#51443a] mt-0.5">
+            <p className="font-sans text-xs text-zinc-400 mt-0.5">
               {isMm
                 ? 'လျှို့ဝှက် Keyword ထည့်သွင်းကိရိယာ၊ Negative Prompt Matrix၊ Batch ကွဲပြားမှုများ ထုတ်လုပ်ခြင်းနှင့် မှန်ဘီလူး တွက်ချက်စနစ်'
                 : 'Secret Photographer Keyword Injector, Negative Prompt Matrix, 5-Shot Batch Generator, and Optical Lens FOV Guide'}
@@ -222,9 +222,9 @@ export const PromptUtilitySuite: React.FC<PromptUtilitySuiteProps> = ({
         </div>
 
         {/* Engine Badge */}
-        <div className="flex items-center gap-2 bg-[#eee7e3] px-3 py-1.5 rounded-xl border border-[#d6c3b6]/40">
-          <span className="material-symbols-outlined text-[16px] text-[#704112]">bolt</span>
-          <span className="font-sans text-xs font-bold text-[#704112]">
+        <div className="flex items-center gap-2 bg-[#141b2a] px-3 py-1.5 rounded-xl border border-zinc-800">
+          <span className="material-symbols-outlined text-[16px] text-emerald-400">bolt</span>
+          <span className="font-sans text-xs font-bold text-emerald-400">
             Target: {engine.toUpperCase()}
           </span>
         </div>
@@ -244,8 +244,8 @@ export const PromptUtilitySuite: React.FC<PromptUtilitySuiteProps> = ({
             onClick={() => setActiveTab(tab.id as any)}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-sans text-xs font-bold transition-all shrink-0 cursor-pointer ${
               activeTab === tab.id
-                ? 'bg-[#704112] text-white shadow-sm'
-                : 'bg-[#faf2ee] text-[#51443a] hover:bg-[#eee7e3] border border-[#d6c3b6]/40'
+                ? 'bg-emerald-500 text-black font-extrabold shadow-xs'
+                : 'bg-[#0f1420] text-zinc-400 hover:bg-[#141b2a] hover:text-white border border-zinc-800'
             }`}
           >
             <span className="material-symbols-outlined text-[18px]">{tab.icon}</span>
@@ -263,24 +263,24 @@ export const PromptUtilitySuite: React.FC<PromptUtilitySuiteProps> = ({
           <div className="xl:col-span-7 flex flex-col gap-4">
             
             {/* Input Base Prompt */}
-            <div className="bg-[#faf2ee] border border-[#d6c3b6]/40 rounded-2xl p-4 shadow-xs flex flex-col gap-2">
-              <label className="font-sans text-xs font-bold text-[#704112] flex items-center justify-between">
+            <div className="bg-[#0f1420] border border-zinc-800 rounded-2xl p-4 shadow-xs flex flex-col gap-2">
+              <label className="font-sans text-xs font-bold text-emerald-400 flex items-center justify-between">
                 <span>{isMm ? 'အခြေခံ မူရင်း Prompt' : 'Base Photo Prompt'}</span>
-                <span className="text-[10px] text-[#847469] font-normal">Edit text or click secret pills below</span>
+                <span className="text-[10px] text-zinc-500 font-normal">Edit text or click secret pills below</span>
               </label>
               <textarea
                 value={basePrompt}
                 onChange={e => setBasePrompt(e.target.value)}
                 rows={3}
-                className="w-full p-3 rounded-xl bg-white border border-[#d6c3b6]/60 text-xs font-mono text-[#1e1b19] focus:outline-none"
+                className="w-full p-3 rounded-xl bg-[#141b2a] border border-zinc-800 text-xs font-mono text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
               />
             </div>
 
             {/* Keyword Category Grids */}
             <div className="space-y-4">
               {SECRET_KEYWORD_CATEGORIES.map(cat => (
-                <div key={cat.title} className="bg-[#faf2ee] border border-[#d6c3b6]/40 rounded-2xl p-4 shadow-xs flex flex-col gap-3">
-                  <div className="flex items-center gap-2 text-xs font-bold text-[#704112] uppercase tracking-wider">
+                <div key={cat.title} className="bg-[#0f1420] border border-zinc-800 rounded-2xl p-4 shadow-xs flex flex-col gap-3">
+                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-400 uppercase tracking-wider">
                     <span className="material-symbols-outlined text-[18px]">{cat.icon}</span>
                     <span>{cat.title}</span>
                   </div>
@@ -295,8 +295,8 @@ export const PromptUtilitySuite: React.FC<PromptUtilitySuiteProps> = ({
                           onClick={() => toggleKeyword(kw.snippet)}
                           className={`p-2.5 rounded-xl text-left border transition-all cursor-pointer flex flex-col gap-0.5 ${
                             isSelected
-                              ? 'bg-[#704112] text-white border-[#704112] shadow-xs'
-                              : 'bg-white text-[#51443a] border-[#d6c3b6]/50 hover:bg-[#eee7e3]'
+                              ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500 shadow-[0_0_15px_rgba(5,177,135,0.2)]'
+                              : 'bg-[#141b2a] text-zinc-300 border-zinc-800 hover:border-emerald-500/40 hover:bg-[#1a2234]'
                           }`}
                         >
                           <div className="flex items-center justify-between">
@@ -305,7 +305,7 @@ export const PromptUtilitySuite: React.FC<PromptUtilitySuiteProps> = ({
                               {isSelected ? 'check_circle' : 'add_circle'}
                             </span>
                           </div>
-                          <span className={`text-[10px] line-clamp-1 ${isSelected ? 'text-white/80' : 'text-[#847469]'}`}>
+                          <span className={`text-[10px] line-clamp-1 ${isSelected ? 'text-emerald-200' : 'text-zinc-400'}`}>
                             {kw.desc}
                           </span>
                         </button>
@@ -321,15 +321,15 @@ export const PromptUtilitySuite: React.FC<PromptUtilitySuiteProps> = ({
           {/* Right: Synthesized Boosted Prompt (5 Cols) */}
           <div className="xl:col-span-5 flex flex-col gap-4">
             
-            <div className="bg-[#faf2ee] border border-[#d6c3b6]/40 rounded-2xl p-5 shadow-xs flex flex-col gap-4">
-              <div className="flex items-center justify-between border-b border-[#d6c3b6]/30 pb-3">
+            <div className="bg-[#0f1420] border border-zinc-800 rounded-2xl p-5 shadow-xs flex flex-col gap-4">
+              <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
                 <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[18px] text-[#704112]">auto_awesome</span>
-                  <span className="font-sans text-xs text-[#704112] uppercase font-bold tracking-wider">
+                  <span className="material-symbols-outlined text-[18px] text-emerald-400">auto_awesome</span>
+                  <span className="font-sans text-xs text-emerald-400 uppercase font-bold tracking-wider">
                     {isMm ? 'အဆင့်မြှင့်တင်ပြီး Master Prompt' : 'Boosted Master Prompt'}
                   </span>
                 </div>
-                <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-[#275546]/10 text-[#275546]">
+                <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                   {selectedKeywords.length} Secret Keywords Active
                 </span>
               </div>
@@ -339,13 +339,13 @@ export const PromptUtilitySuite: React.FC<PromptUtilitySuiteProps> = ({
                 {selectedKeywords.map((k, idx) => (
                   <span
                     key={idx}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-sans font-medium bg-white text-[#704112] border border-[#d6c3b6]/60 shadow-xs"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-sans font-medium bg-[#141b2a] text-emerald-300 border border-emerald-500/30 shadow-xs"
                   >
                     <span>{k.slice(0, 32)}...</span>
                     <button
                       type="button"
                       onClick={() => toggleKeyword(k)}
-                      className="hover:text-red-600 cursor-pointer ml-1"
+                      className="hover:text-rose-400 cursor-pointer ml-1"
                     >
                       ×
                     </button>
@@ -359,12 +359,12 @@ export const PromptUtilitySuite: React.FC<PromptUtilitySuiteProps> = ({
                   readOnly
                   value={boostedPrompt}
                   rows={8}
-                  className="w-full p-3.5 rounded-xl bg-white border border-[#d6c3b6]/60 text-xs font-mono text-[#1e1b19] leading-relaxed resize-none focus:outline-none"
+                  className="w-full p-3.5 rounded-xl bg-[#141b2a] border border-zinc-800 text-xs font-mono text-zinc-200 leading-relaxed resize-none focus:outline-none"
                 />
                 <button
                   type="button"
                   onClick={handleCopyBoosted}
-                  className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded-lg bg-[#704112] text-white hover:bg-[#8c5828] text-[11px] font-sans font-semibold flex items-center gap-1 shadow-xs transition-all cursor-pointer"
+                  className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded-lg bg-emerald-500 text-black hover:bg-emerald-400 text-[11px] font-sans font-extrabold flex items-center gap-1 shadow-xs transition-all cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-[14px]">
                     {copiedBoostToast ? 'check' : 'content_copy'}
@@ -379,7 +379,7 @@ export const PromptUtilitySuite: React.FC<PromptUtilitySuiteProps> = ({
                   <button
                     type="button"
                     onClick={() => onSendToMatrix(boostedPrompt)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl bg-[#704112] text-white hover:bg-[#8c5828] text-xs font-semibold shadow-xs transition-all cursor-pointer"
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl bg-emerald-500 text-black hover:bg-emerald-400 text-xs font-extrabold shadow-xs transition-all cursor-pointer"
                   >
                     <span className="material-symbols-outlined text-[16px]">send</span>
                     <span>{isMm ? 'Prompt Matrix သို့ ပို့မည်' : 'Send to Prompt Matrix'}</span>
@@ -390,9 +390,9 @@ export const PromptUtilitySuite: React.FC<PromptUtilitySuiteProps> = ({
                   <button
                     type="button"
                     onClick={() => onSavePrompt(boostedPrompt, { title: 'Boosted Master Prompt' })}
-                    className="flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl bg-white border border-[#d6c3b6]/60 text-[#704112] hover:bg-[#faf2ee] text-xs font-semibold transition-all cursor-pointer"
+                    className="flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl bg-[#141b2a] border border-zinc-800 text-zinc-200 hover:bg-[#1a2234] text-xs font-semibold transition-all cursor-pointer"
                   >
-                    <span className="material-symbols-outlined text-[16px]">bookmark</span>
+                    <span className="material-symbols-outlined text-[16px] text-emerald-400">bookmark</span>
                     <span>Save</span>
                   </button>
                 )}
@@ -409,13 +409,13 @@ export const PromptUtilitySuite: React.FC<PromptUtilitySuiteProps> = ({
       {activeTab === 'negative-matrix' && (
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
           <div className="xl:col-span-7 flex flex-col gap-4">
-            <div className="bg-[#faf2ee] border border-[#d6c3b6]/40 rounded-2xl p-5 shadow-xs flex flex-col gap-4">
-              <div className="flex items-center justify-between border-b border-[#d6c3b6]/30 pb-3">
-                <span className="font-sans text-xs text-[#704112] uppercase font-bold tracking-wider flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-[18px]">verified_user</span>
+            <div className="bg-[#0f1420] border border-zinc-800 rounded-2xl p-5 shadow-xs flex flex-col gap-4">
+              <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+                <span className="font-sans text-xs text-white uppercase font-bold tracking-wider flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[18px] text-emerald-400">verified_user</span>
                   <span>Negative Prompt Category Filter Pills</span>
                 </span>
-                <span className="text-xs text-[#847469]">Click to Toggle Safety Layer</span>
+                <span className="text-xs text-zinc-400">Click to Toggle Safety Layer</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -437,16 +437,16 @@ export const PromptUtilitySuite: React.FC<PromptUtilitySuiteProps> = ({
                       onClick={() => toggleNegativePill(pill.key)}
                       className={`p-3.5 rounded-xl text-left border transition-all cursor-pointer flex items-start gap-3 ${
                         isActive
-                          ? 'bg-[#275546] text-white border-[#275546] shadow-xs'
-                          : 'bg-white text-[#51443a] border-[#d6c3b6]/50 hover:bg-[#eee7e3]'
+                          ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500 shadow-[0_0_15px_rgba(5,177,135,0.2)]'
+                          : 'bg-[#141b2a] text-zinc-300 border-zinc-800 hover:border-emerald-500/40 hover:bg-[#1a2234]'
                       }`}
                     >
-                      <span className="material-symbols-outlined text-[20px] shrink-0 mt-0.5">
+                      <span className={`material-symbols-outlined text-[20px] shrink-0 mt-0.5 ${isActive ? 'text-emerald-400' : 'text-zinc-500'}`}>
                         {isActive ? 'check_circle' : 'radio_button_unchecked'}
                       </span>
                       <div className="flex flex-col">
                         <span className="font-sans text-xs font-bold leading-tight">{pill.title}</span>
-                        <span className={`text-[10px] mt-0.5 ${isActive ? 'text-white/80' : 'text-[#847469]'}`}>
+                        <span className={`text-[10px] mt-0.5 ${isActive ? 'text-emerald-200' : 'text-zinc-400'}`}>
                           {pill.desc}
                         </span>
                       </div>
@@ -458,25 +458,25 @@ export const PromptUtilitySuite: React.FC<PromptUtilitySuiteProps> = ({
           </div>
 
           <div className="xl:col-span-5 flex flex-col gap-4">
-            <div className="bg-[#faf2ee] border border-[#d6c3b6]/40 rounded-2xl p-5 shadow-xs flex flex-col gap-4">
-              <div className="flex items-center justify-between border-b border-[#d6c3b6]/30 pb-3">
-                <span className="font-sans text-xs text-[#704112] uppercase font-bold tracking-wider">
+            <div className="bg-[#0f1420] border border-zinc-800 rounded-2xl p-5 shadow-xs flex flex-col gap-4">
+              <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+                <span className="font-sans text-xs text-emerald-400 uppercase font-bold tracking-wider">
                   Active Negative Prompt String
                 </span>
-                <span className="text-xs text-[#847469]">Ready to Paste</span>
+                <span className="text-xs text-zinc-400">Ready to Paste</span>
               </div>
 
               <textarea
                 readOnly
                 value={synthesizedNegativePrompt}
                 rows={8}
-                className="w-full p-3.5 rounded-xl bg-white border border-[#d6c3b6]/60 text-xs font-mono text-[#1e1b19] leading-relaxed resize-none focus:outline-none"
+                className="w-full p-3.5 rounded-xl bg-[#141b2a] border border-zinc-800 text-xs font-mono text-zinc-200 leading-relaxed resize-none focus:outline-none"
               />
 
               <button
                 type="button"
                 onClick={handleCopyNegative}
-                className="w-full py-2.5 px-4 rounded-xl bg-[#704112] text-white hover:bg-[#8c5828] text-xs font-semibold flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                className="w-full py-2.5 px-4 rounded-xl bg-emerald-500 text-black hover:bg-emerald-400 text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[16px]">
                   {copiedNegToast ? 'check' : 'content_copy'}
@@ -490,13 +490,13 @@ export const PromptUtilitySuite: React.FC<PromptUtilitySuiteProps> = ({
 
       {/* VIEW C: 5-SHOT BATCH GENERATOR */}
       {activeTab === 'batch-generator' && (
-        <div className="bg-[#faf2ee] border border-[#d6c3b6]/40 rounded-2xl p-6 shadow-xs flex flex-col gap-5">
-          <div className="flex items-center justify-between border-b border-[#d6c3b6]/30 pb-4">
+        <div className="bg-[#0f1420] border border-zinc-800 rounded-2xl p-6 shadow-xs flex flex-col gap-5">
+          <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
             <div>
-              <h2 className="font-serif text-lg font-bold text-[#1e1b19]">
+              <h2 className="font-serif text-lg font-bold text-white">
                 5-Shot Cinematic Photography Series
               </h2>
-              <p className="text-xs text-[#51443a]">
+              <p className="text-xs text-zinc-400">
                 Auto-generates a cohesive editorial suite covering all standard cinematography angles and lighting setups.
               </p>
             </div>
@@ -504,9 +504,9 @@ export const PromptUtilitySuite: React.FC<PromptUtilitySuiteProps> = ({
               <button
                 type="button"
                 onClick={handleCopyBatch}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-[#d6c3b6]/60 text-[#704112] text-xs font-semibold hover:bg-[#faf2ee] cursor-pointer"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#141b2a] border border-zinc-800 text-zinc-200 text-xs font-semibold hover:bg-[#1a2234] cursor-pointer"
               >
-                <span className="material-symbols-outlined text-[16px]">
+                <span className="material-symbols-outlined text-[16px] text-emerald-400">
                   {copiedBatchToast ? 'check' : 'content_copy'}
                 </span>
                 <span>{copiedBatchToast ? 'All Copied!' : 'Copy All 5'}</span>
@@ -514,7 +514,7 @@ export const PromptUtilitySuite: React.FC<PromptUtilitySuiteProps> = ({
               <button
                 type="button"
                 onClick={handleDownloadBatch}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#704112] text-white text-xs font-semibold hover:bg-[#8c5828] cursor-pointer"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500 text-black text-xs font-extrabold hover:bg-emerald-400 cursor-pointer shadow-xs"
               >
                 <span className="material-symbols-outlined text-[16px]">download</span>
                 <span>Export (.txt)</span>
@@ -524,9 +524,9 @@ export const PromptUtilitySuite: React.FC<PromptUtilitySuiteProps> = ({
 
           <div className="space-y-3">
             {batchVariations.map((shot, idx) => (
-              <div key={idx} className="p-4 rounded-xl bg-white border border-[#d6c3b6]/50 flex flex-col gap-2">
+              <div key={idx} className="p-4 rounded-xl bg-[#141b2a] border border-zinc-800 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-sans text-xs font-bold text-[#704112]">
+                  <span className="font-sans text-xs font-bold text-emerald-400">
                     {shot.title}
                   </span>
                   <button
@@ -534,13 +534,13 @@ export const PromptUtilitySuite: React.FC<PromptUtilitySuiteProps> = ({
                     onClick={() => {
                       navigator.clipboard.writeText(shot.prompt);
                     }}
-                    className="text-[11px] text-[#51443a] hover:text-[#704112] font-semibold flex items-center gap-1 cursor-pointer"
+                    className="text-[11px] text-zinc-400 hover:text-emerald-400 font-semibold flex items-center gap-1 cursor-pointer transition-colors"
                   >
                     <span className="material-symbols-outlined text-[14px]">content_copy</span>
                     <span>Copy Shot</span>
                   </button>
                 </div>
-                <p className="font-mono text-xs text-[#1e1b19] leading-relaxed bg-[#eee7e3]/40 p-2.5 rounded-lg">
+                <p className="font-mono text-xs text-zinc-300 leading-relaxed bg-[#111622] border border-zinc-800/80 p-2.5 rounded-lg">
                   {shot.prompt}
                 </p>
               </div>
@@ -551,13 +551,13 @@ export const PromptUtilitySuite: React.FC<PromptUtilitySuiteProps> = ({
 
       {/* VIEW D: LENS FOV & BOKEH GUIDE */}
       {activeTab === 'lens-calculator' && (
-        <div className="bg-[#faf2ee] border border-[#d6c3b6]/40 rounded-2xl p-6 shadow-xs flex flex-col gap-5">
-          <div className="flex items-center justify-between border-b border-[#d6c3b6]/30 pb-4">
+        <div className="bg-[#0f1420] border border-zinc-800 rounded-2xl p-6 shadow-xs flex flex-col gap-5">
+          <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
             <div>
-              <h2 className="font-serif text-lg font-bold text-[#1e1b19]">
+              <h2 className="font-serif text-lg font-bold text-white">
                 Camera Lens Focal Length &amp; Optical Separation Guide
               </h2>
-              <p className="text-xs text-[#51443a]">
+              <p className="text-xs text-zinc-400">
                 Understand how focal lengths affect perspective compression, background blur (bokeh), and facial geometry.
               </p>
             </div>
@@ -578,13 +578,13 @@ export const PromptUtilitySuite: React.FC<PromptUtilitySuiteProps> = ({
                 onClick={() => setSelectedLensFocal(lens.focal)}
                 className={`p-3 rounded-xl text-left border transition-all cursor-pointer flex flex-col ${
                   selectedLensFocal === lens.focal
-                    ? 'bg-[#704112] text-white border-[#704112] shadow-sm'
-                    : 'bg-white text-[#51443a] border-[#d6c3b6]/50 hover:bg-[#eee7e3]'
+                    ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500 shadow-[0_0_15px_rgba(5,177,135,0.2)]'
+                    : 'bg-[#141b2a] text-zinc-300 border-zinc-800 hover:border-emerald-500/40 hover:bg-[#1a2234]'
                 }`}
               >
                 <span className="font-mono text-lg font-bold">{lens.focal}mm</span>
                 <span className="font-sans text-xs font-semibold leading-tight mt-1">{lens.name}</span>
-                <span className={`text-[10px] mt-0.5 ${selectedLensFocal === lens.focal ? 'text-white/80' : 'text-[#847469]'}`}>
+                <span className={`text-[10px] mt-0.5 ${selectedLensFocal === lens.focal ? 'text-emerald-200' : 'text-zinc-400'}`}>
                   {lens.desc}
                 </span>
               </button>
@@ -592,14 +592,14 @@ export const PromptUtilitySuite: React.FC<PromptUtilitySuiteProps> = ({
           </div>
 
           {/* Focal Details Card */}
-          <div className="p-4 rounded-xl bg-white border border-[#d6c3b6]/50 flex flex-col gap-2">
+          <div className="p-4 rounded-xl bg-[#141b2a] border border-zinc-800 flex flex-col gap-2">
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[20px] text-[#704112]">camera</span>
-              <span className="font-sans text-sm font-bold text-[#1e1b19]">
+              <span className="material-symbols-outlined text-[20px] text-emerald-400">camera</span>
+              <span className="font-sans text-sm font-bold text-white">
                 Selected: {selectedLensFocal}mm Optical Characteristics
               </span>
             </div>
-            <p className="font-sans text-xs text-[#51443a] leading-relaxed">
+            <p className="font-sans text-xs text-zinc-300 leading-relaxed">
               {selectedLensFocal === 24 && 'Captures wide expansive backgrounds such as the full horizon of Bagan pagodas. Gives grand scale, but keep human subjects centered to prevent edge distortion.'}
               {selectedLensFocal === 35 && 'The legendary photojournalist focal length. Places the subject in immediate relationship with their cultural setting with natural three-dimensional depth.'}
               {selectedLensFocal === 50 && 'Matches the natural field of view of the human eye. Zero perspective distortion, neutral perspective, perfect for authentic documentary portraits.'}

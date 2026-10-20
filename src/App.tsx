@@ -2,13 +2,10 @@ import React, { useState } from 'react';
 import { Language, UserProfile, MatrixSelection } from './types';
 import type { NavView } from './components/Sidebar';
 import { BurmesePromptMatrix } from './components/BurmesePromptMatrix';
-import { AjaxStudioSuiteView } from './components/AjaxStudioSuiteView';
 import { ProfessionalStudioWorkstation } from './components/ProfessionalStudioWorkstation';
-import { PhotoToTextGeneratorView } from './components/PhotoToTextGeneratorView';
 import { CompositeHarmonizerStudio } from './components/CompositeHarmonizerStudio';
 import { PhotoManipulationStudio } from './components/PhotoManipulationStudio';
 import { BabyStudioView } from './components/BabyStudioView';
-import { OldPhotoToNewPhotoStudio } from './components/OldPhotoToNewPhotoStudio';
 import { PhotoEditStudio } from './components/PhotoEditStudio';
 import { PromptUtilitySuite } from './components/PromptUtilitySuite';
 import { PresetLibraryView } from './components/PresetLibraryView';
@@ -22,6 +19,7 @@ import { DetailBurmeseHub, DetailBurmeseRoom } from './components/DetailBurmeseH
 import { StorageService } from './utils/storageService';
 import { SupabaseCloudHub } from './components/SupabaseCloudHub';
 import { SupabaseService } from './utils/supabaseClient';
+import { ScrollProgressBar } from './components/ScrollProgressBar';
 
 const DEFAULT_SELECTION: MatrixSelection = {
   subject: 'woman',
@@ -61,7 +59,7 @@ const DEFAULT_SELECTION: MatrixSelection = {
 };
 
 const CLEAN_RESET_SELECTION: MatrixSelection = {
-  subject: 'woman',
+  subject: '',
   customSubjectDetails: '',
   event: 'skip',
   customEventDetails: '',
@@ -69,12 +67,12 @@ const CLEAN_RESET_SELECTION: MatrixSelection = {
   customLocationDetails: '',
   timeAndLighting: 'skip',
   customLightingDetails: '',
-  camera: 'sony_a7rv',
-  cameraAngle: 'eye_level',
+  camera: 'skip',
+  cameraAngle: 'skip',
   retouching: 'skip',
   makeup: 'skip',
   colorGrade: 'skip',
-  aspectRatio: '16:9',
+  aspectRatio: '',
   qualityProfile: 'skip',
   garmentStyle: 'skip',
   garmentFabric: '',
@@ -84,11 +82,11 @@ const CLEAN_RESET_SELECTION: MatrixSelection = {
   referenceImageFemale: null,
   poseExpression: 'skip',
   customPoseDetails: '',
-  ethnicity: 'burmese',
+  ethnicity: '',
   customEthnicityDetails: '',
   includeCulturalProps: false,
   culturalPropsDetails: '',
-  clothesSwapOption: 'in_app_preset',
+  clothesSwapOption: undefined,
   customGarmentImage: null,
   customGarmentDescription: '',
   moodEmotion: 'skip',
@@ -99,7 +97,7 @@ const CLEAN_RESET_SELECTION: MatrixSelection = {
 
 export default function App() {
   const [activeMainSection, setActiveMainSection] = useState<'portal' | 'video-prompt' | 'photo-prompt' | 'detail-burmese'>('portal');
-  const [detailBurmeseRoom, setDetailBurmeseRoom] = useState<DetailBurmeseRoom>('studio-suite');
+  const [detailBurmeseRoom, setDetailBurmeseRoom] = useState<DetailBurmeseRoom>('prompt-builder');
   const [activeView, setActiveView] = useState<NavView>('portal');
   const [engine, setEngine] = useState<string>('midjourney-v6');
   const [language, setLanguage] = useState<Language>('en');
@@ -108,8 +106,80 @@ export default function App() {
   const [isUserDashboardOpen, setIsUserDashboardOpen] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<UserProfile>(StorageService.getCurrentUser());
   const [photoToTextImage, setPhotoToTextImage] = useState<string | null>(null);
+  const [photoStudioInitialPrompt, setPhotoStudioInitialPrompt] = useState<string>('');
+  const [photoStudioInitialRatio, setPhotoStudioInitialRatio] = useState<string | undefined>(undefined);
+  const [photoStudioInitialRefPhoto, setPhotoStudioInitialRefPhoto] = useState<string | null>(null);
+  const [photoStudioInitialRefPhotos, setPhotoStudioInitialRefPhotos] = useState<
+    (string | { url: string; name?: string; id?: string })[]
+  >([]);
+  const [photoStudioChosenOptions, setPhotoStudioChosenOptions] = useState<
+    { label: string; value: string; emoji?: string }[]
+  >([]);
+
+  const handleSendToPhotoPromptStudio = (
+    promptText: string,
+    options?: {
+      ratio?: string;
+      referencePhoto?: string | null;
+      referencePhotos?: (string | { url: string; name?: string; id?: string })[];
+      chosenOptions?: { label: string; value: string; emoji?: string }[];
+    }
+  ) => {
+    const session = SupabaseService.getSession();
+    if (!session) {
+      window.dispatchEvent(new CustomEvent('open-supabase-auth', { detail: { targetSection: 'photo-prompt' } }));
+      return;
+    }
+    setPhotoStudioInitialPrompt(promptText);
+    if (options?.ratio) setPhotoStudioInitialRatio(options.ratio);
+    if (options?.referencePhoto !== undefined) setPhotoStudioInitialRefPhoto(options.referencePhoto);
+    if (options?.referencePhotos && options.referencePhotos.length > 0) {
+      setPhotoStudioInitialRefPhotos(options.referencePhotos);
+    } else if (options?.referencePhoto) {
+      setPhotoStudioInitialRefPhotos([options.referencePhoto]);
+    } else {
+      setPhotoStudioInitialRefPhotos([]);
+    }
+    if (options?.chosenOptions && options.chosenOptions.length > 0) {
+      setPhotoStudioChosenOptions(options.chosenOptions);
+    } else {
+      setPhotoStudioChosenOptions([]);
+    }
+    setActiveMainSection('photo-prompt');
+    setActiveView('photo-prompt-studio');
+  };
+
+  const handleSelectMainSection = (sec: 'portal' | 'video-prompt' | 'photo-prompt' | 'detail-burmese') => {
+    if (sec !== 'portal') {
+      const session = SupabaseService.getSession();
+      if (!session) {
+        window.dispatchEvent(new CustomEvent('open-supabase-auth', { detail: { targetSection: sec } }));
+        return;
+      }
+    }
+    setActiveMainSection(sec);
+    if (sec === 'video-prompt') setActiveView('video-prompt-studio');
+    else if (sec === 'photo-prompt') setActiveView('photo-prompt-studio');
+    else if (sec === 'detail-burmese') {
+      setActiveView('prompt-builder');
+      setDetailBurmeseRoom('prompt-builder');
+    } else {
+      setActiveView('portal');
+    }
+  };
 
   const handleNavViewChange = (view: NavView) => {
+    if (view !== 'portal' && view !== 'presentation-slides') {
+      const session = SupabaseService.getSession();
+      if (!session) {
+        let sec: 'video-prompt' | 'photo-prompt' | 'detail-burmese' = 'photo-prompt';
+        if (view === 'video-prompt-studio') sec = 'video-prompt';
+        else if (view === 'photo-prompt-studio') sec = 'photo-prompt';
+        else sec = 'detail-burmese';
+        window.dispatchEvent(new CustomEvent('open-supabase-auth', { detail: { targetSection: sec } }));
+        return;
+      }
+    }
     setActiveView(view);
     if (view === 'portal') {
       setActiveMainSection('portal');
@@ -179,10 +249,22 @@ export default function App() {
 
   // Generate Prompt Action via backend / API & save to Supabase Cloud
   const handleGeneratePrompt = async (promptText: string) => {
+    const session = SupabaseService.getSession();
+    if (!session) {
+      window.dispatchEvent(new CustomEvent('open-supabase-auth', { detail: { targetSection: 'detail-burmese' } }));
+      return;
+    }
+
     setIsGenerating(true);
     try {
-      if (SupabaseService.isConfigured() && SupabaseService.getSession()) {
-        await SupabaseService.deductCredits(1, 'prompt_generation', 'Burmese Detail Master Prompt Generation');
+      if (SupabaseService.isConfigured()) {
+        const creditRes = await SupabaseService.deductCredits(1, 'prompt_generation', 'Burmese Detail Master Prompt Generation');
+        if (!creditRes.success) {
+          alert(creditRes.error || 'Insufficient credits (Requires 1 Credit)');
+          setIsGenerating(false);
+          return;
+        }
+        window.dispatchEvent(new CustomEvent('supabase-cloud-refresh'));
       }
 
       const response = await fetch('/api/generate-prompt', {
@@ -247,10 +329,20 @@ export default function App() {
   };
 
   return (
-    <SupabaseCloudHub currentUser={currentUser} onUserChange={setCurrentUser}>
+    <SupabaseCloudHub 
+      currentUser={currentUser} 
+      onUserChange={setCurrentUser}
+      isPortal={activeMainSection === 'portal'}
+      onNavigateToSection={handleSelectMainSection}
+      onSignOut={() => {
+        setActiveMainSection('portal');
+        setActiveView('portal');
+      }}
+    >
       <div className="min-h-screen bg-[#090a0f] text-[#1c1c1e] font-sans antialiased selection:bg-[#ffd02f] selection:text-[#1c1c1e]">
         <div>
           <main className="relative min-h-screen w-full overflow-x-hidden">
+            <ScrollProgressBar />
             
             {/* VIEW: Myanmar Presentation Slides */}
             {activeView === 'presentation-slides' && (
@@ -274,15 +366,7 @@ export default function App() {
             {/* SECTION 0: Portal Entry Hub (3 Animated Buttons) */}
             {activeView !== 'presentation-slides' && activeMainSection === 'portal' && (
               <MainPortalHub
-                onSelectSection={(sec) => {
-                  setActiveMainSection(sec);
-                  if (sec === 'video-prompt') setActiveView('video-prompt-studio');
-                  else if (sec === 'photo-prompt') setActiveView('photo-prompt-studio');
-                  else {
-                    setActiveView('prompt-builder');
-                    setDetailBurmeseRoom('prompt-builder');
-                  }
-                }}
+                onSelectSection={handleSelectMainSection}
                 onOpenSlides={() => setActiveView('presentation-slides')}
               />
             )}
@@ -305,6 +389,11 @@ export default function App() {
             {/* SECTION 2: Photo Prompt Studio */}
             {activeView !== 'presentation-slides' && activeMainSection === 'photo-prompt' && (
               <PhotoPromptStudio
+                initialPrompt={photoStudioInitialPrompt}
+                initialRatio={photoStudioInitialRatio}
+                initialRefPhoto={photoStudioInitialRefPhoto}
+                initialRefPhotos={photoStudioInitialRefPhotos}
+                initialChosenOptions={photoStudioChosenOptions}
                 onNavigateView={(view, photo) => {
                   if (photo) setPhotoToTextImage(photo);
                   handleNavViewChange(view);
@@ -337,6 +426,7 @@ export default function App() {
                 onDeleteSavedPrompt={handleDeleteSavedPrompt}
                 onClearAllSaved={handleClearAllSaved}
                 onLoadPromptToMatrix={handleLoadPromptToMatrix}
+                onSendToPhotoStudio={handleSendToPhotoPromptStudio}
                 onBackToPortal={() => {
                   setActiveMainSection('portal');
                   setActiveView('portal');

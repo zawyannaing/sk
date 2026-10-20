@@ -20,25 +20,43 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAdminDashboard
 }) => {
   const isMyanmar = language === 'my';
+  const [isScrolled, setIsScrolled] = React.useState(false);
+
+  React.useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 15);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/90 backdrop-blur-xl px-3 py-2.5 sm:px-6">
+    <header className={`sticky top-0 z-40 border-b transition-all duration-300 ease-in-out ${
+      isScrolled
+        ? 'border-emerald-500/30 bg-slate-950/95 backdrop-blur-2xl py-1.5 shadow-[0_4px_25px_rgba(0,0,0,0.5)]'
+        : 'border-slate-800/80 bg-slate-950/90 backdrop-blur-xl py-2.5 sm:px-6'
+    } px-3`}>
       <div className="mx-auto flex flex-wrap max-w-7xl items-center justify-between gap-2 sm:gap-4">
         
-        {/* Brand Logo & Title */}
-        <div className="flex items-center gap-2.5">
-          <div className="relative flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-cyan-500 via-purple-600 to-pink-500 p-[2px] shadow-[0_0_20px_rgba(6,182,212,0.4)]">
-            <div className="flex h-full w-full items-center justify-center rounded-[10px] bg-slate-950">
-              <span className="font-black text-sm sm:text-base tracking-tighter bg-gradient-to-r from-cyan-400 via-fuchsia-400 to-pink-400 bg-clip-text text-transparent select-none">
-                SK
-              </span>
-            </div>
+        {/* Brand Logo & Title with Scroll Animation */}
+        <div className="flex items-center gap-2 sm:gap-2.5 group cursor-pointer">
+          <div className={`relative flex items-center justify-center rounded-xl overflow-hidden bg-emerald-950/40 border border-emerald-400/40 shadow-[0_0_15px_rgba(0,180,115,0.35)] transition-all duration-300 ${
+            isScrolled ? 'h-7 w-7 sm:h-8 sm:w-8 scale-95' : 'h-8 w-8 sm:h-10 sm:w-10'
+          }`}>
+            <img
+              src="/logo.png"
+              alt="SHOW AI PROMPT STUDIO"
+              className="w-full h-full object-contain p-0.5 transition-transform duration-300 group-hover:scale-110"
+            />
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <h1 className="bg-gradient-to-r from-pink-400 via-purple-300 to-cyan-400 bg-clip-text text-base sm:text-xl font-black tracking-tight text-transparent whitespace-nowrap">
-                Show Prompt
+              <h1 className="font-logo bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-xs sm:text-base md:text-lg font-black tracking-wider text-transparent whitespace-nowrap truncate max-w-[200px] sm:max-w-none">
+                SHOW AI PROMPT STUDIO
               </h1>
+              <span className="font-logo bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[9px] font-extrabold px-1.5 py-0.2 rounded-full uppercase tracking-wider hidden sm:inline">
+                PRO
+              </span>
             </div>
           </div>
         </div>
@@ -49,8 +67,14 @@ export const Header: React.FC<HeaderProps> = ({
           {onOpenUserDashboard && (
             <button
               type="button"
-              onClick={onOpenUserDashboard}
-              className="flex items-center gap-1.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-cyan-500/50 px-3 py-1.5 text-xs text-slate-200 hover:text-white transition-all shadow-sm"
+              onClick={() => {
+                if (!currentUser?.name || currentUser.name === 'Guest User' || currentUser.name === 'Kyaw Win') {
+                  window.dispatchEvent(new CustomEvent('open-supabase-auth'));
+                } else {
+                  onOpenUserDashboard();
+                }
+              }}
+              className="flex items-center gap-1.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-cyan-500/50 px-3 py-1.5 text-xs text-slate-200 hover:text-white transition-all shadow-sm cursor-pointer"
               title="Sign In / User Profile"
             >
               <User className="h-3.5 w-3.5 text-cyan-400" />

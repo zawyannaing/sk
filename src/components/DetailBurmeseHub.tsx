@@ -1,17 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Language, MatrixSelection } from '../types';
-import { AjaxStudioSuiteView } from './AjaxStudioSuiteView';
 import { BurmesePromptMatrix } from './BurmesePromptMatrix';
-import { PhotoEditStudio } from './PhotoEditStudio';
-import { CompositeHarmonizerStudio } from './CompositeHarmonizerStudio';
 import { BabyStudioView } from './BabyStudioView';
-import { OldPhotoToNewPhotoStudio } from './OldPhotoToNewPhotoStudio';
-import { PhotoToTextGeneratorView } from './PhotoToTextGeneratorView';
 import { PromptUtilitySuite } from './PromptUtilitySuite';
 import { PresetLibraryView } from './PresetLibraryView';
 import { SavedPromptsView, SavedPromptItem } from './SavedPromptsView';
 import { ProfessionalStudioWorkstation } from './ProfessionalStudioWorkstation';
-import { PhotoManipulationStudio } from './PhotoManipulationStudio';
+import { BurmeseWeddingStudioView } from './BurmeseWeddingStudioView';
 import { buildComprehensiveMasterPrompt } from '../utils/promptBuilder';
 import { 
   ArrowLeft, 
@@ -27,24 +22,25 @@ import {
   Grid3X3, 
   HelpCircle,
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  Menu,
+  PanelLeft,
+  Compass,
+  ChevronDown,
+  LogIn
 } from 'lucide-react';
+import { SupabaseService } from '../utils/supabaseClient';
 
 export type DetailBurmeseRoom = 
-  | 'studio-suite'
   | 'prompt-builder'
+  | 'wedding-studio'
   | 'pro-workstation'
-  | 'photo-edit'
-  | 'composite-harmonizer'
-  | 'photo-manipulation'
   | 'baby-studio'
-  | 'old-to-new'
-  | 'photo-to-text'
   | 'prompt-utility'
   | 'preset-library'
   | 'saved-prompts';
 
-export type BurmeseDepartmentId = 'heritage' | 'production' | 'wardrobe' | 'utilities';
+export type BurmeseDepartmentId = 'heritage' | 'production' | 'utilities';
 
 interface DepartmentMeta {
   id: BurmeseDepartmentId;
@@ -76,34 +72,25 @@ const DEPARTMENTS: DepartmentMeta[] = [
     icon: 'auto_fix_high',
     descriptionEn: 'Core Burmese cultural prompt builder, royal presets & archives',
     descriptionMm: 'နန်းတွင်း၊ သနပ်ခါး၊ ရိုးရာပိုးချိတ်ထည် Master Prompt',
-    rooms: ['prompt-builder', 'preset-library', 'saved-prompts']
+    rooms: ['prompt-builder', 'wedding-studio', 'preset-library', 'saved-prompts']
   },
   {
     id: 'production',
-    labelEn: '8-Room Studio Suite',
-    labelMm: '၈ ခန်းတွဲ စတူဒီယို',
-    icon: 'grid_view',
-    descriptionEn: 'Structured client-to-print production suites and pro lighting lab',
-    descriptionMm: 'ဧည့်ကြိုမှ ပရင့်အထိ ၈ ခန်းတွဲ စတူဒီယိုနှင့် မီးအထားအသို Lab',
-    rooms: ['studio-suite', 'pro-workstation']
-  },
-  {
-    id: 'wardrobe',
-    labelEn: 'Wardrobe & Inpaint',
-    labelMm: 'ဝတ်စုံလဲ / အထူးပြုပြင်ရေး',
-    icon: 'brush',
-    descriptionEn: 'Silk & velvet clothes swap, background harmony, and photo blend',
-    descriptionMm: 'ရိုးရာဝတ်စုံလဲလှယ်ခြင်း၊ နောက်ခံအလင်းညှိနှင့် အနုပညာပေါင်းစပ်မှု',
-    rooms: ['photo-edit', 'composite-harmonizer', 'photo-manipulation']
+    labelEn: 'Pro Workstation & Lighting',
+    labelMm: 'စတူဒီယို အလင်းနှင့် ကင်မရာ Lab',
+    icon: 'wb_iridescent',
+    descriptionEn: 'Pro lighting rig, camera lab, split compare & optics',
+    descriptionMm: 'စတူဒီယို မီး ၃ လုံး အထားအသိုနှင့် ကင်မရာမှန်ဘီလူး ချိန်ညှိမှု',
+    rooms: ['pro-workstation']
   },
   {
     id: 'utilities',
-    labelEn: 'Restoration & AI Tools',
-    labelMm: 'ဓာတ်ပုံဟောင်း / ကိရိယာများ',
-    icon: 'photo_camera_back',
-    descriptionEn: 'Heritage photo restoration, baby studio, vision photo-to-prompt & utilities',
-    descriptionMm: 'ဘိုးဘွားဓာတ်ပုံဟောင်းပြင်၊ ကလေးစတူဒီယိုနှင့် ဓာတ်ပုံမှစာသားထုတ် စနစ်',
-    rooms: ['old-to-new', 'baby-studio', 'photo-to-text', 'prompt-utility']
+    labelEn: 'Creative AI Tools',
+    labelMm: 'အထူးပြု ကိရိယာများ',
+    icon: 'auto_fix_normal',
+    descriptionEn: 'Burmese baby studio & prompt utilities',
+    descriptionMm: 'ကလေးစတူဒီယိုနှင့် Prompt အထူးကိရိယာများ',
+    rooms: ['baby-studio', 'prompt-utility']
   }
 ];
 
@@ -117,6 +104,17 @@ const ROOM_METAS: Record<DetailBurmeseRoom, RoomMeta> = {
     taglineMm: 'နန်းတွင်း၊ သနပ်ခါး၊ ရိုးရာပိုးချိတ်ထည် Master Prompt တည်ဆောက်ရာ',
     icon: 'auto_fix_high',
     badge: 'Core Engine',
+    recommended: true
+  },
+  'wedding-studio': {
+    id: 'wedding-studio',
+    department: 'heritage',
+    titleEn: 'Wedding Studio',
+    titleMm: 'မင်္ဂလာဆောင် စတူဒီယို',
+    taglineEn: '62+ Royal Palace, Ballroom & Scenic Wedding Templates with 100% Face Lock',
+    taglineMm: 'နန်းတွင်း၊ ခန်းမကြီး၊ ပုဂံနှင့် သဘာဝအလှ မင်္ဂလာဆောင် Template ၆၂ ခု (မူရင်းရုပ် ၁၀၀% မပြောင်းလဲစေရန်)',
+    icon: 'favorite',
+    badge: '62 Templates',
     recommended: true
   },
   'preset-library': {
@@ -139,16 +137,6 @@ const ROOM_METAS: Record<DetailBurmeseRoom, RoomMeta> = {
     icon: 'bookmarks',
     badge: 'Vault'
   },
-  'studio-suite': {
-    id: 'studio-suite',
-    department: 'production',
-    titleEn: '8-Room Studio Suite',
-    titleMm: '၈ ခန်းတွဲ စတူဒီယို Suite',
-    taglineEn: 'Client Intake, Face Likeness Lock, Wardrobe to 8K Print Lab',
-    taglineMm: 'ဧည့်ကြို၊ မျက်နှာ Lock၊ ဝတ်စုံမှသည် 8K Print Lab အထိ',
-    icon: 'grid_view',
-    badge: '8 Rooms'
-  },
   'pro-workstation': {
     id: 'pro-workstation',
     department: 'production',
@@ -159,46 +147,6 @@ const ROOM_METAS: Record<DetailBurmeseRoom, RoomMeta> = {
     icon: 'wb_iridescent',
     badge: 'Pro Optics'
   },
-  'photo-edit': {
-    id: 'photo-edit',
-    department: 'wardrobe',
-    titleEn: 'Costume & Clothes Swap',
-    titleMm: 'ရိုးရာဝတ်စုံ လဲလှယ်ခြင်း',
-    taglineEn: 'Swap traditional silk acheik, satin longyi & royal velvet accurately',
-    taglineMm: 'ပိုးချိတ်၊ ကတ္တီပါနှင့် ရတနာများကို မူရင်းလူမပျက် အတိအကျ လဲလှယ်ခြင်း',
-    icon: 'brush',
-    badge: 'Inpaint'
-  },
-  'composite-harmonizer': {
-    id: 'composite-harmonizer',
-    department: 'wardrobe',
-    titleEn: 'Background Harmonizer',
-    titleMm: 'နောက်ခံ အလင်းညှိနှိုင်းမှု',
-    taglineEn: 'Seamlessly blend subjects with Bagan Pagodas & Mandalay Palace light',
-    taglineMm: 'နောက်ခံရှုခင်းနှင့် လူပုံ အလင်းအမှောင် တစ်သားတည်းညှိယူခြင်း',
-    icon: 'wallpaper',
-    badge: 'Composite'
-  },
-  'photo-manipulation': {
-    id: 'photo-manipulation',
-    department: 'wardrobe',
-    titleEn: 'Creative Photo Blend',
-    titleMm: 'အနုပညာ အထူးပြုပြင်ရေး',
-    taglineEn: 'Multi-layer composite, fantasy lighting, and artistic Burmese grading',
-    taglineMm: 'ဓာတ်ပုံပေါင်းစပ်မှုနှင့် ရုပ်ရှင်ဆန်သော အထူးပြုလုပ်ချက်များ',
-    icon: 'auto_fix_high',
-    badge: 'Creative'
-  },
-  'old-to-new': {
-    id: 'old-to-new',
-    department: 'utilities',
-    titleEn: 'Old Photo Restoration',
-    titleMm: 'ဘိုးဘွားဓာတ်ပုံဟောင်း ပြန်ပြင်',
-    taglineEn: 'Restore faded, scratched ancestral photos to high-definition heritage color',
-    taglineMm: 'စုတ်ပြဲမှေးမှိန်နေသော ရှေးဓာတ်ပုံဟောင်းများကို 8K အကြည် ပြန်ထုတ်ခြင်း',
-    icon: 'photo_camera_back',
-    badge: '8K Restore'
-  },
   'baby-studio': {
     id: 'baby-studio',
     department: 'utilities',
@@ -208,16 +156,6 @@ const ROOM_METAS: Record<DetailBurmeseRoom, RoomMeta> = {
     taglineMm: 'ရိုးရာ ကလေး မွေးနေ့နှင့် မင်္ဂလာ အခမ်းအနား Themes ၁၂ မျိုး',
     icon: 'child_care',
     badge: '12 Themes'
-  },
-  'photo-to-text': {
-    id: 'photo-to-text',
-    department: 'utilities',
-    titleEn: 'Photo to Text (Vision)',
-    titleMm: 'ဓာတ်ပုံမှ Prompt ထုတ်ယူခြင်း',
-    taglineEn: 'Extract culturally authentic prompts from real reference photographs',
-    taglineMm: 'ဓာတ်ပုံတစ်ပုံကို ကြည့်၍ အသေးစိတ် Prompt စာသားအဖြစ် ပြောင်းလဲခြင်း',
-    icon: 'auto_fix_normal',
-    badge: 'Vision AI'
   },
   'prompt-utility': {
     id: 'prompt-utility',
@@ -246,6 +184,15 @@ interface DetailBurmeseHubProps {
   onClearAllSaved: () => void;
   onLoadPromptToMatrix: (promptText: string) => void;
   onBackToPortal: () => void;
+  onSendToPhotoStudio?: (
+    promptText: string,
+    options?: {
+      ratio?: string;
+      referencePhoto?: string | null;
+      referencePhotos?: (string | { url: string; name?: string; id?: string })[];
+      chosenOptions?: { label: string; value: string; emoji?: string }[];
+    }
+  ) => void;
   initialRoom?: DetailBurmeseRoom;
 }
 
@@ -264,6 +211,7 @@ export const DetailBurmeseHub: React.FC<DetailBurmeseHubProps> = ({
   onClearAllSaved,
   onLoadPromptToMatrix,
   onBackToPortal,
+  onSendToPhotoStudio,
   initialRoom = 'prompt-builder'
 }) => {
   const isMm = language === 'my';
@@ -280,13 +228,11 @@ export const DetailBurmeseHub: React.FC<DetailBurmeseHubProps> = ({
   // Dialog and panel states
   const [showAllRoomsModal, setShowAllRoomsModal] = useState<boolean>(false);
   const [showAccuracyModal, setShowAccuracyModal] = useState<boolean>(false);
-  const [showTestGenerateModal, setShowTestGenerateModal] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Test Image Generation state
-  const [testGenerating, setTestGenerating] = useState<boolean>(false);
-  const [testImageUrl, setTestImageUrl] = useState<string | null>(null);
-  const [testError, setTestError] = useState<string | null>(null);
+  // Responsive Left Side Menu Bar state
+  const [isSideMenuOpen, setIsSideMenuOpen] = useState<boolean>(false);
+  const [matrixTargetTab, setMatrixTargetTab] = useState<'tab-subject' | 'tab-scene' | 'tab-direction' | 'tab-engine'>('tab-subject');
 
   // Synchronize when initialRoom changes from parent
   useEffect(() => {
@@ -374,43 +320,17 @@ export const DetailBurmeseHub: React.FC<DetailBurmeseHubProps> = ({
     }
   };
 
-  // Run Real Image Generation Test
-  const handleRunTestGeneration = async () => {
-    setTestGenerating(true);
-    setTestError(null);
-    try {
-      const cleanProsePrompt = liveBuilt?.fluxFormat || activeMasterPrompt.replace(/--\w+\s+\S+/g, '').trim();
-      const res = await fetch('/api/photo-studio/generate-image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: cleanProsePrompt,
-          model: 'nano-banana-2',
-          aspectRatio: selection.aspectRatio || '4:5',
-          count: 1
-        })
-      });
-
-      if (!res.ok) {
-        throw new Error(`Generation failed with HTTP ${res.status}`);
+  // Jump to specific Prompt Matrix section directly from the left side panel bar
+  const handleJumpToMatrixSection = (tab: 'tab-subject' | 'tab-scene' | 'tab-direction' | 'tab-engine') => {
+    setActiveRoom('prompt-builder');
+    setMatrixTargetTab(tab);
+    setIsSideMenuOpen(false);
+    setTimeout(() => {
+      const el = document.getElementById(`section-${tab}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-
-      const data = await res.json();
-      const generatedImg = data?.images?.[0] || data?.imageUrl;
-      if (generatedImg) {
-        setTestImageUrl(generatedImg);
-        triggerToast(isMm ? '✓ မြန်မာ့ရိုးရာ စမ်းသပ်ဓာတ်ပုံ ထုတ်လုပ်ပြီးပါပြီ!' : '✓ Test image generated successfully!');
-      } else {
-        throw new Error(data?.error || 'No image URL returned');
-      }
-    } catch (err: any) {
-      console.error('Test generation error:', err);
-      setTestImageUrl('https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1200&q=85');
-      setTestError(null);
-      triggerToast('✓ Preview loaded from Burmese Studio gallery');
-    } finally {
-      setTestGenerating(false);
-    }
+    }, 100);
   };
 
   const handleNavigateRoom = (view: any, photo?: string) => {
@@ -427,55 +347,52 @@ export const DetailBurmeseHub: React.FC<DetailBurmeseHubProps> = ({
   const currentDepartment = DEPARTMENTS.find(d => d.id === activeDepartmentId) || DEPARTMENTS[0];
 
   return (
-    <div className="w-full min-h-screen bg-[#f8f9fb] flex flex-col font-sans">
+    <div className="w-full min-h-screen bg-[#0a0b0e] text-zinc-100 flex flex-col font-sans">
 
       {/* 🌟 DETAIL BURMESE CLEAN UNIFIED STUDIO NAVIGATION */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#e2e4e9] shadow-2xs">
+      <header className="sticky top-0 z-40 bg-[#0a0b0e]/95 backdrop-blur-md border-b border-zinc-800/80 shadow-2xs">
         
-        {/* ROW 1: Branding, Back Navigation, Engine & Quick Actions */}
-        <div className="px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-2.5 border-b border-[#f0f2f5]">
+        {/* ROW 1: Branding, Back Navigation, Engine & Right Menu Bar */}
+        <div className="px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2.5 sm:gap-3 border-b border-zinc-800/60">
           
-          {/* Left: Back button & Breadcrumbs */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            <button
-              type="button"
-              onClick={onBackToPortal}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#f4f5f8] hover:bg-[#e9ebf0] text-[#1c1c1e] text-xs font-semibold transition-all cursor-pointer border border-[#d3d6de] shadow-2xs active:scale-98"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>3 Sections</span>
-            </button>
-
-            <div className="h-4 w-px bg-[#d3d6de] hidden sm:block" />
-
-            <div className="flex items-center gap-2">
-              <span className="font-sans font-extrabold text-sm sm:text-base text-[#1c1c1e] tracking-tight">
-                Detail Burmese
-              </span>
-              <span className="hidden md:inline-flex items-center gap-1 text-[11px] text-[#746019] bg-[#fff8e0] border border-[#fcb900]/40 px-2.5 py-0.5 rounded-full font-bold">
-                <span className="material-symbols-outlined text-[13px] text-[#fcb900]">verified</span>
-                <span>၈ ခန်းတွဲ စတူဒီယို &amp; Prompt Matrix</span>
+          {/* Left Corner: SHOW AI Logo and Brand Text */}
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center shrink-0">
+              <img src="/logo.png" alt="SHOW AI Logo" className="w-full h-full object-contain drop-shadow-[0_2px_8px_rgba(5,177,135,0.45)]" />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <div className="flex items-center gap-1.5 leading-tight">
+                <span className="font-sans font-black text-sm sm:text-base text-white tracking-tight shrink-0">
+                  SHOW AI
+                </span>
+                <span className="text-[10px] sm:text-[11px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider truncate">
+                  Detail Burmese
+                </span>
+              </div>
+              <span className="text-[10px] sm:text-[11px] text-zinc-400 font-medium hidden sm:block truncate max-w-[260px]">
+                {isMm ? 'Prompt Matrix & Cultural Studio' : 'Cultural Story & Prompt Studio'}
               </span>
             </div>
           </div>
 
-          {/* Right: Engine Switcher, Accuracy Badge & Test Generate */}
-          <div className="flex items-center gap-2">
+          {/* Right Corner: Quick Actions & Menu Bar */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             
-            {/* Cultural Accuracy Badge & Modal Trigger */}
-            <button
-              type="button"
-              onClick={() => setShowAccuracyModal(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-[#eefaf6] hover:bg-[#d8f5eb] text-[#00875a] border border-[#00b473]/30 text-xs font-semibold cursor-pointer transition-all shadow-2xs"
-              title="Click to inspect Burmese Cultural Accuracy details"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-[#00b473]" />
-              <span className="hidden sm:inline">Authenticity</span>
-              <span className="font-bold">{fidelityScore}%</span>
-            </button>
+            {/* Back to Menu / 3 Sections Button */}
+            {onBackToPortal && (
+              <button
+                type="button"
+                onClick={onBackToPortal}
+                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-zinc-900/90 hover:bg-zinc-800 text-zinc-200 text-xs font-bold transition-all cursor-pointer border border-zinc-800 shadow-2xs active:scale-95 shrink-0"
+                title="Back to 3 Main Sections Menu"
+              >
+                <ArrowLeft className="w-3.5 h-3.5 text-zinc-200" />
+                <span className="hidden xs:inline">{isMm ? 'ပင်မမနူး' : 'Back to Menu'}</span>
+              </button>
+            )}
 
-            {/* AI Engine Selector Pill */}
-            <div className="hidden lg:flex items-center bg-[#f4f5f8] rounded-full p-0.5 border border-[#e0e2e8] text-xs">
+            {/* AI Engine Selector Pill (Desktop) */}
+            <div className="hidden xl:flex items-center bg-zinc-900/80 rounded-full p-0.5 border border-zinc-800 text-xs">
               {[
                 { id: 'midjourney-v6', label: 'Midjourney' },
                 { id: 'flux-1', label: 'FLUX.1' },
@@ -487,8 +404,8 @@ export const DetailBurmeseHub: React.FC<DetailBurmeseHubProps> = ({
                   onClick={() => onEngineChange(eng.id)}
                   className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all cursor-pointer ${
                     engine === eng.id
-                      ? 'bg-[#1c1c1e] text-white shadow-2xs'
-                      : 'text-[#6b6f7e] hover:text-[#1c1c1e]'
+                      ? 'bg-emerald-500 text-black font-extrabold shadow-2xs'
+                      : 'text-zinc-400 hover:text-white'
                   }`}
                 >
                   {eng.label}
@@ -496,36 +413,85 @@ export const DetailBurmeseHub: React.FC<DetailBurmeseHubProps> = ({
               ))}
             </div>
 
-            {/* Test Image Generate Button */}
-            <button
-              type="button"
-              onClick={() => {
-                setShowTestGenerateModal(true);
-                if (!testImageUrl && !testGenerating) {
-                  handleRunTestGeneration();
-                }
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1c1c1e] hover:bg-black text-white text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-98"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-[#ffd02f]" />
-              <span>{isMm ? 'စမ်းသပ်ပုံထုတ်' : 'Test Generate'}</span>
-            </button>
+            {/* Generate Image in Photo Prompt Studio Button (Desktop) */}
+            {onSendToPhotoStudio && (
+              <button
+                type="button"
+                onClick={() => {
+                  const refs: { id: string; url: string; name: string }[] = [];
+                  if (selection.referenceImage) {
+                    refs.push({ id: 'ref-main', url: selection.referenceImage, name: selection.customSubjectDetails || 'Reference Photo' });
+                  }
+                  if (selection.customGarmentImage) {
+                    refs.push({ id: 'ref-garment', url: selection.customGarmentImage, name: 'Garment Reference' });
+                  }
+                  onSendToPhotoStudio(activeMasterPrompt, {
+                    ratio: selection.aspectRatio || '4:5',
+                    referencePhoto: selection.referenceImage,
+                    referencePhotos: refs
+                  });
+                }}
+                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-[#05b187] to-teal-400 hover:brightness-110 text-black text-xs font-black transition-all cursor-pointer shadow-xs border border-emerald-400/40 active:scale-98 shrink-0"
+                title="Send active prompt to Photo Prompt Studio and generate image"
+              >
+                <span className="material-symbols-outlined text-[15px] text-black">photo_camera</span>
+                <span>Photo Studio</span>
+              </button>
+            )}
 
-            {/* All Rooms Directory Button */}
+            {/* Direct Sign In / Login Button for Guests */}
+            {!SupabaseService.getSession() && (
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new CustomEvent('open-supabase-auth'))}
+                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold transition-all cursor-pointer shadow-xs border border-zinc-800 active:scale-95 shrink-0"
+                title="Sign in / Register to save your prompts and credits"
+              >
+                <LogIn className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>Sign In</span>
+              </button>
+            )}
+
+            {/* Right Corner Menu Bar Button */}
             <button
               type="button"
-              onClick={() => setShowAllRoomsModal(true)}
-              className="p-1.5 rounded-full bg-[#f4f5f8] hover:bg-[#e9ebf0] text-[#1c1c1e] border border-[#d3d6de] cursor-pointer transition-all"
-              title="Open 12 Rooms Directory"
+              onClick={() => setIsSideMenuOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold transition-all shadow-xs border border-zinc-800 cursor-pointer active:scale-95 shrink-0"
+              title="Open Menu Bar for Sections & Studios (ခေါင်းစဉ်များ)"
             >
-              <Grid3X3 className="w-4 h-4 text-[#555a6a]" />
+              <Menu className="w-4 h-4 text-emerald-400" />
+              <span>{isMm ? 'မနူး' : 'Menu'}</span>
             </button>
 
           </div>
         </div>
 
-        {/* ROW 2: Primary Studio Departments (The 4 Clear Pillars) */}
-        <div className="px-3 sm:px-6 pt-2 pb-1.5 overflow-x-auto scrollbar-none flex items-center gap-2 border-b border-[#f0f2f5]">
+        {/* MOBILE SUB-BAR: Swipeable Department Pill Strip */}
+        <div className="flex md:hidden px-3 py-1.5 bg-[#0e1017] border-b border-zinc-800/80 items-center gap-1.5 overflow-x-auto scrollbar-none">
+          {DEPARTMENTS.map(dept => {
+            const isSelected = activeDepartmentId === dept.id;
+            return (
+              <button
+                key={dept.id}
+                type="button"
+                onClick={() => handleSelectDepartment(dept.id)}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                  isSelected
+                    ? 'bg-emerald-500 text-black font-extrabold shadow-2xs'
+                    : 'bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 border border-zinc-800'
+                }`}
+              >
+                <span className={`material-symbols-outlined text-[13px] ${isSelected ? 'text-black' : 'text-emerald-400'}`}>
+                  {dept.icon}
+                </span>
+                <span>{isMm ? dept.labelMm : dept.labelEn}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ROW 2: Primary Studio Departments (Hidden on small mobile to prevent meshing; handled by Left Side Menu Bar) */}
+        <div className="hidden md:flex px-3 sm:px-6 pt-2 pb-1.5 overflow-x-auto scrollbar-none items-center gap-2 border-b border-zinc-800/60 bg-[#0a0b0e]">
           {DEPARTMENTS.map(dept => {
             const isSelected = activeDepartmentId === dept.id;
             return (
@@ -535,12 +501,12 @@ export const DetailBurmeseHub: React.FC<DetailBurmeseHubProps> = ({
                 onClick={() => handleSelectDepartment(dept.id)}
                 className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
                   isSelected
-                    ? 'bg-[#1c1c1e] text-white shadow-xs scale-[1.01]'
-                    : 'bg-white hover:bg-[#f4f5f8] text-[#555a6a] hover:text-[#1c1c1e] border border-[#e0e2e8]'
+                    ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 shadow-xs scale-[1.01]'
+                    : 'bg-zinc-900/60 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-800/80'
                 }`}
               >
                 <span className={`material-symbols-outlined text-[17px] ${
-                  isSelected ? 'text-[#ffd02f]' : 'text-[#8e91a0]'
+                  isSelected ? 'text-emerald-400' : 'text-zinc-400'
                 }`}>
                   {dept.icon}
                 </span>
@@ -548,8 +514,8 @@ export const DetailBurmeseHub: React.FC<DetailBurmeseHubProps> = ({
                   <span className="leading-tight">
                     {isMm ? dept.labelMm : dept.labelEn}
                   </span>
-                  <span className={`text-[10px] font-normal hidden md:inline leading-tight ${
-                    isSelected ? 'text-[#ffd02f]/90' : 'text-[#8e91a0]'
+                  <span className={`text-[10px] font-normal hidden lg:inline leading-tight ${
+                    isSelected ? 'text-emerald-400/90' : 'text-zinc-500'
                   }`}>
                     {dept.rooms.length} Studios
                   </span>
@@ -559,10 +525,10 @@ export const DetailBurmeseHub: React.FC<DetailBurmeseHubProps> = ({
           })}
         </div>
 
-        {/* ROW 3: Secondary Sub-Rooms (Cleanly displays only the 2 to 4 tools of the active department) */}
-        <div className="px-3 sm:px-6 py-2 bg-[#fbfcfd] flex items-center justify-between gap-2 overflow-x-auto scrollbar-none">
+        {/* ROW 3: Secondary Sub-Rooms (Hidden on small mobile to prevent meshing; handled by Left Side Menu Bar) */}
+        <div className="hidden md:flex px-3 sm:px-6 py-2 bg-[#0e1017] items-center justify-between gap-2 overflow-x-auto scrollbar-none border-b border-zinc-800/60">
           <div className="flex items-center gap-1.5 shrink-0">
-            <span className="text-[11px] font-bold text-[#8e91a0] uppercase tracking-wider hidden sm:inline mr-1">
+            <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider hidden sm:inline mr-1">
               {currentDepartment.labelEn}:
             </span>
             {currentDepartment.rooms.map(roomId => {
@@ -575,23 +541,23 @@ export const DetailBurmeseHub: React.FC<DetailBurmeseHubProps> = ({
                   onClick={() => setActiveRoom(roomId)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                     isActive
-                      ? 'bg-[#ffd02f] text-[#1c1c1e] font-extrabold shadow-2xs border border-[#fcb900]'
-                      : 'bg-white hover:bg-[#f0f2f5] text-[#555a6a] hover:text-[#1c1c1e] border border-[#e0e2e8]'
+                      ? 'bg-emerald-500 text-black font-extrabold shadow-2xs border border-emerald-400'
+                      : 'bg-zinc-900/70 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800'
                   }`}
                 >
-                  <span className={`material-symbols-outlined text-[15px] ${isActive ? 'text-[#1c1c1e]' : 'text-[#8e91a0]'}`}>
+                  <span className={`material-symbols-outlined text-[15px] ${isActive ? 'text-black' : 'text-emerald-400'}`}>
                     {meta.icon}
                   </span>
                   <span>{isMm ? meta.titleMm : meta.titleEn}</span>
                   {meta.badge && (
                     <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold ${
-                      isActive ? 'bg-[#1c1c1e] text-white' : 'bg-[#e9ebf0] text-[#555a6a]'
+                      isActive ? 'bg-black text-emerald-300' : 'bg-zinc-800 text-zinc-400'
                     }`}>
                       {meta.badge}
                     </span>
                   )}
                   {roomId === 'saved-prompts' && savedPrompts.length > 0 && (
-                    <span className="text-[10px] px-1.5 rounded-full bg-[#1c1c1e] text-[#ffd02f] font-mono font-bold">
+                    <span className="text-[10px] px-1.5 rounded-full bg-emerald-500 text-black font-mono font-bold">
                       {savedPrompts.length}
                     </span>
                   )}
@@ -601,13 +567,267 @@ export const DetailBurmeseHub: React.FC<DetailBurmeseHubProps> = ({
           </div>
 
           {/* Current Studio Quick Status Pill */}
-          <div className="hidden xl:flex items-center gap-2 text-xs text-[#6b6f7e]">
-            <span className="w-2 h-2 rounded-full bg-[#00b473]" />
+          <div className="hidden xl:flex items-center gap-2 text-xs text-zinc-400">
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
             <span className="truncate max-w-xs">{isMm ? currentRoomMeta.taglineMm : currentRoomMeta.taglineEn}</span>
           </div>
         </div>
 
       </header>
+
+      {/* 🌟 FROSTED GLASS MENU BAR / DRAWER (Slide in from Right) */}
+      {isSideMenuOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          {/* Backdrop Blur Overlay */}
+          <div
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity animate-in fade-in"
+            onClick={() => setIsSideMenuOpen(false)}
+          />
+
+          {/* Right Glass Panel Bar */}
+          <div className="relative w-84 max-w-[85vw] h-full bg-[#0e1017]/98 backdrop-blur-2xl border-l border-zinc-800 shadow-2xl flex flex-col z-10 animate-in slide-in-from-right duration-300 text-zinc-100">
+            
+            {/* Header */}
+            <div className="p-4 border-b border-zinc-800 flex items-center justify-between bg-[#12141c]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center font-bold shadow-xs">
+                  <span className="material-symbols-outlined text-[18px]">auto_fix_high</span>
+                </div>
+                <div>
+                  <h3 className="font-sans text-sm font-extrabold text-white">
+                    SHOW AI Studio Menu
+                  </h3>
+                  <span className="text-[11px] text-zinc-400">
+                    {isMm ? 'စတူဒီယို ခေါင်းစဉ်များ ရွေးချယ်ရန်' : 'Sections & Studios Menu'}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsSideMenuOpen(false)}
+                className="p-1.5 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Quick Portal Switcher */}
+            <div className="p-4 pb-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSideMenuOpen(false);
+                  onBackToPortal();
+                }}
+                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-200 text-xs font-bold border border-zinc-800 transition-all cursor-pointer active:scale-98"
+              >
+                <ArrowLeft className="w-3.5 h-3.5 text-emerald-400" />
+                <span>{isMm ? 'အဓိက ကဏ္ဍ ၃ ခုသို့ ပြန်သွားမည်' : 'Back to 3 Main Sections'}</span>
+              </button>
+            </div>
+
+            {/* Scrollable Navigation Content */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-5 scrollbar-thin">
+
+              {/* 🌟 1. PROMPT MATRIX DETAILED SUB-SECTION TITLES */}
+              {activeRoom === 'prompt-builder' && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between pb-1 border-b border-zinc-800">
+                    <span className="text-[10px] font-extrabold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                      <span>{isMm ? 'Matrix ခေါင်းစဉ်များ' : 'Matrix Section Titles'}</span>
+                    </span>
+                    <span className="text-[10px] text-zinc-400">Direct Jump</span>
+                  </div>
+
+                  <div className="space-y-1">
+                    {[
+                      {
+                        tab: 'tab-subject',
+                        titleEn: '1. Subject, Royal Eras & Archetypes',
+                        titleMm: '၁။ ဇာတ်ကောင်၊ ခေတ်နှင့် ရုပ်သွင်ထိန်း',
+                        icon: 'face',
+                        badge: 'Core'
+                      },
+                      {
+                        tab: 'tab-subject',
+                        titleEn: '2. Silk Acheik & Cultural Attire',
+                        titleMm: '၂။ ပိုးချိတ်၊ ရိုးရာဝတ်စုံနှင့် အထည်',
+                        icon: 'checkroom',
+                        badge: 'Silk'
+                      },
+                      {
+                        tab: 'tab-scene',
+                        titleEn: '3. Heritage Pagodas & Atmosphere',
+                        titleMm: '၃။ ပုဂံ၊ နန်းတွင်းနောက်ခံနှင့် ရှုခင်း',
+                        icon: 'temple_buddhist',
+                        badge: 'Scene'
+                      },
+                      {
+                        tab: 'tab-direction',
+                        titleEn: '4. Studio Lighting & Camera Optics',
+                        titleMm: '၄။ စတူဒီယိုမီး ၃ လုံးနှင့် ကင်မရာ',
+                        icon: 'wb_iridescent',
+                        badge: 'Optics'
+                      },
+                      {
+                        tab: 'tab-engine',
+                        titleEn: '5. AI Engines & Formatting',
+                        titleMm: '၅။ AI မော်ဒယ်နှင့် Syntax ချိန်ညှိမှု',
+                        icon: 'tune',
+                        badge: 'Engine'
+                      },
+                      {
+                        tab: 'output-card',
+                        titleEn: '6. Master Prompt Output Card',
+                        titleMm: '၆။ အပြီးသတ် Prompt ကတ်',
+                        icon: 'description',
+                        badge: 'Output'
+                      }
+                    ].map((sec) => (
+                      <button
+                        key={sec.titleEn}
+                        type="button"
+                        onClick={() => {
+                          if (sec.tab === 'output-card') {
+                            setIsSideMenuOpen(false);
+                            setTimeout(() => {
+                              const el = document.getElementById('section-output-card');
+                              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }, 100);
+                          } else {
+                            handleJumpToMatrixSection(sec.tab as any);
+                          }
+                        }}
+                        className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-zinc-900 border border-transparent hover:border-emerald-500/30 text-left transition-all cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="material-symbols-outlined text-[17px] text-emerald-400 group-hover:scale-110 transition-transform">
+                            {sec.icon}
+                          </span>
+                          <div>
+                            <span className="font-sans text-xs font-bold text-zinc-200 block group-hover:text-emerald-400">
+                              {isMm ? sec.titleMm : sec.titleEn}
+                            </span>
+                          </div>
+                        </div>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold bg-zinc-800 text-zinc-300 group-hover:bg-emerald-500 group-hover:text-black">
+                          {sec.badge}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 🌟 2. ALL 10 DEDICATED STUDIOS & WORKSTATIONS */}
+              <div className="space-y-4">
+                <div className="pb-1 border-b border-zinc-800">
+                  <span className="text-[10px] font-extrabold text-zinc-400 uppercase tracking-wider block">
+                    {isMm ? 'စတူဒီယို အခန်းကဏ္ဍများ (All 10 Studios)' : 'Studio Rooms & Workstations'}
+                  </span>
+                </div>
+
+                {DEPARTMENTS.map((dept) => (
+                  <div key={dept.id} className="space-y-1.5">
+                    <span className="text-[11px] font-bold text-zinc-400 flex items-center gap-1.5 px-1">
+                      <span className="material-symbols-outlined text-[14px] text-emerald-400">{dept.icon}</span>
+                      <span>{isMm ? dept.labelMm : dept.labelEn}</span>
+                    </span>
+
+                    <div className="space-y-1">
+                      {dept.rooms.map((roomId) => {
+                        const meta = ROOM_METAS[roomId];
+                        const isActive = activeRoom === roomId;
+                        return (
+                          <button
+                            key={roomId}
+                            type="button"
+                            onClick={() => {
+                              setActiveRoom(roomId);
+                              setIsSideMenuOpen(false);
+                            }}
+                            className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left transition-all cursor-pointer ${
+                              isActive
+                                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 shadow-xs font-bold'
+                                : 'hover:bg-zinc-900 text-zinc-400 hover:text-white border border-transparent'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 truncate">
+                              <span className={`material-symbols-outlined text-[17px] ${isActive ? 'text-emerald-400' : 'text-zinc-500'}`}>
+                                {meta.icon}
+                              </span>
+                              <div className="truncate">
+                                <span className="font-sans text-xs block truncate">
+                                  {isMm ? meta.titleMm : meta.titleEn}
+                                </span>
+                              </div>
+                            </div>
+                            {meta.badge && (
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
+                                isActive ? 'bg-emerald-500 text-black' : 'bg-zinc-800 text-zinc-400'
+                              }`}>
+                                {meta.badge}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+            </div>
+
+            {/* Panel Footer */}
+            <div className="p-4 border-t border-zinc-800 bg-[#12141c] space-y-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSideMenuOpen(false);
+                  setShowAccuracyModal(true);
+                }}
+                className="w-full flex items-center justify-between p-2 rounded-xl bg-emerald-950/40 hover:bg-emerald-900/40 text-xs transition-colors cursor-pointer border border-emerald-500/30"
+                title="Inspect Burmese Cultural Accuracy Details"
+              >
+                <span className="text-emerald-300 font-medium flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  <span>Cultural Authenticity:</span>
+                </span>
+                <span className="font-bold text-emerald-400">
+                  {fidelityScore}% Verified
+                </span>
+              </button>
+              {onSendToPhotoStudio && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSideMenuOpen(false);
+                    const refs: { id: string; url: string; name: string }[] = [];
+                    if (selection.referenceImage) {
+                      refs.push({ id: 'ref-main', url: selection.referenceImage, name: selection.customSubjectDetails || 'Reference Photo' });
+                    }
+                    if (selection.customGarmentImage) {
+                      refs.push({ id: 'ref-garment', url: selection.customGarmentImage, name: 'Garment Reference' });
+                    }
+                    onSendToPhotoStudio(activeMasterPrompt, {
+                      ratio: selection.aspectRatio || '4:5',
+                      referencePhoto: selection.referenceImage,
+                      referencePhotos: refs
+                    });
+                  }}
+                  className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-full bg-gradient-to-r from-[#05b187] to-teal-400 text-black text-xs font-black shadow-xs cursor-pointer active:scale-98 transition-all"
+                >
+                  <span className="material-symbols-outlined text-[15px]">photo_camera</span>
+                  <span>{isMm ? 'Photo Studio တွင် ပုံထုတ်မည်' : 'Generate in Photo Studio'}</span>
+                </button>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
 
       {/* 🌟 ACTIVE ROOM WORKSPACE */}
       <main className="w-full flex-1">
@@ -623,16 +843,18 @@ export const DetailBurmeseHub: React.FC<DetailBurmeseHubProps> = ({
             engine={engine}
             onEngineChange={onEngineChange}
             onNavigateView={handleNavigateRoom}
+            onSendToPhotoStudio={onSendToPhotoStudio}
+            activeTabOverride={matrixTargetTab}
           />
         )}
 
-        {activeRoom === 'studio-suite' && (
-          <AjaxStudioSuiteView
+        {activeRoom === 'wedding-studio' && (
+          <BurmeseWeddingStudioView
             language={language}
             onSendToMatrix={onLoadPromptToMatrix}
             onSavePrompt={onSavePrompt}
+            onSendToPhotoStudio={onSendToPhotoStudio}
             engine={engine}
-            onNavigateView={handleNavigateRoom}
           />
         )}
 
@@ -644,33 +866,7 @@ export const DetailBurmeseHub: React.FC<DetailBurmeseHubProps> = ({
             engine={engine}
             onNavigateView={handleNavigateRoom}
             initialPhoto={photoToTextImage || undefined}
-          />
-        )}
-
-        {activeRoom === 'photo-edit' && (
-          <PhotoEditStudio
-            language={language}
-            onSendToMatrix={onLoadPromptToMatrix}
-            onSavePrompt={onSavePrompt}
-            engine={engine}
-          />
-        )}
-
-        {activeRoom === 'composite-harmonizer' && (
-          <CompositeHarmonizerStudio
-            language={language}
-            onSendToMatrix={onLoadPromptToMatrix}
-            onSavePrompt={onSavePrompt}
-            engine={engine}
-          />
-        )}
-
-        {activeRoom === 'photo-manipulation' && (
-          <PhotoManipulationStudio
-            language={language}
-            onSendToMatrix={onLoadPromptToMatrix}
-            onSavePrompt={onSavePrompt}
-            engine={engine}
+            onSendToPhotoStudio={onSendToPhotoStudio}
           />
         )}
 
@@ -680,26 +876,6 @@ export const DetailBurmeseHub: React.FC<DetailBurmeseHubProps> = ({
             onSendToMatrix={onLoadPromptToMatrix}
             onSavePrompt={onSavePrompt}
             engine={engine}
-          />
-        )}
-
-        {activeRoom === 'old-to-new' && (
-          <OldPhotoToNewPhotoStudio
-            language={language}
-            onSendToMatrix={onLoadPromptToMatrix}
-            onSavePrompt={onSavePrompt}
-            engine={engine}
-          />
-        )}
-
-        {activeRoom === 'photo-to-text' && (
-          <PhotoToTextGeneratorView
-            language={language}
-            onSendToMatrix={onLoadPromptToMatrix}
-            onSendToStudioDesk={() => setActiveRoom('studio-suite')}
-            onSavePrompt={onSavePrompt}
-            engine={engine}
-            initialImage={photoToTextImage}
           />
         )}
 
@@ -732,19 +908,19 @@ export const DetailBurmeseHub: React.FC<DetailBurmeseHubProps> = ({
 
       {/* 🌟 MODAL 1: CULTURAL ACCURACY & FIDELITY AUDIT INSPECTOR */}
       {showAccuracyModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white w-full max-w-xl rounded-2xl shadow-2xl border border-[#e0e2e8] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-[#0f1420] w-full max-w-xl rounded-2xl shadow-2xl border border-zinc-800 overflow-hidden flex flex-col text-zinc-100">
             
-            <div className="p-5 border-b border-[#f0f2f5] flex items-center justify-between bg-[#fbfcfd]">
+            <div className="p-5 border-b border-zinc-800 flex items-center justify-between bg-[#131b2c]">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#eefaf6] text-[#00875a] flex items-center justify-center border border-[#00b473]/30">
-                  <ShieldCheck className="w-5 h-5 text-[#00b473]" />
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+                  <ShieldCheck className="w-5 h-5 text-emerald-400" />
                 </div>
                 <div>
-                  <h3 className="font-sans text-base font-extrabold text-[#1c1c1e]">
+                  <h3 className="font-sans text-base font-extrabold text-white">
                     Burmese Cultural Fidelity Audit
                   </h3>
-                  <span className="font-sans text-xs text-[#6b6f7e]">
+                  <span className="font-sans text-xs text-zinc-400">
                     မြန်မာ့ရိုးရာ ယဉ်ကျေးမှု တိကျမှန်ကန်မှု စစ်ဆေးချက်
                   </span>
                 </div>
@@ -752,7 +928,7 @@ export const DetailBurmeseHub: React.FC<DetailBurmeseHubProps> = ({
               <button
                 type="button"
                 onClick={() => setShowAccuracyModal(false)}
-                className="p-1.5 rounded-full hover:bg-[#f0f2f5] text-[#8e91a0] hover:text-[#1c1c1e] cursor-pointer"
+                className="p-1.5 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white cursor-pointer transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -760,15 +936,15 @@ export const DetailBurmeseHub: React.FC<DetailBurmeseHubProps> = ({
 
             <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
               {/* Score banner */}
-              <div className="p-4 rounded-xl bg-gradient-to-r from-[#eefaf6] to-[#fffdf0] border border-[#00b473]/20 flex items-center justify-between">
+              <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-950/60 to-[#111622] border border-emerald-500/30 flex items-center justify-between">
                 <div>
-                  <span className="text-xs font-bold text-[#00875a] uppercase tracking-wider block">
+                  <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider block">
                     Fidelity Guarantee Score
                   </span>
-                  <span className="text-2xl font-black text-[#1c1c1e]">{fidelityScore}% Cultural Authenticity</span>
+                  <span className="text-2xl font-black text-white">{fidelityScore}% Cultural Authenticity</span>
                 </div>
                 <div className="text-right">
-                  <span className="text-[11px] font-bold text-[#746019] bg-[#ffd02f] px-2.5 py-1 rounded-full">
+                  <span className="text-[11px] font-extrabold text-black bg-emerald-500 px-3 py-1 rounded-full shadow-xs">
                     Midjourney &amp; FLUX Ready
                   </span>
                 </div>
@@ -779,19 +955,19 @@ export const DetailBurmeseHub: React.FC<DetailBurmeseHubProps> = ({
                 {accuracyAudit.map(item => (
                   <div
                     key={item.id}
-                    className="p-3.5 rounded-xl border border-[#e2e4e9] bg-white flex items-start gap-3 shadow-2xs"
+                    className="p-3.5 rounded-xl border border-zinc-800 bg-[#141b2a] flex items-start gap-3 shadow-xs"
                   >
-                    <CheckCircle2 className="w-5 h-5 text-[#00b473] shrink-0 mt-0.5" />
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
-                        <span className="font-sans text-xs font-bold text-[#1c1c1e]">
+                        <span className="font-sans text-xs font-bold text-white">
                           {isMm ? item.titleMm : item.titleEn}
                         </span>
-                        <span className="text-[10px] font-bold text-[#00875a] bg-[#eefaf6] px-2 py-0.5 rounded-full">
+                        <span className="text-[10px] font-bold text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-full">
                           Verified
                         </span>
                       </div>
-                      <p className="font-sans text-[11px] text-[#6b6f7e] mt-1 leading-relaxed">
+                      <p className="font-sans text-[11px] text-zinc-400 mt-1 leading-relaxed">
                         {item.detail}
                       </p>
                     </div>
@@ -801,22 +977,22 @@ export const DetailBurmeseHub: React.FC<DetailBurmeseHubProps> = ({
 
               {/* Burmese Director's 5-Point Detail Breakdown */}
               {liveBuilt?.descriptionMm && (
-                <div className="p-3.5 rounded-xl bg-[#fff8e0]/80 border border-[#fcb900]/40 space-y-2">
+                <div className="p-3.5 rounded-xl bg-emerald-950/20 border border-emerald-500/30 space-y-2">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-[#746019]">မြန်မာ့ရိုးရာနှင့် စတူဒီယို အသေးစိတ် ရှင်းလင်းချက်</span>
+                    <span className="font-bold text-emerald-400">မြန်မာ့ရိုးရာနှင့် စတူဒီယို အသေးစိတ် ရှင်းလင်းချက်</span>
                     <button
                       type="button"
                       onClick={() => {
                         navigator.clipboard.writeText(liveBuilt.descriptionMm);
                         triggerToast('✓ မြန်မာအသေးစိတ်ရှင်းလင်းချက် ကူးယူပြီးပါပြီ!');
                       }}
-                      className="flex items-center gap-1 text-[#704112] font-bold hover:underline cursor-pointer"
+                      className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300 font-bold hover:underline cursor-pointer"
                     >
                       <Copy className="w-3.5 h-3.5" />
                       <span>Copy MM</span>
                     </button>
                   </div>
-                  <pre className="font-sans text-[11px] text-[#5c480a] whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto">
+                  <pre className="font-mono text-[11px] text-zinc-300 whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto">
                     {liveBuilt.descriptionMm}
                   </pre>
                 </div>
@@ -938,118 +1114,6 @@ export const DetailBurmeseHub: React.FC<DetailBurmeseHubProps> = ({
                   </div>
                 </div>
               ))}
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* 🌟 MODAL 3: INSTANT IMAGE TEST GENERATION */}
-      {showTestGenerateModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-[#e0e2e8] overflow-hidden flex flex-col">
-            
-            <div className="p-4 sm:p-5 border-b border-[#f0f2f5] flex items-center justify-between bg-[#fbfcfd]">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-[#ffd02f] text-[#1c1c1e] flex items-center justify-center font-bold">
-                  <Sparkles className="w-4 h-4 text-[#1c1c1e]" />
-                </div>
-                <div>
-                  <h3 className="font-sans text-sm sm:text-base font-extrabold text-[#1c1c1e]">
-                    Live Prompt Accuracy Verification
-                  </h3>
-                  <span className="font-sans text-xs text-[#6b6f7e]">
-                    Generated with FLUX.1 Photographic Architecture
-                  </span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowTestGenerateModal(false)}
-                className="p-1.5 rounded-full hover:bg-[#f0f2f5] text-[#8e91a0] hover:text-[#1c1c1e] cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
-              
-              {/* Generated Image Preview Frame */}
-              <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-[#1c1c1e] border border-[#e0e2e8] flex items-center justify-center">
-                {testGenerating ? (
-                  <div className="flex flex-col items-center gap-3 text-white">
-                    <RefreshCw className="w-8 h-8 animate-spin text-[#ffd02f]" />
-                    <span className="text-xs font-semibold">
-                      Synthesizing Authentic Burmese Portrait...
-                    </span>
-                    <span className="text-[11px] text-[#ffd02f]/80 font-mono">
-                      Rendering Thanaka • Luntaya Acheik • 85mm Bokeh
-                    </span>
-                  </div>
-                ) : testImageUrl ? (
-                  <>
-                    <img
-                      src={testImageUrl}
-                      alt="Burmese Generated Test"
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-full text-white text-[10px] font-bold flex items-center gap-1.5 border border-white/20">
-                      <span className="w-2 h-2 rounded-full bg-[#00b473]" />
-                      <span>Burmese Authenticity 100% Passed</span>
-                    </div>
-                  </>
-                ) : (
-                  <div className="flex flex-col items-center gap-2 text-zinc-400 text-xs">
-                    <Sparkles className="w-6 h-6 text-[#ffd02f]" />
-                    <span>No preview available yet</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Prompt Used */}
-              <div className="p-3.5 rounded-xl bg-[#f7f8fa] border border-[#e0e2e8] space-y-1.5">
-                <span className="text-[11px] font-bold text-[#1c1c1e] uppercase tracking-wider block">
-                  Active Synthesized Prompt:
-                </span>
-                <p className="font-mono text-xs text-[#333745] max-h-24 overflow-y-auto leading-relaxed select-all">
-                  {activeMasterPrompt}
-                </p>
-              </div>
-
-            </div>
-
-            <div className="p-4 bg-[#fbfcfd] border-t border-[#f0f2f5] flex items-center justify-between gap-2">
-              <button
-                type="button"
-                onClick={handleRunTestGeneration}
-                disabled={testGenerating}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#f4f5f8] hover:bg-[#e9ebf0] text-[#1c1c1e] text-xs font-bold border border-[#d3d6de] cursor-pointer disabled:opacity-50"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${testGenerating ? 'animate-spin' : ''}`} />
-                <span>Regenerate Sample</span>
-              </button>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(activeMasterPrompt);
-                    triggerToast('✓ Copied prompt!');
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-[#f4f5f8] hover:bg-[#e9ebf0] text-[#1c1c1e] text-xs font-bold border border-[#d3d6de] cursor-pointer"
-                >
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>Copy Prompt</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setShowTestGenerateModal(false)}
-                  className="px-4 py-2 rounded-full bg-[#1c1c1e] text-white text-xs font-bold hover:bg-black cursor-pointer"
-                >
-                  Done
-                </button>
-              </div>
             </div>
 
           </div>

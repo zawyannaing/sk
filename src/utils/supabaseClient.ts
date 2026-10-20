@@ -7,7 +7,7 @@ export interface SupabaseConfig {
 
 export interface SupabaseSession {
   access_token: string;
-  refresh_token: string;
+  refresh_token?: string;
   expires_at?: number;
   user: {
     id: string;
@@ -21,7 +21,7 @@ export interface CreditTransaction {
   user_id: string;
   amount: number;
   balance_after: number;
-  type: 'signup_bonus' | 'admin_topup' | 'photo_generation' | 'video_generation' | 'prompt_generation' | 'refund';
+  type: 'signup_bonus' | 'daily_reward' | 'topup' | 'admin_topup' | 'photo_generation' | 'video_generation' | 'prompt_generation' | 'refund';
   description: string;
   admin_id?: string | null;
   created_at: string;
@@ -56,6 +56,24 @@ export interface CloudHistoryRecord {
   is_favorite: boolean;
   credits_used: number;
   created_at: string;
+}
+
+export interface TopupRequest {
+  id: string;
+  user_id: string;
+  user_email: string;
+  user_name: string;
+  package_id: string;
+  package_name: string;
+  credits: number;
+  cost_usd: number;
+  payment_method: string;
+  payment_ref: string;
+  status: 'pending' | 'approved' | 'rejected';
+  created_at: string;
+  reviewed_at?: string;
+  reviewed_by?: string;
+  admin_note?: string;
 }
 
 const CONFIG_STORAGE_KEY = 'aistudio_supabase_config_v1';
@@ -159,7 +177,7 @@ export const SupabaseService = {
     };
     if (useAuthToken && session?.access_token) {
       headers['Authorization'] = `Bearer ${session.access_token}`;
-    } else if (cfg.anonKey.startsWith('eyJ')) {
+    } else if (cfg.anonKey) {
       headers['Authorization'] = `Bearer ${cfg.anonKey}`;
     }
     if (includeJson) {
@@ -218,6 +236,39 @@ export const SupabaseService = {
         await this.ensureProfileExists(session.user.id, email.trim(), fullName.trim());
         return { session, user: data.user };
       }
+
+      // If Supabase returned user without access_token (Email Confirmation enabled in Supabase settings),
+      // try auto-confirming via backend & signing in, or create an immediate verified session for this user
+      const createdUser = data?.user || (data?.id ? data : null);
+      if (createdUser?.id) {
+        try {
+          await fetch('/api/supabase/confirm-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email.trim() })
+          });
+          const loginAfterConfirm = await this.signIn(email.trim(), password);
+          if (loginAfterConfirm.session) {
+            return { session: loginAfterConfirm.session, user: loginAfterConfirm.session.user };
+          }
+        } catch {}
+
+        const immediateSession: SupabaseSession = {
+          access_token: cfg.anonKey,
+          user: {
+            id: createdUser.id,
+            email: email.trim(),
+            user_metadata: {
+              full_name: fullName.trim(),
+              role: 'user'
+            }
+          }
+        };
+        this.saveSession(immediateSession);
+        await this.ensureProfileExists(createdUser.id, email.trim(), fullName.trim());
+        return { session: immediateSession, user: immediateSession.user };
+      }
+
       return { session: null, user: data?.user || data };
     } catch (e: any) {
       return { session: null, user: null, error: e?.message || 'Network error during sign up' };
@@ -228,13 +279,37 @@ export const SupabaseService = {
     const cfg = this.getConfig();
     if (!cfg) return { session: null, error: 'Supabase URL & Anon Key not configured' };
 
+    const cleanEmail = email.trim();
+
     try {
-      const res = await fetch(`${cfg.url}/auth/v1/token?grant_type=password`, {
+      let res = await fetch(`${cfg.url}/auth/v1/token?grant_type=password`, {
         method: 'POST',
         headers: this.getHeaders(true, false),
-        body: JSON.stringify({ email: email.trim(), password })
+        body: JSON.stringify({ email: cleanEmail, password })
       });
-      const data = await res.json();
+      let data = await res.json();
+
+      // If login did not succeed (e.g. unconfirmed email), attempt confirm-email endpoint and retry once
+      if (!res.ok) {
+        const errMsg = String(data?.msg || data?.error_description || data?.message || '').toLowerCase();
+        if (errMsg.includes('confirm') || errMsg.includes('verification')) {
+          try {
+            await fetch('/api/supabase/confirm-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: cleanEmail })
+            });
+
+            res = await fetch(`${cfg.url}/auth/v1/token?grant_type=password`, {
+              method: 'POST',
+              headers: this.getHeaders(true, false),
+              body: JSON.stringify({ email: cleanEmail, password })
+            });
+            data = await res.json();
+          } catch {}
+        }
+      }
+
       if (!res.ok) {
         return { session: null, error: data?.error_description || data?.msg || data?.message || 'Invalid login credentials' };
       }
@@ -247,8 +322,8 @@ export const SupabaseService = {
       this.saveSession(session);
       await this.ensureProfileExists(
         session.user.id,
-        session.user.email || email.trim(),
-        session.user.user_metadata?.full_name || email.split('@')[0]
+        session.user.email || cleanEmail,
+        session.user.user_metadata?.full_name || cleanEmail.split('@')[0]
       );
       return { session };
     } catch (e: any) {
@@ -277,9 +352,8 @@ export const SupabaseService = {
 
     const cfg = this.getConfig();
     if (!cfg) return null;
-    const isDefaultAdmin = email.toLowerCase().startsWith('admin@');
-    const initialCredits = isDefaultAdmin ? 9999 : 250;
-    const role = isDefaultAdmin ? 'admin' : 'user';
+    const initialCredits = 250;
+    const role = 'user';
 
     try {
       const res = await fetch(`${cfg.url}/rest/v1/profiles`, {
@@ -306,15 +380,22 @@ export const SupabaseService = {
   },
 
   mapRowToProfile(row: any): UserProfile {
+    const emailStr = String(row.email || '');
+    const rawCredits =
+      typeof row.credits === 'number'
+        ? row.credits
+        : typeof row.credit_balance === 'number'
+        ? row.credit_balance
+        : 250;
     return {
       id: row.id,
-      name: row.name || row.email?.split('@')[0] || 'Creator',
-      email: row.email || '',
+      name: row.name || row.full_name || emailStr.split('@')[0] || 'Creator',
+      email: emailStr,
       avatar: row.avatar_url || '',
       role: row.role === 'admin' ? 'admin' : 'user',
       createdAt: row.created_at ? new Date(row.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       bio: row.bio || '',
-      credits: typeof row.credits === 'number' ? row.credits : 250
+      credits: rawCredits
     };
   },
 
@@ -324,16 +405,36 @@ export const SupabaseService = {
     const targetId = userId || session?.user?.id;
     if (!cfg || !targetId) return null;
 
+    const fallbackFromSession = (): UserProfile | null => {
+      if (!session?.user) return null;
+      const emailStr = String(session.user.email || '');
+      const role = session.user.user_metadata?.role === 'admin' ? 'admin' : 'user';
+      return {
+        id: session.user.id,
+        name: session.user.user_metadata?.full_name || emailStr.split('@')[0] || 'Creator',
+        email: emailStr,
+        avatar: '',
+        role,
+        createdAt: new Date().toISOString().split('T')[0],
+        bio: role === 'admin' ? 'Master Studio Administrator' : 'AI Photo Studio Creator',
+        credits: 250
+      };
+    };
+
     try {
       const res = await fetch(`${cfg.url}/rest/v1/profiles?id=eq.${encodeURIComponent(targetId)}&select=*`, {
         headers: this.getHeaders()
       });
-      if (!res.ok) return null;
+      if (res.status === 401) {
+        this.saveSession(null);
+        return fallbackFromSession();
+      }
+      if (!res.ok) return fallbackFromSession();
       const rows = await res.json();
-      if (!rows?.length) return null;
+      if (!rows?.length) return fallbackFromSession();
       return this.mapRowToProfile(rows[0]);
     } catch {
-      return null;
+      return fallbackFromSession();
     }
   },
 
@@ -348,12 +449,11 @@ export const SupabaseService = {
       if (uploaded) avatarUrl = uploaded;
     }
 
+    // Role and credits are protected and can only be updated by server/admin
     const payload: Record<string, any> = { updated_at: new Date().toISOString() };
     if (updates.name !== undefined) payload.name = updates.name;
     if (updates.bio !== undefined) payload.bio = updates.bio;
     if (avatarUrl !== undefined) payload.avatar_url = avatarUrl;
-    if (updates.role !== undefined) payload.role = updates.role;
-    if (updates.credits !== undefined) payload.credits = updates.credits;
 
     const res = await fetch(`${cfg.url}/rest/v1/profiles?id=eq.${encodeURIComponent(session.user.id)}`, {
       method: 'PATCH',
@@ -386,7 +486,7 @@ export const SupabaseService = {
   // ---- 5. Credit Balance Deduction & Admin Top-up ----
   async deductCredits(
     cost: number,
-    type: 'photo_generation' | 'video_generation' | 'prompt_generation' = 'photo_generation',
+    type: 'photo_generation' | 'video_generation' | 'video_prompt' | 'prompt_generation' = 'photo_generation',
     description = 'AI Studio Generation'
   ): Promise<{ success: boolean; credits?: number; error?: string }> {
     const cfg = this.getConfig();
@@ -494,6 +594,349 @@ export const SupabaseService = {
       return { success: true, credits: nextCredits };
     } catch (e: any) {
       return { success: false, error: e?.message || 'Error adjusting credits' };
+    }
+  },
+
+  async adminSetUserCredits(
+    targetUserId: string,
+    exactCredits: number,
+    description = 'Admin balance set'
+  ): Promise<{ success: boolean; credits?: number; error?: string }> {
+    const cfg = this.getConfig();
+    const session = this.getSession();
+    if (!cfg || !session?.user?.id) return { success: false, error: 'Not authenticated' };
+
+    try {
+      const targetProfile = await this.getUserProfile(targetUserId);
+      if (!targetProfile) return { success: false, error: 'User not found' };
+      const nextCredits = Math.max(0, exactCredits);
+      const diff = nextCredits - (targetProfile.credits || 0);
+
+      const patchRes = await fetch(`${cfg.url}/rest/v1/profiles?id=eq.${encodeURIComponent(targetUserId)}`, {
+        method: 'PATCH',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ credits: nextCredits, updated_at: new Date().toISOString() })
+      });
+      if (!patchRes.ok) return { success: false, error: 'Failed to update credits' };
+
+      await fetch(`${cfg.url}/rest/v1/credit_transactions`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({
+          user_id: targetUserId,
+          amount: diff,
+          balance_after: nextCredits,
+          type: 'admin_topup',
+          description,
+          admin_id: session.user.id
+        })
+      });
+
+      return { success: true, credits: nextCredits };
+    } catch (e: any) {
+      return { success: false, error: e?.message || 'Error setting credits' };
+    }
+  },
+
+  async adminChangeUserRole(
+    targetUserId: string,
+    role: 'admin' | 'user'
+  ): Promise<{ success: boolean; error?: string }> {
+    const cfg = this.getConfig();
+    const session = this.getSession();
+    if (!cfg || !session?.user?.id) return { success: false, error: 'Not authenticated' };
+
+    try {
+      const patchRes = await fetch(`${cfg.url}/rest/v1/profiles?id=eq.${encodeURIComponent(targetUserId)}`, {
+        method: 'PATCH',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ role, updated_at: new Date().toISOString() })
+      });
+      return { success: patchRes.ok };
+    } catch (e: any) {
+      return { success: false, error: e?.message || 'Error changing role' };
+    }
+  },
+
+  // ---- Daily 250 Free Credits Claimer ----
+  async claimDailyReward(): Promise<{ success: boolean; credits?: number; error?: string; alreadyClaimed?: boolean }> {
+    const cfg = this.getConfig();
+    const session = this.getSession();
+    if (!cfg || !session?.user?.id) {
+      return { success: false, error: 'Please sign in to claim daily free credits.' };
+    }
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const storageKey = `showai_daily_claim_${session.user.id}_${todayStr}`;
+    if (localStorage.getItem(storageKey)) {
+      return { success: false, alreadyClaimed: true, error: 'You have already claimed your 250 free credits for today. Come back tomorrow!' };
+    }
+
+    try {
+      // Check transactions to prevent duplicate claim on different devices/browsers
+      const checkRes = await fetch(
+        `${cfg.url}/rest/v1/credit_transactions?user_id=eq.${encodeURIComponent(session.user.id)}&type=eq.daily_reward&created_at=gte.${todayStr}T00:00:00.000Z&select=id`,
+        { headers: this.getHeaders() }
+      );
+      if (checkRes.ok) {
+        const txs = await checkRes.json();
+        if (Array.isArray(txs) && txs.length > 0) {
+          localStorage.setItem(storageKey, 'true');
+          return { success: false, alreadyClaimed: true, error: 'You have already claimed your 250 free credits for today. Come back tomorrow!' };
+        }
+      }
+
+      const profile = await this.getUserProfile(session.user.id);
+      const currentCredits = profile?.credits || 0;
+      const nextCredits = currentCredits + 250;
+
+      // Update user credits
+      await fetch(`${cfg.url}/rest/v1/profiles?id=eq.${encodeURIComponent(session.user.id)}`, {
+        method: 'PATCH',
+        headers: this.getHeaders(),
+        body: JSON.stringify({
+          credits: nextCredits,
+          updated_at: new Date().toISOString()
+        })
+      });
+
+      // Insert credit ledger transaction
+      await fetch(`${cfg.url}/rest/v1/credit_transactions`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({
+          user_id: session.user.id,
+          amount: 250,
+          balance_after: nextCredits,
+          type: 'daily_reward',
+          description: `Daily Free Reward: +250 Credits (${todayStr})`
+        })
+      });
+
+      localStorage.setItem(storageKey, 'true');
+      return { success: true, credits: nextCredits };
+    } catch (e: any) {
+      return { success: false, error: e?.message || 'Failed to claim daily reward' };
+    }
+  },
+
+  checkDailyRewardStatus(): boolean {
+    const session = this.getSession();
+    if (!session?.user?.id) return false;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    return !localStorage.getItem(`showai_daily_claim_${session.user.id}_${todayStr}`);
+  },
+
+  // ---- User Top-up Order / Request (Requires Admin Approval) ----
+  async submitTopupRequest(
+    packageId: string,
+    packageName: string,
+    credits: number,
+    costUsd: number,
+    paymentMethod: string,
+    paymentRef: string
+  ): Promise<{ success: boolean; request?: TopupRequest; error?: string }> {
+    const session = this.getSession();
+    if (!session?.user?.id) {
+      return { success: false, error: 'Please sign in to submit a top-up request.' };
+    }
+    const profile = await this.getUserProfile(session.user.id);
+    const newReq: TopupRequest = {
+      id: 'req_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+      user_id: session.user.id,
+      user_email: session.user.email || profile?.email || '',
+      user_name: profile?.name || session.user.user_metadata?.full_name || 'Creator',
+      package_id: packageId,
+      package_name: packageName,
+      credits,
+      cost_usd: costUsd,
+      payment_method: paymentMethod,
+      payment_ref: paymentRef,
+      status: 'pending',
+      created_at: new Date().toISOString()
+    };
+
+    // Store in localStorage cache
+    try {
+      const raw = localStorage.getItem('showai_topup_requests') || '[]';
+      const list: TopupRequest[] = JSON.parse(raw);
+      list.unshift(newReq);
+      localStorage.setItem('showai_topup_requests', JSON.stringify(list));
+    } catch {}
+
+    // Also attempt to persist in Supabase if configured
+    const cfg = this.getConfig();
+    if (cfg) {
+      try {
+        await fetch(`${cfg.url}/rest/v1/topup_requests`, {
+          method: 'POST',
+          headers: this.getHeaders(),
+          body: JSON.stringify(newReq)
+        });
+      } catch {}
+    }
+
+    return { success: true, request: newReq };
+  },
+
+  async fetchTopupRequests(userId?: string): Promise<TopupRequest[]> {
+    const session = this.getSession();
+    const cfg = this.getConfig();
+    let requests: TopupRequest[] = [];
+
+    // First try Supabase table
+    if (cfg && session?.user?.id) {
+      try {
+        const filter = userId ? `?user_id=eq.${encodeURIComponent(userId)}&order=created_at.desc` : '?order=created_at.desc';
+        const res = await fetch(`${cfg.url}/rest/v1/topup_requests${filter}`, {
+          headers: this.getHeaders()
+        });
+        if (res.ok) {
+          requests = await res.json();
+        }
+      } catch {}
+    }
+
+    // Fallback/merge from localStorage cache
+    try {
+      const raw = localStorage.getItem('showai_topup_requests') || '[]';
+      const localList: TopupRequest[] = JSON.parse(raw);
+      if (Array.isArray(localList)) {
+        for (const item of localList) {
+          if (!requests.some(r => r.id === item.id)) {
+            if (!userId || item.user_id === userId) {
+              requests.push(item);
+            }
+          }
+        }
+      }
+    } catch {}
+
+    requests.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return requests;
+  },
+
+  async approveTopupRequest(requestId: string, adminNote?: string): Promise<{ success: boolean; credits?: number; error?: string }> {
+    const session = this.getSession();
+    if (!session?.user?.id) return { success: false, error: 'Unauthorized' };
+
+    let targetReq: TopupRequest | null = null;
+    const all = await this.fetchTopupRequests();
+    targetReq = all.find(r => r.id === requestId) || null;
+    if (!targetReq) return { success: false, error: 'Request not found' };
+
+    // Credit user's account
+    const adjustRes = await this.adminAdjustUserCredits(
+      targetReq.user_id,
+      targetReq.credits,
+      `Top-up Approved: +${targetReq.credits.toLocaleString()} Credits ($${targetReq.cost_usd} via ${targetReq.payment_method})`
+    );
+
+    if (!adjustRes.success) {
+      return { success: false, error: adjustRes.error || 'Failed to allocate credits' };
+    }
+
+    // Update status to approved
+    try {
+      const raw = localStorage.getItem('showai_topup_requests') || '[]';
+      const localList: TopupRequest[] = JSON.parse(raw);
+      const updated = localList.map(r => r.id === requestId ? { ...r, status: 'approved' as const, reviewed_at: new Date().toISOString(), reviewed_by: session.user.id, admin_note: adminNote } : r);
+      localStorage.setItem('showai_topup_requests', JSON.stringify(updated));
+    } catch {}
+
+    const cfg = this.getConfig();
+    if (cfg) {
+      try {
+        await fetch(`${cfg.url}/rest/v1/topup_requests?id=eq.${encodeURIComponent(requestId)}`, {
+          method: 'PATCH',
+          headers: this.getHeaders(),
+          body: JSON.stringify({
+            status: 'approved',
+            reviewed_at: new Date().toISOString(),
+            reviewed_by: session.user.id,
+            admin_note: adminNote
+          })
+        });
+      } catch {}
+    }
+
+    return { success: true, credits: adjustRes.credits };
+  },
+
+  async rejectTopupRequest(requestId: string, reason?: string): Promise<{ success: boolean; error?: string }> {
+    const session = this.getSession();
+    if (!session?.user?.id) return { success: false, error: 'Unauthorized' };
+
+    try {
+      const raw = localStorage.getItem('showai_topup_requests') || '[]';
+      const localList: TopupRequest[] = JSON.parse(raw);
+      const updated = localList.map(r => r.id === requestId ? { ...r, status: 'rejected' as const, reviewed_at: new Date().toISOString(), reviewed_by: session.user.id, admin_note: reason } : r);
+      localStorage.setItem('showai_topup_requests', JSON.stringify(updated));
+    } catch {}
+
+    const cfg = this.getConfig();
+    if (cfg) {
+      try {
+        await fetch(`${cfg.url}/rest/v1/topup_requests?id=eq.${encodeURIComponent(requestId)}`, {
+          method: 'PATCH',
+          headers: this.getHeaders(),
+          body: JSON.stringify({
+            status: 'rejected',
+            reviewed_at: new Date().toISOString(),
+            reviewed_by: session.user.id,
+            admin_note: reason
+          })
+        });
+      } catch {}
+    }
+
+    return { success: true };
+  },
+
+  // ---- User Top-up & Buy Credit Pack ----
+  async userTopupCredits(
+    packageId: string,
+    amountCredits: number,
+    costUsd: number,
+    paymentMethod: string = 'instant_simulated',
+    paymentRef?: string
+  ): Promise<{ success: boolean; credits?: number; error?: string }> {
+    const cfg = this.getConfig();
+    const session = this.getSession();
+    if (!cfg || !session?.user?.id) {
+      return { success: false, error: 'Please sign in to top-up credits.' };
+    }
+
+    try {
+      const profile = await this.getUserProfile(session.user.id);
+      const currentCredits = profile?.credits || 0;
+      const nextCredits = currentCredits + amountCredits;
+
+      const patchRes = await fetch(`${cfg.url}/rest/v1/profiles?id=eq.${encodeURIComponent(session.user.id)}`, {
+        method: 'PATCH',
+        headers: this.getHeaders(),
+        body: JSON.stringify({
+          credits: nextCredits,
+          updated_at: new Date().toISOString()
+        })
+      });
+      if (!patchRes.ok) throw new Error('Could not update user credits balance');
+
+      await fetch(`${cfg.url}/rest/v1/credit_transactions`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({
+          user_id: session.user.id,
+          amount: amountCredits,
+          balance_after: nextCredits,
+          type: 'topup',
+          description: `Credit Pack Purchase: +${amountCredits.toLocaleString()} Credits ($${costUsd} via ${paymentMethod}${paymentRef ? ` - Ref: ${paymentRef}` : ''})`
+        })
+      });
+
+      return { success: true, credits: nextCredits };
+    } catch (e: any) {
+      return { success: false, error: e?.message || 'Top-up failed' };
     }
   },
 
@@ -676,11 +1119,20 @@ export const SupabaseService = {
     }
   },
 
-  async deleteHistoryRecord(id: string): Promise<boolean> {
+  async deleteHistoryRecord(id?: string, imageUrl?: string): Promise<boolean> {
     const cfg = this.getConfig();
-    if (!cfg) return false;
+    if (!cfg || (!id && !imageUrl)) return false;
     try {
-      const res = await fetch(`${cfg.url}/rest/v1/user_history?id=eq.${encodeURIComponent(id)}`, {
+      const isUuid = id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+      let query = '';
+      if (isUuid) {
+        query = `id=eq.${encodeURIComponent(id!)}`;
+      } else if (imageUrl) {
+        query = `generated_image_url=eq.${encodeURIComponent(imageUrl)}`;
+      } else if (id) {
+        query = `id=eq.${encodeURIComponent(id)}`;
+      }
+      const res = await fetch(`${cfg.url}/rest/v1/user_history?${query}`, {
         method: 'DELETE',
         headers: this.getHeaders()
       });

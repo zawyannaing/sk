@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Language, MatrixSelection } from '../types';
 import { PHOTO_STYLE_OPTIONS } from '../data/presetData';
-import { Sparkles, ChevronLeft, ChevronRight, Check, ChevronDown, Camera } from 'lucide-react';
+import { Sparkles, ChevronLeft, ChevronRight, Check, ChevronDown, Camera, X } from 'lucide-react';
 
 interface PhotoStyleSelectionCarouselProps {
   language: Language;
@@ -9,12 +9,15 @@ interface PhotoStyleSelectionCarouselProps {
   onUpdateSelection: (updates: Partial<MatrixSelection>) => void;
 }
 
+const cleanEmoji = (text: string = '') =>
+  text.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}]/gu, '').trim();
+
 const PHOTO_STYLE_CATEGORIES = [
   { id: 'all', labelMm: 'အကုန်လုံး (၂၀ မျိုး)', labelEn: 'All Photo Styles (20)' },
-  { id: 'studio_fashion', labelMm: '🖼️ စတူဒီယိုနှင့် ဖက်ရှင် (၅ မျိုး)', labelEn: 'Studio & Fashion' },
-  { id: 'cinematic_documentary', labelMm: '🎬 စီနီမာနှင့် မှတ်တမ်းတင် (၄ မျိုး)', labelEn: 'Cinematic & Documentary' },
-  { id: 'vintage_analog', labelMm: '🎞️ ဖလင်နှင့် ဗင်းတေ့ချ် (၄ မျိုး)', labelEn: 'Analog Film & Retro' },
-  { id: 'ethereal_vibrant', labelMm: '🌅 အိပ်မက်ဆန်နှင့် အနုပညာ (၇ မျိုး)', labelEn: 'Dreamy & Artistic' },
+  { id: 'studio_fashion', labelMm: 'စတူဒီယိုနှင့် ဖက်ရှင် (၅ မျိုး)', labelEn: 'Studio & Fashion' },
+  { id: 'cinematic_documentary', labelMm: 'စီနီမာနှင့် မှတ်တမ်းတင် (၄ မျိုး)', labelEn: 'Cinematic & Documentary' },
+  { id: 'vintage_analog', labelMm: 'ဖလင်နှင့် ဗင်းတေ့ချ် (၄ မျိုး)', labelEn: 'Analog Film & Retro' },
+  { id: 'ethereal_vibrant', labelMm: 'အိပ်မက်ဆန်နှင့် အနုပညာ (၇ မျိုး)', labelEn: 'Dreamy & Artistic' },
 ];
 
 export const PhotoStyleSelectionCarousel: React.FC<PhotoStyleSelectionCarouselProps> = ({
@@ -43,6 +46,15 @@ export const PhotoStyleSelectionCarousel: React.FC<PhotoStyleSelectionCarouselPr
     return 'ethereal_vibrant'; // soft_dreamy, cyberpunk_neon, golden_hour_sunset, high_key_minimalist, surreal_artistic, hdr_vibrant_detail, soft_pastel_aesthetic
   };
 
+  const getCategoryLabel = (catId: string) => {
+    switch (catId) {
+      case 'studio_fashion': return 'Studio & Fashion';
+      case 'cinematic_documentary': return 'Cinematic / Doc';
+      case 'vintage_analog': return 'Analog Film';
+      default: return isMyanmar ? 'အနုပညာ စတိုင်' : 'Artistic Style';
+    }
+  };
+
   // Filter options
   const filteredOptions = PHOTO_STYLE_OPTIONS.filter((s) => {
     if (s.id === 'skip') return false; // Shown in header skip button
@@ -59,15 +71,15 @@ export const PhotoStyleSelectionCarousel: React.FC<PhotoStyleSelectionCarouselPr
   };
 
   return (
-    <div className="space-y-3.5 rounded-2xl bg-slate-950/90 border border-cyan-800/80 p-4 backdrop-blur-md shadow-xl">
+    <div className="space-y-4 rounded-xl bg-[#0f1420] border border-zinc-800 p-4 sm:p-5 shadow-xs text-zinc-100">
       
       {/* Header Row */}
-      <div className="flex items-center justify-between flex-wrap gap-2 pb-1 border-b border-cyan-900/50">
-        <label className="flex items-center gap-2 text-xs font-bold text-cyan-400 uppercase tracking-wider">
-          <Camera className="h-4 w-4 text-cyan-400" />
+      <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-zinc-800">
+        <label className="flex items-center gap-2 text-xs font-bold text-emerald-400 uppercase tracking-wider">
+          <Camera className="h-4 w-4 text-emerald-400" />
           <span>
             {isMyanmar
-              ? `ဓာတ်ပုံ စတိုင် (Photo Style - ၂၀ မျိုး)`
+              ? `ဓာတ်ပုံ စတိုင် (၂၀ မျိုး)`
               : `Select Photo Style (20 Options):`}
           </span>
         </label>
@@ -76,47 +88,47 @@ export const PhotoStyleSelectionCarousel: React.FC<PhotoStyleSelectionCarouselPr
           <button
             type="button"
             onClick={() => onUpdateSelection({ photoStyle: 'skip' })}
-            className="text-[10px] bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold px-2.5 py-1 rounded-lg border border-slate-700 transition-all flex items-center gap-1 shadow"
+            className="text-[11px] bg-zinc-800 hover:bg-red-500/20 text-zinc-300 hover:text-red-400 font-semibold px-2.5 py-1 rounded-md border border-zinc-700 transition-all flex items-center gap-1 cursor-pointer"
           >
-            🚫 {isMyanmar ? 'မရွေးပါ (Auto)' : 'Skip / Auto'}
+            <X className="w-3 h-3" />
+            <span>{isMyanmar ? 'မရွေးပါ (Auto)' : 'Skip / Auto'}</span>
           </button>
 
-          <span className="text-[11px] text-cyan-200 font-bold bg-cyan-950/90 px-2.5 py-1 rounded-lg border border-cyan-700/80 shadow max-w-[200px] truncate">
-            {currentStyleObj.emoji || '📸'}{' '}
-            {isMyanmar ? currentStyleObj.labelMm : currentStyleObj.labelEn}
+          <span className="text-[11px] text-emerald-300 font-bold bg-emerald-500/15 px-2.5 py-1 rounded-md border border-emerald-500/30 max-w-[200px] truncate">
+            {cleanEmoji(isMyanmar ? currentStyleObj.labelMm : currentStyleObj.labelEn)}
           </span>
         </div>
       </div>
 
       {/* Quick Category Filter Tabs */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-cyan-600/40">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
         {PHOTO_STYLE_CATEGORIES.map((cat) => (
           <button
             key={cat.id}
             type="button"
             onClick={() => setSelectedCategory(cat.id)}
-            className={`px-2.5 py-1 text-[11px] whitespace-nowrap rounded-lg border transition-all ${
+            className={`px-3 py-1 text-xs whitespace-nowrap rounded-full border transition-all cursor-pointer ${
               selectedCategory === cat.id
-                ? 'bg-cyan-950/90 border-cyan-400 text-cyan-200 font-bold shadow-[0_0_12px_rgba(6,182,212,0.3)]'
-                : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                ? 'bg-emerald-500 text-black font-extrabold border-emerald-400 shadow-xs'
+                : 'bg-[#161c2a] text-zinc-400 border-zinc-800 hover:bg-[#1e2438] hover:text-white'
             }`}
           >
-            {isMyanmar ? cat.labelMm : cat.labelEn}
+            {cleanEmoji(isMyanmar ? cat.labelMm : cat.labelEn)}
           </button>
         ))}
       </div>
 
-      {/* 🌟 HORIZONTAL SCROLLABLE CAROUSEL (ဓာတ်ပုံစတိုင်များ ဘေးတိုက် ဆွဲကြည့်ရန်) */}
-      <div className="space-y-1.5 bg-slate-900/60 border border-slate-800 rounded-xl p-2.5 relative">
-        <div className="flex items-center justify-between text-[11px] text-cyan-300 font-bold">
+      {/* 🌟 HORIZONTAL SCROLLABLE CAROUSEL */}
+      <div className="space-y-2 bg-[#161c2a] border border-zinc-800 rounded-xl p-3 relative">
+        <div className="flex items-center justify-between text-xs text-emerald-400 font-bold">
           <span className="flex items-center gap-1.5">
-            <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
+            <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
             <span>
               {isMyanmar
                 ? `ဓာတ်ပုံ စတိုင်များ ဘေးတိုက် ဆွဲကြည့်ပါ (↔):`
                 : `Photo Style Options (Scroll Horizontally ↔):`}
             </span>
-            <span className="text-[10px] text-cyan-400/80 font-mono">
+            <span className="text-[10px] text-zinc-400 font-mono">
               ({filteredOptions.length} Options)
             </span>
           </span>
@@ -126,7 +138,7 @@ export const PhotoStyleSelectionCarousel: React.FC<PhotoStyleSelectionCarouselPr
             <button
               type="button"
               onClick={() => handleScroll('left')}
-              className="p-1 rounded-lg bg-slate-800 hover:bg-cyan-500 hover:text-slate-950 text-cyan-300 border border-slate-700 transition-all shadow"
+              className="p-1 rounded-md bg-zinc-800 hover:bg-emerald-500 text-zinc-300 hover:text-black border border-zinc-700 transition-all cursor-pointer"
               title="Scroll Left"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
@@ -134,7 +146,7 @@ export const PhotoStyleSelectionCarousel: React.FC<PhotoStyleSelectionCarouselPr
             <button
               type="button"
               onClick={() => handleScroll('right')}
-              className="p-1 rounded-lg bg-slate-800 hover:bg-cyan-500 hover:text-slate-950 text-cyan-300 border border-slate-700 transition-all shadow"
+              className="p-1 rounded-md bg-zinc-800 hover:bg-emerald-500 text-zinc-300 hover:text-black border border-zinc-700 transition-all cursor-pointer"
               title="Scroll Right"
             >
               <ChevronRight className="h-3.5 w-3.5" />
@@ -145,40 +157,42 @@ export const PhotoStyleSelectionCarousel: React.FC<PhotoStyleSelectionCarouselPr
         {/* Horizontal Strip */}
         <div
           ref={scrollContainerRef}
-          className="flex gap-2 overflow-x-auto py-1 px-0.5 scrollbar-thin scrollbar-thumb-cyan-500/50 scrollbar-track-slate-950 snap-x snap-mandatory"
+          className="flex gap-2.5 overflow-x-auto py-1 px-0.5 scrollbar-thin snap-x snap-mandatory"
           style={{ scrollBehavior: 'smooth' }}
         >
           {filteredOptions.map((sty) => {
             const isSelected = currentStyleId === sty.id;
+            const categoryTag = getCategoryLabel(getCategory(sty.id));
+
             return (
               <button
                 key={sty.id}
                 type="button"
                 onClick={() => onUpdateSelection({ photoStyle: isSelected ? 'skip' : sty.id })}
-                className={`snap-start shrink-0 min-w-[200px] max-w-[250px] p-2.5 rounded-xl border text-left transition-all relative flex flex-col justify-between gap-1.5 group cursor-pointer ${
+                className={`snap-start shrink-0 min-w-[190px] max-w-[240px] p-3 rounded-lg border text-left transition-all relative flex flex-col justify-between gap-2 cursor-pointer ${
                   isSelected
-                    ? 'bg-cyan-950/90 border-cyan-400 text-cyan-100 font-bold shadow-[0_0_15px_rgba(6,182,212,0.3)] ring-1 ring-cyan-400/80'
-                    : 'bg-slate-950/80 border-slate-800 text-slate-300 hover:border-cyan-500/60 hover:bg-slate-900/90'
+                    ? 'bg-emerald-500/15 border-2 border-emerald-500 text-white font-bold shadow-[0_0_15px_rgba(5,177,135,0.2)]'
+                    : 'bg-[#141b2a] border-zinc-800 text-zinc-300 hover:border-emerald-500/40 hover:bg-[#1b2336]'
                 }`}
               >
-                <div className="flex items-start justify-between gap-1">
-                  <span className="text-2xl p-1 rounded-lg bg-slate-900/90 border border-slate-800 group-hover:scale-110 transition-transform">
-                    {sty.emoji || '📸'}
+                <div className="flex items-center justify-between gap-1 w-full">
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isSelected ? 'text-emerald-400' : 'text-zinc-400'}`}>
+                    {categoryTag}
                   </span>
                   {isSelected ? (
-                    <span className="p-0.5 rounded-full bg-cyan-400 text-slate-950 shrink-0">
-                      <Check className="h-3.5 w-3.5 stroke-[3]" />
+                    <span className="p-0.5 rounded-full bg-emerald-500 text-black font-extrabold shrink-0">
+                      <Check className="h-3 w-3 stroke-[3]" />
                     </span>
                   ) : (
-                    <span className="p-0.5 rounded-full border border-slate-700 text-slate-600 group-hover:border-cyan-400 group-hover:text-cyan-400 transition-colors">
+                    <span className="p-0.5 rounded-full border border-zinc-700 text-transparent">
                       <Check className="h-3 w-3" />
                     </span>
                   )}
                 </div>
 
                 <div>
-                  <p className="text-[11px] font-semibold leading-tight line-clamp-2">
-                    {isMyanmar ? sty.labelMm : sty.labelEn}
+                  <p className={`text-xs leading-tight line-clamp-2 ${isSelected ? 'font-bold text-emerald-300' : 'font-medium text-white'}`}>
+                    {cleanEmoji(isMyanmar ? sty.labelMm : sty.labelEn)}
                   </p>
                 </div>
               </button>
@@ -189,16 +203,16 @@ export const PhotoStyleSelectionCarousel: React.FC<PhotoStyleSelectionCarouselPr
 
       {/* Fast Dropdown Menu Access */}
       <div className="space-y-1">
-        <div className="flex items-center justify-between text-[11px] text-slate-400">
-          <span className="font-semibold text-slate-300">
-            {isMyanmar ? 'သို့မဟုတ် Dropdown မနူးမှ တိုက်ရိုက် ရွေးချယ်ရန်:' : 'Or Fast Select via Dropdown Menu:'}
+        <div className="flex items-center justify-between text-xs text-zinc-400">
+          <span className="font-semibold">
+            {isMyanmar ? 'သို့မဟုတ် Dropdown မနူးမှ တိုက်ရိုက် ရွေးချယ်ရန်:' : 'Or Select via Dropdown Menu:'}
           </span>
         </div>
         <div className="relative">
           <select
             value={currentStyleId}
             onChange={(e) => onUpdateSelection({ photoStyle: e.target.value })}
-            className="w-full rounded-xl bg-slate-900 border border-cyan-500/40 hover:border-cyan-400 px-3 py-2 text-xs font-semibold text-cyan-200 focus:outline-none appearance-none cursor-pointer pr-10 shadow-inner"
+            className="w-full rounded-lg bg-[#161c2a] border border-zinc-800 hover:border-emerald-500/40 px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:border-emerald-500 appearance-none cursor-pointer pr-10 shadow-2xs"
           >
             {PHOTO_STYLE_CATEGORIES.filter((c) => c.id !== 'all').map((cat) => {
               const catOptions = PHOTO_STYLE_OPTIONS.filter((sty) => getCategory(sty.id) === cat.id && sty.id !== 'skip');
@@ -207,16 +221,16 @@ export const PhotoStyleSelectionCarousel: React.FC<PhotoStyleSelectionCarouselPr
               return (
                 <optgroup
                   key={cat.id}
-                  label={isMyanmar ? cat.labelMm : cat.labelEn}
-                  className="bg-slate-950 text-cyan-400 font-bold"
+                  label={cleanEmoji(isMyanmar ? cat.labelMm : cat.labelEn)}
+                  className="bg-[#161c2a] text-emerald-400 font-bold"
                 >
                   {catOptions.map((sty) => (
                     <option
                       key={sty.id}
                       value={sty.id}
-                      className="bg-slate-900 text-slate-100 py-1"
+                      className="bg-[#161c2a] text-white py-1"
                     >
-                      {sty.emoji || '📸'} {isMyanmar ? sty.labelMm : sty.labelEn}
+                      {cleanEmoji(isMyanmar ? sty.labelMm : sty.labelEn)}
                     </option>
                   ))}
                 </optgroup>
@@ -224,7 +238,7 @@ export const PhotoStyleSelectionCarousel: React.FC<PhotoStyleSelectionCarouselPr
             })}
           </select>
 
-          <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-cyan-400">
+          <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-emerald-400">
             <ChevronDown className="h-4 w-4" />
           </div>
         </div>

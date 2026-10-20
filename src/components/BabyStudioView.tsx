@@ -262,33 +262,6 @@ export const BabyStudioView: React.FC<BabyStudioViewProps> = ({
         {/* Right: Studio Card & Live Master Prompt (7 Cols) */}
         <div className="lg:col-span-7 flex flex-col gap-5">
           
-          {/* Visual Showcase */}
-          <div className="bg-white rounded-2xl p-5 border border-[#e0e2e8] shadow-xs flex flex-col gap-4">
-            <div className="relative w-full h-80 sm:h-96 rounded-xl overflow-hidden bg-neutral-900 border border-[#e0e2e8]">
-              <img
-                src={selectedTheme.previewUrl}
-                alt={selectedTheme.titleEn}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-5">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="bg-[#ffd02f] text-[#1c1c1e] text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase">
-                    {selectedTheme.ageGroup}
-                  </span>
-                  <span className="bg-white/20 backdrop-blur-md text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                    {selectedTheme.category}
-                  </span>
-                </div>
-                <h3 className="text-white font-extrabold text-lg sm:text-xl">
-                  {isMm ? selectedTheme.titleMm : selectedTheme.titleEn}
-                </h3>
-                <p className="text-white/80 text-xs mt-1">
-                  {selectedTheme.cradleProp} • {selectedTheme.lighting}
-                </p>
-              </div>
-            </div>
-          </div>
-
           {/* Master Prompt Output */}
           <div className="bg-white rounded-2xl p-5 border border-[#e0e2e8] shadow-xs flex flex-col gap-3">
             <div className="flex items-center justify-between">

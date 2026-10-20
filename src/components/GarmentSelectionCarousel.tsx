@@ -168,25 +168,25 @@ export const GarmentSelectionCarousel: React.FC<GarmentSelectionCarouselProps> =
   };
 
   return (
-    <div className="space-y-4 rounded-2xl bg-[#fdf9f6] border border-[#d6c3b6] p-4 shadow-sm text-[#1e1b19]">
+    <div className="space-y-4 rounded-2xl bg-[#0f1420] border border-zinc-800 p-4 shadow-sm text-white">
       {/* Top Bar: Active Selection & View Mode Toggle */}
-      <div className="flex items-center justify-between flex-wrap gap-2 pb-2.5 border-b border-[#d6c3b6]/60">
+      <div className="flex items-center justify-between flex-wrap gap-2 pb-2.5 border-b border-zinc-800">
         <div className="flex items-center gap-2.5 flex-wrap">
-          <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-[#704112]/10 text-[#704112] border border-[#704112]/20">
+          <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
             <Shirt className="h-4 w-4" />
           </span>
           <div>
-            <h3 className="text-xs font-bold text-[#1e1b19] uppercase tracking-wider flex items-center gap-1.5">
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
               <span>
                 {isMyanmar
                   ? 'ဝတ်စုံနှင့် အထည်သား စတိုင်လ် ဘရောက်ဇာ (Clothes & Silk Browser)'
                   : 'Clothes & Textile Heritage Style Browser'}
               </span>
-              <span className="px-2 py-0.5 rounded-full bg-[#ffdf98]/70 text-[#5a4300] border border-[#775a00]/20 text-[10px] font-bold">
+              <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
                 {GARMENT_OPTIONS.length - 1} Styles
               </span>
             </h3>
-            <p className="text-[11px] text-[#51443a]">
+            <p className="text-[11px] text-zinc-400">
               {isMyanmar
                 ? 'ရိုးရာဝတ်စုံ၊ တိုင်းရင်းသားဝတ်စုံ၊ ပွဲတက်ဝတ်စုံ၊ အရောင်နှင့် ပိုးချိတ်အသားများကို စိတ်ကြိုက် ရွေးချယ်ပါ'
                 : 'Browse traditional Burmese, ethnic, bridal, and modern outfits with color & fabric controls'}
@@ -196,7 +196,7 @@ export const GarmentSelectionCarousel: React.FC<GarmentSelectionCarouselProps> =
 
         <div className="flex items-center gap-2 flex-wrap">
           {/* Active Garment Pill */}
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[#704112] text-white text-xs font-semibold shadow-xs">
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-500 text-black text-xs font-extrabold shadow-xs">
             <Shirt className="h-3.5 w-3.5 shrink-0" />
             <span className="max-w-[200px] truncate">
               {isMyanmar ? currentGarmentObj.labelMm : currentGarmentObj.labelEn}
@@ -204,14 +204,14 @@ export const GarmentSelectionCarousel: React.FC<GarmentSelectionCarouselProps> =
           </div>
 
           {/* Grid vs Carousel View Toggle */}
-          <div className="flex items-center bg-[#f4ece9] p-0.5 rounded-xl border border-[#d6c3b6]">
+          <div className="flex items-center bg-[#141b2a] p-0.5 rounded-xl border border-zinc-800">
             <button
               type="button"
               onClick={() => setViewMode('grid')}
               className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer ${
                 viewMode === 'grid'
-                  ? 'bg-white text-[#704112] shadow-xs border border-[#d6c3b6]/60'
-                  : 'text-[#51443a] hover:text-[#1e1b19]'
+                  ? 'bg-emerald-500 text-black font-bold shadow-xs border border-emerald-500'
+                  : 'text-zinc-400 hover:text-white'
               }`}
               title="Grid View"
             >
@@ -223,8 +223,8 @@ export const GarmentSelectionCarousel: React.FC<GarmentSelectionCarouselProps> =
               onClick={() => setViewMode('carousel')}
               className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer ${
                 viewMode === 'carousel'
-                  ? 'bg-white text-[#704112] shadow-xs border border-[#d6c3b6]/60'
-                  : 'text-[#51443a] hover:text-[#1e1b19]'
+                  ? 'bg-emerald-500 text-black font-bold shadow-xs border border-emerald-500'
+                  : 'text-zinc-400 hover:text-white'
               }`}
               title="Carousel Strip"
             >
@@ -236,7 +236,7 @@ export const GarmentSelectionCarousel: React.FC<GarmentSelectionCarouselProps> =
           <button
             type="button"
             onClick={() => onUpdateSelection({ garmentStyle: 'skip', garmentFabric: '' })}
-            className="text-[11px] bg-white hover:bg-[#f4ece9] text-[#847469] hover:text-rose-700 font-semibold px-2.5 py-1 rounded-xl border border-[#d6c3b6] transition-all flex items-center gap-1 cursor-pointer"
+            className="text-[11px] bg-[#161c2a] hover:bg-rose-950/40 text-rose-400 font-semibold px-2.5 py-1 rounded-xl border border-zinc-800 transition-all flex items-center gap-1 cursor-pointer"
           >
             <Ban className="h-3 w-3" />
             <span>{isMyanmar ? 'မရွေးပါ' : 'Skip'}</span>
@@ -260,14 +260,14 @@ export const GarmentSelectionCarousel: React.FC<GarmentSelectionCarouselProps> =
                 onClick={() => setSelectedCategory(cat.id)}
                 className={`px-3 py-1.5 text-xs whitespace-nowrap rounded-xl border transition-all flex items-center gap-1.5 cursor-pointer ${
                   active
-                    ? 'bg-[#704112] border-[#704112] text-white font-bold shadow-xs'
-                    : 'bg-white border-[#d6c3b6]/80 text-[#51443a] hover:bg-[#f4ece9] hover:text-[#1e1b19]'
+                    ? 'bg-emerald-500 text-black font-extrabold border-emerald-500 shadow-xs'
+                    : 'bg-[#141b2a] border-zinc-800 text-zinc-400 hover:bg-[#1c2438] hover:text-white'
                 }`}
               >
                 <span>{isMyanmar ? cat.labelMm : cat.labelEn}</span>
                 <span
                   className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                    active ? 'bg-white/20 text-white' : 'bg-[#f4ece9] text-[#704112]'
+                    active ? 'bg-black/30 text-white' : 'bg-[#161c2a] text-emerald-400'
                   }`}
                 >
                   {count}
@@ -279,19 +279,19 @@ export const GarmentSelectionCarousel: React.FC<GarmentSelectionCarouselProps> =
 
         {/* Search Input */}
         <div className="relative min-w-[200px]">
-          <Search className="h-3.5 w-3.5 text-[#847469] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <Search className="h-3.5 w-3.5 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={isMyanmar ? 'ဝတ်စုံ ရှာရန် (ဥပမာ- ချိတ်၊ ပုဂံ၊ ကချင်)...' : 'Search outfits (Acheik, Bagan, Shan)...'}
-            className="w-full rounded-xl bg-white border border-[#d6c3b6] pl-8 pr-7 py-1.5 text-xs text-[#1e1b19] placeholder-[#847469] focus:border-[#704112] focus:outline-none"
+            className="w-full rounded-xl bg-[#161c2a] border border-zinc-800 pl-8 pr-7 py-1.5 text-xs text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none"
           />
           {searchQuery && (
             <button
               type="button"
               onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#847469] hover:text-[#1e1b19]"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -312,15 +312,15 @@ export const GarmentSelectionCarousel: React.FC<GarmentSelectionCarouselProps> =
                 onClick={() => onUpdateSelection({ garmentStyle: garm.id })}
                 className={`p-3 rounded-xl border text-left transition-all flex items-start gap-3 group cursor-pointer ${
                   isSelected
-                    ? 'bg-[#fff8ec] border-[#704112] ring-2 ring-[#704112]/20 shadow-xs'
-                    : 'bg-white border-[#d6c3b6]/60 hover:border-[#704112]/50 hover:bg-[#faf2ee]/60'
+                    ? 'bg-emerald-500/15 border-2 border-emerald-500 shadow-[0_0_15px_rgba(5,177,135,0.25)]'
+                    : 'bg-[#141b2a] border border-zinc-800 hover:border-emerald-500/40 hover:bg-[#1a2234]'
                 }`}
               >
                 <div
                   className={`w-10 h-10 rounded-xl border shrink-0 flex flex-col items-center justify-center transition-colors ${
                     isSelected
-                      ? 'bg-[#704112] text-white border-[#704112]'
-                      : 'bg-[#faf2ee] text-[#704112] border-[#d6c3b6]/60 group-hover:border-[#704112]/40'
+                      ? 'bg-emerald-500 text-black font-extrabold border-emerald-500'
+                      : 'bg-[#161c2a] text-emerald-400 border-zinc-800 group-hover:border-emerald-500/30'
                   }`}
                 >
                   <Shirt className="h-4 w-4" />
@@ -331,28 +331,28 @@ export const GarmentSelectionCarousel: React.FC<GarmentSelectionCarouselProps> =
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-1">
-                    <p className="text-xs font-bold text-[#1e1b19] leading-snug line-clamp-1">
+                    <p className={`text-xs font-bold leading-snug line-clamp-1 ${isSelected ? 'text-emerald-300' : 'text-zinc-200'}`}>
                       {isMyanmar ? garm.labelMm : garm.labelEn}
                     </p>
                     <span
                       className={`p-0.5 rounded-full shrink-0 transition-colors ${
                         isSelected
-                          ? 'bg-[#704112] text-white'
-                          : 'border border-[#d6c3b6] text-transparent group-hover:border-[#704112]/50'
+                          ? 'bg-emerald-500 text-black font-extrabold'
+                          : 'border border-zinc-700 text-transparent group-hover:border-emerald-500/30'
                       }`}
                     >
                       <Check className="h-3 w-3 stroke-[3]" />
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-[9px] font-mono font-bold uppercase px-1.5 py-0.2 rounded bg-[#f4ece9] text-[#704112]">
+                    <span className="text-[9px] font-mono font-bold uppercase px-1.5 py-0.2 rounded bg-[#161c2a] text-emerald-400">
                       {badgeText}
                     </span>
-                    <p className="text-[10px] font-medium text-[#704112] truncate">
+                    <p className="text-[10px] font-medium text-emerald-400 truncate">
                       {isMyanmar ? garm.labelEn : garm.labelMm}
                     </p>
                   </div>
-                  <p className="text-[10px] text-[#51443a] line-clamp-2 mt-1 leading-relaxed">
+                  <p className="text-[10px] text-zinc-400 line-clamp-2 mt-1 leading-relaxed">
                     {garm.fabric}
                   </p>
                 </div>
@@ -360,14 +360,14 @@ export const GarmentSelectionCarousel: React.FC<GarmentSelectionCarouselProps> =
             );
           })}
           {filteredGarments.length === 0 && (
-            <div className="col-span-full py-6 text-center text-xs text-[#847469]">
+            <div className="col-span-full py-6 text-center text-xs text-zinc-400">
               {isMyanmar ? 'ရှာဖွေထားသော ဝတ်စုံ မတွေ့ပါ။' : 'No matching outfits found.'}
             </div>
           )}
         </div>
       ) : (
-        <div className="space-y-2 bg-white border border-[#d6c3b6]/70 rounded-xl p-3 relative">
-          <div className="flex items-center justify-between text-xs text-[#704112] font-bold">
+        <div className="space-y-2 bg-[#111622] border border-zinc-800 rounded-xl p-3 relative">
+          <div className="flex items-center justify-between text-xs text-emerald-400 font-bold">
             <span className="flex items-center gap-1.5">
               <Sparkles className="h-3.5 w-3.5" />
               <span>
@@ -381,14 +381,14 @@ export const GarmentSelectionCarousel: React.FC<GarmentSelectionCarouselProps> =
               <button
                 type="button"
                 onClick={() => handleScroll('left')}
-                className="p-1 rounded-lg bg-[#faf2ee] hover:bg-[#704112] hover:text-white text-[#704112] border border-[#d6c3b6] transition-all"
+                className="p-1 rounded-lg bg-[#161c2a] hover:bg-emerald-500 hover:text-black text-emerald-400 border border-zinc-800 transition-all cursor-pointer"
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
               </button>
               <button
                 type="button"
                 onClick={() => handleScroll('right')}
-                className="p-1 rounded-lg bg-[#faf2ee] hover:bg-[#704112] hover:text-white text-[#704112] border border-[#d6c3b6] transition-all"
+                className="p-1 rounded-lg bg-[#161c2a] hover:bg-emerald-500 hover:text-black text-emerald-400 border border-zinc-800 transition-all cursor-pointer"
               >
                 <ChevronRight className="h-3.5 w-3.5" />
               </button>
@@ -409,27 +409,27 @@ export const GarmentSelectionCarousel: React.FC<GarmentSelectionCarouselProps> =
                   onClick={() => onUpdateSelection({ garmentStyle: garm.id })}
                   className={`snap-start shrink-0 w-[210px] p-3 rounded-xl border text-left transition-all flex flex-col justify-between gap-2 group cursor-pointer ${
                     isSelected
-                      ? 'bg-[#fff8ec] border-[#704112] ring-2 ring-[#704112]/20 shadow-xs'
-                      : 'bg-[#faf2ee]/60 border-[#d6c3b6]/60 hover:border-[#704112]/50 hover:bg-white'
+                      ? 'bg-emerald-500/15 border-2 border-emerald-500 shadow-[0_0_15px_rgba(5,177,135,0.25)]'
+                      : 'bg-[#141b2a] border border-zinc-800 hover:border-emerald-500/40 hover:bg-[#1a2234]'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-1">
-                    <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-md bg-white border border-[#d6c3b6]/60 text-[#704112]">
+                    <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-md bg-[#161c2a] border border-zinc-800 text-emerald-400">
                       #{String(idx + 1).padStart(2, '0')} · {badgeText}
                     </span>
                     <span
                       className={`p-0.5 rounded-full ${
-                        isSelected ? 'bg-[#704112] text-white' : 'border border-[#d6c3b6] text-transparent'
+                        isSelected ? 'bg-emerald-500 text-black font-extrabold' : 'border border-zinc-700 text-transparent'
                       }`}
                     >
                       <Check className="h-3.5 w-3.5 stroke-[3]" />
                     </span>
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-[#1e1b19] line-clamp-2 leading-snug">
+                    <p className={`text-xs font-bold line-clamp-2 leading-snug ${isSelected ? 'text-emerald-300' : 'text-zinc-200'}`}>
                       {isMyanmar ? garm.labelMm : garm.labelEn}
                     </p>
-                    <p className="text-[10px] text-[#51443a] line-clamp-2 mt-1">
+                    <p className="text-[10px] text-zinc-400 line-clamp-2 mt-1">
                       {garm.fabric}
                     </p>
                   </div>
@@ -441,9 +441,9 @@ export const GarmentSelectionCarousel: React.FC<GarmentSelectionCarouselProps> =
       )}
 
       {/* COLOR PALETTE & TEXTILE WEAVE STUDIO */}
-      <div className="p-3.5 rounded-xl bg-white border border-[#d6c3b6]/70 space-y-3">
+      <div className="p-3.5 rounded-xl bg-[#111622] border border-zinc-800 space-y-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <span className="text-xs font-bold text-[#704112] flex items-center gap-1.5">
+          <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
             <Palette className="h-4 w-4" />
             <span>
               {isMyanmar
@@ -455,7 +455,7 @@ export const GarmentSelectionCarousel: React.FC<GarmentSelectionCarouselProps> =
             <button
               type="button"
               onClick={() => onUpdateSelection({ garmentFabric: '' })}
-              className="text-[10px] text-rose-700 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+              className="text-[10px] text-rose-400 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
             >
               <X className="h-3 w-3" />
               <span>{isMyanmar ? 'အရောင်/အထည်သား ပြန်ရှင်းမည်' : 'Clear Color/Fabric'}</span>
@@ -465,7 +465,7 @@ export const GarmentSelectionCarousel: React.FC<GarmentSelectionCarouselProps> =
 
         {/* Color Swatches */}
         <div className="space-y-1.5">
-          <span className="text-[11px] font-semibold text-[#51443a] block">
+          <span className="text-[11px] font-semibold text-zinc-400 block">
             {isMyanmar ? '၁။ ဝတ်စုံ အရောင် (Color Swatches):' : '1. Outfit Color Palette:'}
           </span>
           <div className="flex flex-wrap gap-1.5">
@@ -478,8 +478,8 @@ export const GarmentSelectionCarousel: React.FC<GarmentSelectionCarouselProps> =
                   onClick={() => handleToggleModifier(swatch.valueEn)}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-medium flex items-center gap-1.5 border transition-all cursor-pointer ${
                     active
-                      ? 'bg-[#704112] text-white border-[#704112] font-bold shadow-xs'
-                      : 'bg-[#faf2ee] text-[#1e1b19] border-[#d6c3b6]/70 hover:bg-[#f4ece9]'
+                      ? 'bg-emerald-500 text-black font-extrabold border-emerald-500 shadow-xs'
+                      : 'bg-[#161c2a] text-zinc-300 border-zinc-800 hover:bg-[#1c2438] hover:text-white'
                   }`}
                 >
                   <span
@@ -495,7 +495,7 @@ export const GarmentSelectionCarousel: React.FC<GarmentSelectionCarouselProps> =
 
         {/* Silk & Embroidery Weave Chips */}
         <div className="space-y-1.5">
-          <span className="text-[11px] font-semibold text-[#51443a] block">
+          <span className="text-[11px] font-semibold text-zinc-400 block">
             {isMyanmar ? '၂။ ပိုးထည်နှင့် ချည်ထိုးလက်ရာ (Textile & Embroidery Weave):' : '2. Silk & Embroidery Texture:'}
           </span>
           <div className="flex flex-wrap gap-1.5">
@@ -508,13 +508,13 @@ export const GarmentSelectionCarousel: React.FC<GarmentSelectionCarouselProps> =
                   onClick={() => handleToggleModifier(mod.valueEn)}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-medium flex items-center gap-1.5 border transition-all cursor-pointer ${
                     active
-                      ? 'bg-[#ffdf98] text-[#5a4300] border-[#704112]/50 font-bold shadow-xs'
-                      : 'bg-[#faf2ee] text-[#51443a] border-[#d6c3b6]/70 hover:bg-[#f4ece9] hover:text-[#1e1b19]'
+                      ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40 font-bold shadow-xs'
+                      : 'bg-[#161c2a] text-zinc-400 border-zinc-800 hover:bg-[#1c2438] hover:text-white'
                   }`}
                 >
-                  <Layers className="h-3 w-3 text-[#704112] shrink-0" />
+                  <Layers className="h-3 w-3 text-emerald-400 shrink-0" />
                   <span>{mod.labelMm}</span>
-                  {active && <Check className="h-3 w-3 stroke-[2.5] text-[#704112]" />}
+                  {active && <Check className="h-3 w-3 stroke-[2.5] text-emerald-400" />}
                 </button>
               );
             })}
@@ -532,32 +532,32 @@ export const GarmentSelectionCarousel: React.FC<GarmentSelectionCarouselProps> =
             }
             value={selection.garmentFabric || ''}
             onChange={(e) => onUpdateSelection({ garmentFabric: e.target.value })}
-            className="w-full rounded-xl bg-[#faf2ee] border border-[#d6c3b6] px-3 py-2 text-xs text-[#1e1b19] placeholder-[#847469] focus:border-[#704112] focus:bg-white focus:outline-none transition-all"
+            className="w-full rounded-xl bg-[#161c2a] border border-zinc-800 px-3 py-2 text-xs text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none transition-all"
           />
         </div>
       </div>
 
       {/* Secondary Fast Access Dropdown Menu */}
       <div className="flex items-center gap-2 pt-1">
-        <span className="text-[11px] font-semibold text-[#51443a] shrink-0">
+        <span className="text-[11px] font-semibold text-zinc-400 shrink-0">
           {isMyanmar ? 'အမြန်ရွေးရန် (Quick Select):' : 'Quick Dropdown:'}
         </span>
         <div className="relative flex-1">
           <select
             value={currentGarmentId}
             onChange={(e) => onUpdateSelection({ garmentStyle: e.target.value })}
-            className="w-full rounded-xl bg-white border border-[#d6c3b6] hover:border-[#704112] px-3 py-1.5 text-xs font-semibold text-[#1e1b19] focus:outline-none appearance-none cursor-pointer pr-9"
+            className="w-full rounded-xl bg-[#161c2a] border border-zinc-800 hover:border-emerald-500/50 px-3 py-1.5 text-xs font-semibold text-white focus:outline-none focus:border-emerald-500 appearance-none cursor-pointer pr-9"
           >
-            <option value="skip">
+            <option value="skip" className="bg-[#161c2a] text-zinc-400">
               {isMyanmar ? 'ကျော်သွားပါ (မူလ အဝတ်အစား)' : 'Skip / Default Outfit'}
             </option>
             {GARMENT_CATEGORIES.filter((c) => c.id !== 'all').map((cat) => {
               const catGarments = GARMENT_OPTIONS.filter((g) => g.category === cat.id && g.id !== 'skip');
               if (catGarments.length === 0) return null;
               return (
-                <optgroup key={cat.id} label={isMyanmar ? cat.labelMm : cat.labelEn}>
+                <optgroup key={cat.id} label={isMyanmar ? cat.labelMm : cat.labelEn} className="bg-[#161c2a] text-emerald-400 font-bold">
                   {catGarments.map((garm) => (
-                    <option key={garm.id} value={garm.id}>
+                    <option key={garm.id} value={garm.id} className="bg-[#161c2a] text-zinc-200">
                       {isMyanmar ? garm.labelMm : garm.labelEn}
                     </option>
                   ))}
@@ -565,7 +565,7 @@ export const GarmentSelectionCarousel: React.FC<GarmentSelectionCarouselProps> =
               );
             })}
           </select>
-          <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#704112]">
+          <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-emerald-400">
             <ChevronDown className="h-4 w-4" />
           </div>
         </div>

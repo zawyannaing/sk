@@ -1,4 +1,5 @@
 import express from "express";
+import http from "http";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
@@ -12,14 +13,23 @@ dotenv.config();
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
-app.use(express.json({ limit: "250mb" }));
-app.use(express.urlencoded({ limit: "250mb", extended: true }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // Global CORS Middleware
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",").map((s) => s.trim())
+  : null;
+
 app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
+  const origin = req.headers.origin;
+  if (!allowedOrigins) {
+    res.header("Access-Control-Allow-Origin", origin || "*");
+  } else if (origin && allowedOrigins.includes(origin)) {
+    res.header("Access-Control-Allow-Origin", origin);
+  }
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, apikey");
   if (req.method === "OPTIONS") {
     return res.sendStatus(200);
   }
@@ -400,19 +410,17 @@ PROMPT ENGINE OUTPUT RULES:
      ၄။ ကင်မရာ၊ မှန်ဘီလူးနှင့် ဖွဲ့စည်းပုံ (Camera Optics & Composition)
      ၅။ ကာလာအသွေးအရောင်နှင့် အရည်အသွေး (Color Grading & Render Quality)
 
-ALWAYS structure the masterPrompt string in this EXACT order:
-1. Subject (100% exact facial likeness, eyes, nose, lips lock, age, gender, ethnicity, expression, pose)
-2. Clothing & accessories (exact textile weave, embroidery, jewelry, cultural cosmetics)
-3. Action / Pose
-4. Environment & Background
-5. Lighting (time + quality + direction)
-6. Camera & lens (focal length, aperture, depth of field)
-7. Style & mood (color grading, film stock)
-8. Technical quality keywords & Aspect Ratio parameter (--ar <ratio>)
+ALWAYS structure the masterPrompt string in this EXACT tagged format, strictly obeying all chosen options:
+[Subject]: Detailed description of the subject(s), exact Burmese ethnic heritage, clothing textiles, embroidery, accessories, hair styling, expression, and Thanaka or cultural cosmetics. (When a couple/wedding is selected, obey specific Groom and Bride details).
+[Action]: Pose, body posture, gestures, holding hands or traditional cultural props, gaze direction.
+[Environment]: The selected background setting, historical architecture, studio backdrop, cultural context, or festival surroundings.
+[Cinematography]: Camera angle, shot type, focal length, lens aperture, depth of field, sharp subject focus.
+[Lighting/Style]: Natural or studio lighting setup, time of day, warm tones, cultural aesthetic and color grading.
+[Technical]: Ultra-high definition textures, 8k resolution, photorealistic fabric weave, ending with --ar <aspectRatio>.
 
 Output ONLY valid JSON matching this exact structure:
 {
-  "masterPrompt": "string (Structured prompt strictly ending with --ar <ratio>)",
+  "masterPrompt": "string ([Subject]: ... [Action]: ... [Environment]: ... [Cinematography]: ... [Lighting/Style]: ... [Technical]: ... --ar <ratio>)",
   "negativePrompt": "string (Comprehensive negative prompt keywords including face preservation and cultural accuracy exclusions)",
   "midjourneyFormat": "string (Formatted with /imagine prompt: ... --ar <ratio> --v 6.1 --style raw)",
   "fluxFormat": "string (Pure natural-language photographic prose without --ar flags, optimized for FLUX.1 / GPT Image 2)",
@@ -647,14 +655,13 @@ Now generate the ONE complete, single polished image-generation prompt as specif
     const arTag = `--ar ${targetAr}`;
 
     if (resultObj.masterPrompt) {
-      if (!resultObj.masterPrompt.includes('--ar')) {
-        resultObj.masterPrompt = `${resultObj.masterPrompt.trim()} ${arTag}`;
-      }
+      resultObj.masterPrompt = resultObj.masterPrompt.replace(/--ar\s+[0-9:]+/gi, '').trim();
+      resultObj.masterPrompt = `${resultObj.masterPrompt} ${arTag}`.trim();
     }
     if (resultObj.midjourneyFormat) {
-      if (!resultObj.midjourneyFormat.includes('--ar')) {
-        resultObj.midjourneyFormat = `${resultObj.midjourneyFormat.trim()} ${arTag} --v 6.1 --style raw`;
-      }
+      resultObj.midjourneyFormat = resultObj.midjourneyFormat.replace(/--ar\s+[0-9:]+/gi, '').trim();
+      resultObj.midjourneyFormat = resultObj.midjourneyFormat.replace(/(--v\s+[0-9.]+|--style\s+\w+)/gi, '').trim();
+      resultObj.midjourneyFormat = `${resultObj.midjourneyFormat} ${arTag} --v 6.1 --style raw`.trim();
     } else if (resultObj.masterPrompt) {
       const cleanMjBase = resultObj.masterPrompt.replace(/--ar\s+\S+/g, '').trim();
       resultObj.midjourneyFormat = `/imagine prompt: ${cleanMjBase} ${arTag} --v 6.1 --style raw`;
@@ -774,7 +781,9 @@ app.post("/api/generate-image", async (req, res) => {
         const orImages = await generateWithOpenRouter(
           prompt || "Ultra-detailed photorealistic Burmese studio portrait, 8k resolution",
           formattedRatio,
-          1
+          1,
+          "google/gemini-2.5-flash-image",
+          referenceImage
         );
         if (orImages && orImages.length > 0) {
           imageUrl = orImages[0];
@@ -990,6 +999,13 @@ Output ONLY valid JSON matching this structure:
           descriptionEn: "Photographic elements extracted successfully."
         };
       }
+    }
+
+    if (resultObj) {
+      if (resultObj.masterPrompt) resultObj.masterPrompt = sanitizePhotoPrompt(resultObj.masterPrompt);
+      if (resultObj.fluxPrompt) resultObj.fluxPrompt = sanitizePhotoPrompt(resultObj.fluxPrompt);
+      if (resultObj.midjourneyPrompt) resultObj.midjourneyPrompt = sanitizePhotoPrompt(resultObj.midjourneyPrompt);
+      if (resultObj.sdxlPrompt) resultObj.sdxlPrompt = sanitizePhotoPrompt(resultObj.sdxlPrompt);
     }
 
     res.json({
@@ -1425,6 +1441,58 @@ Write as a continuous, breathtaking narrative paragraph ready to copy-paste into
   }
 });
 
+// Sanitize and clean prompts: remove bracket tags ([Subject]:, [Action]:, etc.), fix broken nesting/corruptions, and deduplicate
+export function sanitizePhotoPrompt(p: string | null | undefined): string {
+  if (!p || typeof p !== "string") return "";
+  let s = p.trim();
+
+  // 1. Remove Midjourney imagine prefixes and parameter flags
+  s = s.replace(/\/imagine\s+prompt:\s*/gi, "");
+  s = s.replace(/--[a-z]+(\s+[\w:.]+)?/gi, "");
+
+  // 2. Fix broken bracket nesting / corrupted fragments like [Subjec[Subject]: or [Subjec...t]:
+  s = s.replace(/\[Subjec(?:t)?\s*(?:\[Subject\]\s*:?)?/gi, " ");
+  s = s.replace(/(?:^|\n)\s*t\]\s*:?\s*/gi, " ");
+
+  // 3. Remove all bracket section headers (OpenArt, Midjourney, SD syntax)
+  s = s.replace(/\[\s*(Subject|Action|Environment|Cinematography|Lighting(?:\/Style)?|Style|Technical|Camera|Composition|Setting|Scene|Atmosphere|Details|Wardrobe|Attire|Pose|Expression|Character(?:\/Subject)?)\s*\]\s*:?\s*/gi, " ");
+
+  // 4. Clean any other bracket tags and stray brackets
+  s = s.replace(/\[[a-zA-Z0-9_\s\/-]{1,25}\]\s*:?\s*/g, " ");
+  s = s.replace(/[\[\]]/g, " ");
+
+  // 5. Clean up leading colons, hyphens, semicolons
+  s = s.replace(/^\s*[:;,-]+\s*/g, "");
+
+  // 6. Clean up extra spaces
+  s = s.replace(/\s{2,}/g, " ").trim();
+
+  // 7. Sentence-level deduplication to eliminate repeated phrases/sections
+  const sentences = s.split(/(?<=[.!?])\s+/).map(x => x.trim()).filter(Boolean);
+  const seenSentences = new Set<string>();
+  const deduped: string[] = [];
+
+  for (const sentence of sentences) {
+    const normalized = sentence.toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (normalized.length > 10) {
+      if (!seenSentences.has(normalized)) {
+        seenSentences.add(normalized);
+        deduped.push(sentence);
+      }
+    } else {
+      deduped.push(sentence);
+    }
+  }
+
+  s = deduped.join(" ");
+
+  // 8. Clean punctuation spacing, colons, and double punctuation
+  s = s.replace(/^\s*[:;,-]+\s*/g, "");
+  s = s.replace(/\s+([.,;:!?])/g, "$1").replace(/([.,;:!?]){2,}/g, "$1 ").replace(/\s{2,}/g, " ").trim();
+
+  return s;
+}
+
 // Photo / Image Prompt Generation API Endpoint (JSON / NORMAL modes for Midjourney, Flux, SDXL, Ideogram, Recraft)
 app.post("/api/generate-photo-prompt", async (req, res) => {
   try {
@@ -1433,6 +1501,7 @@ app.post("/api/generate-photo-prompt", async (req, res) => {
       return res.status(400).json({ error: "Prompt string is required" });
     }
 
+    const cleanedInputPrompt = sanitizePhotoPrompt(prompt);
     const targetModel = engine || model || "Midjourney";
     const validAr = ["1:1", "16:9", "9:16", "4:5", "3:4", "21:9"].includes(aspectRatio) ? aspectRatio : "16:9";
     const arSuffix = targetModel.toLowerCase().includes("midjourney")
@@ -1497,10 +1566,10 @@ Do not include markdown backticks or commentary outside the JSON. Return only th
             apiKey: openRouterKey,
             model: process.env.OPENROUTER_MODEL || "google/gemini-2.5-flash",
             systemPrompt: systemInstruction,
-            userPrompt: `User Idea: ${prompt}`
+            userPrompt: `User Idea: ${cleanedInputPrompt}`
           });
         } catch (orErr: any) {
-          const contents = [{ role: "user", parts: [{ text: `User Idea: ${prompt}` }] }];
+          const contents = [{ role: "user", parts: [{ text: `User Idea: ${cleanedInputPrompt}` }] }];
           const response = await generateContentWithFallback(ai, {
             contents,
             config: {
@@ -1512,7 +1581,7 @@ Do not include markdown backticks or commentary outside the JSON. Return only th
           rawText = response.text ? response.text.trim() : "{}";
         }
       } else {
-        const contents = [{ role: "user", parts: [{ text: `User Idea: ${prompt}` }] }];
+        const contents = [{ role: "user", parts: [{ text: `User Idea: ${cleanedInputPrompt}` }] }];
         const response = await generateContentWithFallback(ai, {
           contents,
           config: {
@@ -1539,7 +1608,11 @@ Do not include markdown backticks or commentary outside the JSON. Return only th
 Category style: ${category}.
 Include: subject details, clothing/texture, composition, lens/optics (e.g. 85mm f/1.4 prime), camera (Hasselblad X2D 100C), lighting (key & rim), color grading, and film stock (Kodak Portra 400).
 Append parameter ${arSuffix} at the end of the prompt.
-Write as a continuous master prompt ready to copy-paste. Do not use bullet points.`;
+Write as a continuous master prompt ready to copy-paste.
+STRICT NEGATIVE CONSTRAINTS:
+- Do NOT use bracketed headers or section labels such as [Subject], [Action], [Environment], [Cinematography], [Lighting/Style], [Lighting], [Style], or [Technical].
+- Do NOT use bullet points or numbered lists.
+- Output ONLY a seamless, continuous, natural flowing descriptive English paragraph ready for text-to-image diffusion models.`;
 
       let resultText = "";
 
@@ -1549,11 +1622,11 @@ Write as a continuous master prompt ready to copy-paste. Do not use bullet point
             apiKey: openRouterKey,
             model: process.env.OPENROUTER_MODEL || "google/gemini-2.5-flash",
             systemPrompt: systemInstruction,
-            userPrompt: `User Idea: ${prompt}`,
+            userPrompt: `User Idea: ${cleanedInputPrompt}`,
             responseFormat: 'text'
           });
         } catch (orErr: any) {
-          const contents = [{ role: "user", parts: [{ text: `User Idea: ${prompt}` }] }];
+          const contents = [{ role: "user", parts: [{ text: `User Idea: ${cleanedInputPrompt}` }] }];
           const response = await generateContentWithFallback(ai, {
             contents,
             config: {
@@ -1564,7 +1637,7 @@ Write as a continuous master prompt ready to copy-paste. Do not use bullet point
           resultText = response.text?.trim() || "";
         }
       } else {
-        const contents = [{ role: "user", parts: [{ text: `User Idea: ${prompt}` }] }];
+        const contents = [{ role: "user", parts: [{ text: `User Idea: ${cleanedInputPrompt}` }] }];
         const response = await generateContentWithFallback(ai, {
           contents,
           config: {
@@ -1575,15 +1648,23 @@ Write as a continuous master prompt ready to copy-paste. Do not use bullet point
         resultText = response.text?.trim() || "";
       }
 
+      // Sanitize output to strip any stray bracket headers and duplicate sentences
+      resultText = sanitizePhotoPrompt(resultText);
+
+      // MANDATORY: Ensure target aspect ratio is strictly appended and followed!
+      resultText = resultText.replace(/--ar\s+[0-9:]+/gi, "").trim();
+      resultText = `${resultText} ${arSuffix}`.trim();
+
       return res.json({
         success: true,
         format: "normal",
-        resultText
+        resultText,
+        aspectRatio: validAr
       });
     }
   } catch (err: any) {
     console.warn("Photo prompt generation fallback:", err?.message || err);
-    const userPrompt = (req.body?.prompt || "cinematic portrait").trim();
+    const userPrompt = sanitizePhotoPrompt(req.body?.prompt || "cinematic portrait");
     const targetModel = req.body?.engine || req.body?.model || "Midjourney";
     const aspectRatio = req.body?.aspectRatio || "16:9";
     const lower = userPrompt.toLowerCase();
@@ -1630,14 +1711,17 @@ Write as a continuous master prompt ready to copy-paste. Do not use bullet point
         success: true,
         format: "json",
         resultJson: dynamicPhotoJson,
+        aspectRatio,
         isFallback: true
       });
     } else {
-      const dynamicPhotoPrompt = `Commercial gallery-grade master photograph of ${userPrompt}. Authentic micro-textures, natural epidermal skin micro-pores, tactile textile weaves, crisp depth of field with buttery circular optical bokeh. Shot on medium format Hasselblad X2D 100C with ${lens}, illuminated by ${lighting}, authentic Kodak Portra 400 fine organic film color science, museum archive clarity ${arFlag}`;
+      const baseClean = sanitizePhotoPrompt(`Commercial gallery-grade master photograph of ${userPrompt}. Authentic micro-textures, natural epidermal skin micro-pores, tactile textile weaves, crisp depth of field with buttery circular optical bokeh. Shot on medium format Hasselblad X2D 100C with ${lens}, illuminated by ${lighting}, authentic Kodak Portra 400 fine organic film color science, museum archive clarity`);
+      const dynamicPhotoPrompt = `${baseClean.replace(/--ar\s+[0-9:]+/gi, "").trim()} ${arFlag}`.trim();
       return res.json({
         success: true,
         format: "normal",
         resultText: dynamicPhotoPrompt,
+        aspectRatio,
         isFallback: true
       });
     }
@@ -1654,18 +1738,22 @@ const IMAGE_DIMS: Record<string, { w: number; h: number }> = {
   "16:9": { w: 1344, h: 768 },
   "9:16": { w: 768, h: 1344 },
   "4:5": { w: 896, h: 1120 },
+  "5:4": { w: 1120, h: 896 },
   "3:4": { w: 864, h: 1152 },
+  "4:3": { w: 1152, h: 864 },
+  "2:3": { w: 832, h: 1248 },
+  "3:2": { w: 1248, h: 832 },
   "21:9": { w: 1536, h: 640 },
 };
 
 const IMAGE_MODELS = [
-  // Flagships & Nano Banana
-  { id: "nano-banana-2", name: "Nano Banana 2 (Google Gemini)", category: "Nano Banana", provider: "gemini", envKey: "GEMINI_API_KEY" as string | null, badge: "TOP", desc: "Google Gemini 2.5 Flash Image engine, ultra-fast & photorealistic" },
-  { id: "nano-banana-pro", name: "Nano Banana Pro (Imagen 3)", category: "Nano Banana", provider: "imagen", envKey: "GEMINI_API_KEY" as string | null, badge: "PRO", desc: "Google Imagen 3.0 Ultra studio fidelity with rich micro-textures" },
+  // Flagships & Nano Banana (Powered by OpenRouter Pro)
+  { id: "nano-banana-2", name: "Nano Banana 2 (Google Gemini)", category: "Nano Banana", provider: "openrouter-gemini-2.5", envKey: "OPENROUTER_API_KEY" as string | null, badge: "TOP", desc: "Google Gemini 2.5 Flash Image engine via OpenRouter Pro, ultra-fast & photorealistic" },
+  { id: "nano-banana-pro", name: "Nano Banana Pro (Gemini 3 Pro)", category: "Nano Banana", provider: "openrouter-gemini-pro", envKey: "OPENROUTER_API_KEY" as string | null, badge: "PRO", desc: "Google Gemini 3 Pro Studio Fidelity via OpenRouter Pro" },
   
   // OpenAI Suite
-  { id: "gpt-image-2", name: "GPT Image 2 (DALL-E 3 HD)", category: "OpenAI", provider: "openai-v2", envKey: "OPENAI_API_KEY" as string | null, badge: "TOP", desc: "OpenAI flagship generation engine with HD composition & prompt precision" },
-  { id: "gpt-image-1", name: "GPT Image 1 (OpenAI Standard)", category: "OpenAI", provider: "openai", envKey: "OPENAI_API_KEY" as string | null, badge: "KEY", desc: "OpenAI standard image generation model" },
+  { id: "gpt-image-2", name: "GPT Image 2 (OpenAI Flagship)", category: "OpenAI", provider: "openrouter-gpt", envKey: "OPENROUTER_API_KEY" as string | null, badge: "TOP", desc: "OpenAI flagship generation engine via OpenRouter Pro with prompt precision" },
+  { id: "openrouter-gemini-image", name: "Gemini Image (OpenRouter)", category: "Cloud Pro", provider: "openrouter-gemini-2.5", envKey: "OPENROUTER_API_KEY" as string | null, badge: "KEY", desc: "OpenRouter multi-provider gateway for Gemini image" },
 
   // Top Open-Source & Photoreal
   { id: "flux-realism", name: "FLUX Photoreal 8K (Free)", category: "Top Open Tier", provider: "pollinations-realism", envKey: null as string | null, badge: "TOP", desc: "Tuned for natural skin textures, depth of field and cinema lighting" },
@@ -1674,20 +1762,85 @@ const IMAGE_MODELS = [
   { id: "pollinations-turbo", name: "Turbo Fast (Free, 2s)", category: "Top Open Tier", provider: "pollinations-turbo", envKey: null as string | null, badge: "FREE", desc: "Ultra-fast preview generation in 1-2 seconds" },
 
   // Google Direct & Cloud
-  { id: "gemini-flash-image", name: "Gemini 2.5 Flash Image", category: "Cloud Pro", provider: "gemini", envKey: "GEMINI_API_KEY" as string | null, badge: "KEY", desc: "Direct Google Gemini 2.5 image generation endpoint" },
-  { id: "imagen-3", name: "Google Imagen 3", category: "Cloud Pro", provider: "imagen", envKey: "GEMINI_API_KEY" as string | null, badge: "KEY", desc: "Google DeepMind Imagen 3 prediction endpoint" },
+  { id: "gemini-flash-image", name: "Gemini 2.5 Flash Image (Direct)", category: "Cloud Pro", provider: "gemini", envKey: "GEMINI_API_KEY" as string | null, badge: "KEY", desc: "Direct Google Gemini 2.5 image generation endpoint" },
+  { id: "imagen-3", name: "Google Imagen 3 (Direct)", category: "Cloud Pro", provider: "imagen", envKey: "GEMINI_API_KEY" as string | null, badge: "KEY", desc: "Google DeepMind Imagen 3 prediction endpoint" },
   { id: "flux-fal", name: "FLUX.1 dev (fal.ai)", category: "Cloud Pro", provider: "fal", envKey: "FAL_KEY" as string | null, badge: "KEY", desc: "Hosted FLUX.1 Dev endpoint via Fal.ai API" },
-  { id: "openrouter-gemini-image", name: "Gemini Image (OpenRouter)", category: "Cloud Pro", provider: "openrouter", envKey: "OPENROUTER_API_KEY" as string | null, badge: "KEY", desc: "OpenRouter multi-provider gateway for Gemini image" },
+  { id: "gpt-image-1", name: "GPT Image 1 (OpenAI Direct)", category: "OpenAI", provider: "openai", envKey: "OPENAI_API_KEY" as string | null, badge: "KEY", desc: "OpenAI standard image generation model" },
 ];
 
 const hasEnv = (k: string | null) => !k || !!(process.env[k] && process.env[k]!.trim() !== "");
 
-function pollinationsImages(prompt: string, ar: string, count: number, model: string) {
-  const { w, h } = IMAGE_DIMS[ar] || IMAGE_DIMS["1:1"];
+function pollinationsImages(prompt: string, ar: string, count: number, model: string, resolutionTier: string = "2k") {
+  const base = IMAGE_DIMS[ar] || IMAGE_DIMS["1:1"];
+  let mult = 1;
+  if (resolutionTier === "2k") mult = 1.35;
+  else if (resolutionTier === "4k") mult = 1.8;
+  else if (resolutionTier === "8k") mult = 2.2;
+
+  // Pollinations safe clamp to avoid API 504 gateway timeout
+  const w = Math.min(Math.round(base.w * mult), 2048);
+  const h = Math.min(Math.round(base.h * mult), 2048);
+
   return Array.from({ length: count }, () => {
     const seed = Math.floor(Math.random() * 1_000_000);
     return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${w}&height=${h}&model=${model}&seed=${seed}&nologo=true`;
   });
+}
+
+export interface ImageWithRole {
+  url: string;
+  name?: string;
+  role?: 'character' | 'background' | 'style' | 'outfit' | 'general';
+}
+
+function buildRoleCompositingPrompt(roles: ImageWithRole[], basePrompt: string, ar: string): string {
+  const characters = roles.filter(r => r.role === 'character');
+  const backgrounds = roles.filter(r => r.role === 'background');
+  const styles = roles.filter(r => r.role === 'style');
+  const outfits = roles.filter(r => r.role === 'outfit');
+
+  // Multi-image Character + Background Compositing
+  if (characters.length > 0 && backgrounds.length > 0) {
+    const charNames = roles.map((r, i) => r.role === 'character' ? `Image #${i + 1}${r.name ? ` (${r.name})` : ''}` : null).filter(Boolean).join(', ');
+    const bgNames = roles.map((r, i) => r.role === 'background' ? `Image #${i + 1}${r.name ? ` (${r.name})` : ''}` : null).filter(Boolean).join(', ');
+    const styleNames = styles.length > 0 ? roles.map((r, i) => r.role === 'style' ? `Image #${i + 1}${r.name ? ` (${r.name})` : ''}` : null).filter(Boolean).join(', ') : null;
+    const outfitNames = outfits.length > 0 ? roles.map((r, i) => r.role === 'outfit' ? `Image #${i + 1}${r.name ? ` (${r.name})` : ''}` : null).filter(Boolean).join(', ') : null;
+
+    let instruction = `CRITICAL MASTER COMPOSITING DIRECTIVE (Senior Art Director & Master Retoucher Standard):
+1. CHARACTER IDENTITY & FACIAL PRESERVATION:
+Extract the exact subject from ${charNames}. Preserve 100% of facial structure, eyes, nose, lips, natural skin micro-texture, pore realism, and hair strands without alteration or distortion.
+
+2. BACKGROUND & ENVIRONMENT INTEGRATION:
+Seamlessly place and composite the subject into the environment, setting, architecture, and atmosphere shown in ${bgNames}.
+
+3. VOLUMETRIC RELIGHTING & COLOR HARMONY:
+Harmonize the environmental key light, rim lighting, specular highlights, ambient bounce, and color temperature between the subject and the backdrop. Render realistic ground contact shadows and perspective occlusion so the subject is completely integrated into the scene.
+
+4. CAMERA & OPTICAL CONSISTENCY:
+Align camera angle, perspective geometry, focal length (e.g. 50mm/85mm portraiture), and natural optical depth of field with realistic background bokeh blur.`;
+
+    if (outfitNames) {
+      instruction += `\n5. WARDROBE & OUTFIT: Incorporate the clothing style, drapery, and fabric texture from ${outfitNames}.`;
+    }
+    if (styleNames) {
+      instruction += `\n6. COLOR GRADING & MOOD: Infuse the cinematic color grading, tone curve, and artistic aesthetic from ${styleNames}.`;
+    }
+
+    instruction += `\nCreative Direction & Custom Adjustments: ${basePrompt}. Aspect ratio: ${ar}. Strictly output the composition in ${ar} framing, do NOT output 21:9 or landscape unless 21:9 is explicitly requested. Output only the single photographic composite masterwork.`;
+    return instruction;
+  }
+
+  if (characters.length > 0) {
+    const charNames = roles.map((r, i) => r.role === 'character' ? `Image #${i + 1}` : null).filter(Boolean).join(', ');
+    return `Generate a photorealistic studio image strictly matching the subject from ${charNames}. Strictly compose in ${ar} aspect ratio format (width-to-height ratio ${ar}), do NOT output 21:9. Preserve 100% of facial identity, facial structure, natural skin micro-texture, and hair. Subject details: ${basePrompt}. Aspect ratio: ${ar}.`;
+  }
+
+  if (backgrounds.length > 0) {
+    const bgNames = roles.map((r, i) => r.role === 'background' ? `Image #${i + 1}` : null).filter(Boolean).join(', ');
+    return `Generate a photorealistic image situated inside the environment, atmosphere, and scene of ${bgNames}. Strictly compose in ${ar} aspect ratio format (width-to-height ratio ${ar}), do NOT output 21:9. Scene details: ${basePrompt}. Aspect ratio: ${ar}.`;
+  }
+
+  return `Generate a photorealistic studio image strictly matching the reference image. Strictly compose in ${ar} aspect ratio format (width-to-height ratio ${ar}), do NOT output 21:9. Preserve the subject's exact facial identity, features, and aesthetics. Subject details: ${basePrompt}. Aspect ratio: ${ar}.`;
 }
 
 async function generateWithOpenRouter(
@@ -1696,50 +1849,82 @@ async function generateWithOpenRouter(
   count: number,
   model: string = "google/gemini-2.5-flash-image",
   referenceImage?: string | null,
-  referenceImages?: string[]
+  referenceImages?: string[],
+  referenceImagesWithRoles?: ImageWithRole[]
 ): Promise<string[] | null> {
   const key = process.env.OPENROUTER_API_KEY;
   if (!key || key.trim() === "") return null;
-  const refList = Array.isArray(referenceImages) && referenceImages.length > 0
-    ? referenceImages.filter(img => typeof img === "string" && img.startsWith("data:image"))
-    : (referenceImage && referenceImage.startsWith("data:image") ? [referenceImage] : []);
+
+  const validRoleImages = Array.isArray(referenceImagesWithRoles) && referenceImagesWithRoles.length > 0
+    ? referenceImagesWithRoles.filter(img => typeof img.url === "string" && img.url.startsWith("data:image"))
+    : [];
+
+  const refList = validRoleImages.length > 0
+    ? validRoleImages.map(img => img.url)
+    : (Array.isArray(referenceImages) && referenceImages.length > 0
+        ? referenceImages.filter(img => typeof img === "string" && img.startsWith("data:image"))
+        : (referenceImage && referenceImage.startsWith("data:image") ? [referenceImage] : []));
+
+  console.log(`[OpenRouter Image] Generating ${count} image(s) using model: ${model} (References: ${refList.length}, Tagged roles: ${validRoleImages.length})`);
   try {
     const out: string[] = [];
+    const isGemini = model.includes("gemini");
+    const modalities = isGemini ? ["image"] : ["image", "text"];
+
     for (let i = 0; i < count; i++) {
+      let promptDirective = `Generate a photorealistic studio image with STRICT ${ar} aspect ratio composition (width-to-height ratio ${ar}): ${prompt}. Aspect ratio: ${ar}. Strictly output in ${ar} framing, do NOT output 21:9.`;
+      if (validRoleImages.length > 0) {
+        promptDirective = buildRoleCompositingPrompt(validRoleImages, prompt, ar);
+      } else if (refList.length > 0) {
+        promptDirective = `Generate a photorealistic studio image strictly matching the reference image with STRICT ${ar} aspect ratio composition (width-to-height ratio ${ar}). Preserve the subject's exact facial identity, features, and aesthetics. Subject details: ${prompt}. Aspect ratio: ${ar}. Strictly output in ${ar} framing, do NOT output 21:9.`;
+      }
+
       const userContent: any =
         refList.length > 0
           ? [
               ...refList.map(url => ({ type: "image_url", image_url: { url } })),
               {
                 type: "text",
-                text: `Preserve the subject's exact facial identity, features, and reference aesthetics from the ${refList.length > 1 ? `${refList.length} attached reference images` : 'attached image'}. ${prompt}. Aspect ratio ${ar}.`,
+                text: promptDirective,
               },
             ]
-          : `${prompt}. Aspect ratio ${ar}.`;
+          : promptDirective;
 
       const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${key.trim()}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${key.trim()}`,
+          "HTTP-Referer": process.env.APP_URL || "http://localhost:3001",
+          "X-Title": "Infinity Prompt Studio"
+        },
         body: JSON.stringify({
           model,
-          modalities: ["image", "text"],
+          modalities,
+          image_config: {
+            aspect_ratio: ar,
+          },
+          aspect_ratio: ar,
+          image_aspect_ratio: ar,
           messages: [{ role: "user", content: userContent }],
         }),
       });
       const d: any = await r.json();
       if (r.ok) {
         const url = d.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-        if (url) out.push(url);
-      } else {
-        console.warn("[openrouter-image] OpenRouter returned status:", r.status, d?.error?.message);
-        if (model !== "google/gemini-2.5-flash-image") {
-          return generateWithOpenRouter(prompt, ar, count, "google/gemini-2.5-flash-image", referenceImage, referenceImages);
+        if (url) {
+          out.push(url);
+          console.log(`[OpenRouter Image] Generated image ${i + 1}/${count} via ${model}`);
+        } else {
+          console.warn("[OpenRouter Image] No image in choices. Content:", d.choices?.[0]?.message?.content || "(none)");
         }
+      } else {
+        console.warn("[OpenRouter Image] OpenRouter returned status:", r.status, d?.error?.message);
       }
     }
     if (out.length > 0) return out;
   } catch (err: any) {
-    console.warn("[openrouter-image] OpenRouter image failed:", err?.message || err);
+    console.warn("[OpenRouter Image] OpenRouter image failed:", err?.message || err);
   }
   return null;
 }
@@ -1750,32 +1935,78 @@ async function generateByProvider(
   ar: string,
   count: number,
   referenceImage?: string | null,
-  referenceImages?: string[]
-): Promise<string[]> {
+  referenceImages?: string[],
+  referenceImagesWithRoles?: ImageWithRole[],
+  resolutionTier: string = "2k"
+): Promise<{ images: string[]; provider: string }> {
   const { w, h } = IMAGE_DIMS[ar] || IMAGE_DIMS["1:1"];
   const def = IMAGE_MODELS.find(m => m.id === modelId) || IMAGE_MODELS[0];
   const refList = Array.isArray(referenceImages) && referenceImages.length > 0
     ? referenceImages.filter(img => typeof img === "string" && img.startsWith("data:image"))
     : (referenceImage && referenceImage.startsWith("data:image") ? [referenceImage] : []);
-  const hasRef = refList.length > 0;
+  const hasRef = refList.length > 0 || (Array.isArray(referenceImagesWithRoles) && referenceImagesWithRoles.length > 0);
 
+  let resSuffix = "";
+  if (resolutionTier === "4k") resSuffix = ", 4k UHD resolution, tack-sharp optical clarity, Hasselblad 100MP resolving power";
+  else if (resolutionTier === "8k") resSuffix = ", 8k ultra-detailed masterwork, museum-grade fine art sharpness, extreme textural realism";
+  else if (resolutionTier === "2k") resSuffix = ", 2k high-resolution, sharp focus, natural skin micro-textures";
+
+  // 1. OPENROUTER FLAGSHIP MODELS (Primary for OpenRouter API Key)
+  if (def.provider === "openrouter-gemini-2.5") {
+    const promptText = `${prompt}${resSuffix}, photorealistic master shot, natural epidermal skin micro-texture, cinematic volumetric lighting, shot on 35mm prime lens`;
+    let orImgs = await generateWithOpenRouter(promptText, ar, count, "google/gemini-2.5-flash-image", referenceImage, refList, referenceImagesWithRoles);
+    if (!orImgs || orImgs.length === 0) {
+      console.log("[Nano Banana 2] Gemini 2.5 flash image returned no image, falling back to Gemini 3 Pro...");
+      orImgs = await generateWithOpenRouter(promptText, ar, count, "google/gemini-3-pro-image", referenceImage, refList, referenceImagesWithRoles);
+    }
+    if (!orImgs || orImgs.length === 0) {
+      console.log("[Nano Banana 2] Falling back to openrouter/auto...");
+      orImgs = await generateWithOpenRouter(promptText, ar, count, "openrouter/auto", referenceImage, refList, referenceImagesWithRoles);
+    }
+    if (orImgs && orImgs.length > 0) return { images: orImgs, provider: "Nano Banana 2 (OpenRouter Pro)" };
+  }
+
+  if (def.provider === "openrouter-gemini-pro") {
+    const promptText = `${prompt}${resSuffix}, Google Imagen 3 studio fidelity, photorealistic master shot, natural micro-textures, Rembrandt lighting, 85mm f/1.4 lens, shallow depth of field`;
+    let orImgs = await generateWithOpenRouter(promptText, ar, count, "google/gemini-3-pro-image", referenceImage, refList, referenceImagesWithRoles);
+    if (!orImgs || orImgs.length === 0) {
+      console.log("[Nano Banana Pro] Gemini 3 Pro returned no image, falling back to Gemini 2.5 flash image...");
+      orImgs = await generateWithOpenRouter(promptText, ar, count, "google/gemini-2.5-flash-image", referenceImage, refList, referenceImagesWithRoles);
+    }
+    if (!orImgs || orImgs.length === 0) {
+      console.log("[Nano Banana Pro] Falling back to openrouter/auto...");
+      orImgs = await generateWithOpenRouter(promptText, ar, count, "openrouter/auto", referenceImage, refList, referenceImagesWithRoles);
+    }
+    if (orImgs && orImgs.length > 0) return { images: orImgs, provider: "Nano Banana Pro (OpenRouter Pro)" };
+  }
+
+  if (def.provider === "openrouter-gpt") {
+    const promptText = `${prompt}${resSuffix}, OpenAI DALL-E 3 HD masterwork composition, hyper-detailed, dramatic studio lighting`;
+    let orImgs = await generateWithOpenRouter(promptText, ar, count, "openrouter/auto", referenceImage, refList, referenceImagesWithRoles);
+    if (!orImgs || orImgs.length === 0) {
+      console.log("[GPT Image 2] Falling back to Gemini 2.5 flash image...");
+      orImgs = await generateWithOpenRouter(promptText, ar, count, "google/gemini-2.5-flash-image", referenceImage, refList, referenceImagesWithRoles);
+    }
+    if (orImgs && orImgs.length > 0) return { images: orImgs, provider: "GPT Image 2 (OpenRouter Auto)" };
+  }
+
+  // 2. POLLINATIONS FREE MODELS
   if (def.provider === "pollinations") {
-    return pollinationsImages(prompt, ar, count, "flux");
+    return { images: pollinationsImages(`${prompt}${resSuffix}`, ar, count, "flux", resolutionTier), provider: "FLUX.1 Schnell (Free)" };
   }
 
   if (def.provider === "pollinations-realism") {
-    return pollinationsImages(`${prompt}, 8k raw photo, photorealistic, cinematic lighting, 35mm photography`, ar, count, "flux");
+    return { images: pollinationsImages(`${prompt}${resSuffix}, 8k raw photo, photorealistic, cinematic lighting, 35mm photography`, ar, count, "flux", resolutionTier), provider: "FLUX Photoreal 8K (Free)" };
   }
 
   if (def.provider === "pollinations-sd" || def.provider === "pollinations-turbo") {
-    return pollinationsImages(prompt, ar, count, "turbo");
+    return { images: pollinationsImages(`${prompt}${resSuffix}`, ar, count, "turbo", resolutionTier), provider: "Turbo Fast (Free)" };
   }
 
+  // 3. DIRECT GEMINI API
   if (def.provider === "gemini") {
     const key = process.env.GEMINI_API_KEY;
-    const promptText = modelId === "nano-banana-2"
-      ? `${prompt}, ultra-realistic photographic execution, accurate anatomy, natural skin micro-texture, cinematic volumetric lighting, 8k resolution, shot on 35mm prime lens`
-      : `${prompt}. Aspect ratio ${ar}.`;
+    const promptText = `${prompt}. Aspect ratio ${ar}.`;
 
     if (key && key.trim() !== "") {
       try {
@@ -1793,7 +2024,14 @@ async function generateByProvider(
           const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${key}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ contents: [{ parts }] }),
+            body: JSON.stringify({
+              contents: [{ parts }],
+              generationConfig: {
+                imageConfig: {
+                  aspectRatio: ar
+                }
+              }
+            }),
           });
           const d: any = await r.json();
           if (r.ok) {
@@ -1807,91 +2045,17 @@ async function generateByProvider(
             break;
           }
         }
-        if (out.length > 0) return out;
+        if (out.length > 0) return { images: out, provider: "Gemini 2.5 Flash Image (Direct)" };
       } catch (err: any) {
         console.warn("[gemini-image] Direct Gemini API failed:", err?.message || err);
       }
     }
 
-    // Direct OpenRouter synthesis without watermarks
     const orImgs = await generateWithOpenRouter(promptText, ar, count, "google/gemini-2.5-flash-image", referenceImage, refList);
-    if (orImgs && orImgs.length > 0) return orImgs;
-
-    return pollinationsImages(promptText, ar, count, "flux");
+    if (orImgs && orImgs.length > 0) return { images: orImgs, provider: "Gemini 2.5 Flash Image (OpenRouter Pro)" };
   }
 
-  if (def.provider === "imagen") {
-    const key = process.env.GEMINI_API_KEY;
-    const promptText = `${prompt}, Google Imagen 3 studio fidelity, 8k resolution, photorealistic master shot, natural micro-textures, Rembrandt lighting, 85mm f/1.4 lens, shallow depth of field`;
-
-    if (key && key.trim() !== "" && !hasRef) {
-      try {
-        const imagenAr = ["1:1", "3:4", "4:3", "9:16", "16:9"].includes(ar) ? ar : "1:1";
-        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${key}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ instances: [{ prompt }], parameters: { sampleCount: count, aspectRatio: imagenAr } }),
-        });
-        const d: any = await r.json();
-        if (r.ok && d.predictions?.length) {
-          const imgs = (d.predictions || []).map((p: any) => `data:${p.mimeType || "image/png"};base64,${p.bytesBase64Encoded}`);
-          if (imgs.length) return imgs;
-        } else {
-          console.warn(`[imagen] Imagen API returned ${r.status}: ${d?.error?.message || "quota limit"}`);
-        }
-      } catch (err: any) {
-        console.warn("[imagen] Direct Imagen API failed:", err?.message || err);
-      }
-    }
-
-    // Direct OpenRouter synthesis without watermarks
-    const orImgs = await generateWithOpenRouter(promptText, ar, count, "google/gemini-2.5-flash-image", referenceImage, refList);
-    if (orImgs && orImgs.length > 0) return orImgs;
-
-    return pollinationsImages(promptText, ar, count, "flux");
-  }
-
-  if (def.provider === "openai-v2") {
-    const key = process.env.OPENAI_API_KEY;
-    const dallSize = w === h ? "1024x1024" : w > h ? "1792x1024" : "1024x1792";
-    const promptText = `${prompt}, OpenAI DALL-E 3 HD masterwork composition, hyper-detailed, dramatic studio lighting, 8k`;
-
-    if (key && key.trim() !== "" && !hasRef) {
-      try {
-        const calls = Array.from({ length: count }, async () => {
-          const r = await fetch("https://api.openai.com/v1/images/generations", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-            body: JSON.stringify({
-              model: "dall-e-3",
-              prompt,
-              n: 1,
-              quality: "hd",
-              size: dallSize,
-            }),
-          });
-          const d: any = await r.json();
-          if (r.ok) {
-            const item = d.data?.[0];
-            return item?.b64_json ? `data:image/png;base64,${item.b64_json}` : item?.url;
-          }
-          return null;
-        });
-        const out = await Promise.all(calls);
-        const valid = out.filter(Boolean);
-        if (valid.length) return valid as string[];
-      } catch (err: any) {
-        console.warn("[openai-v2] OpenAI API failed:", err?.message || err);
-      }
-    }
-
-    // Direct OpenRouter synthesis using OpenAI GPT Image 2 (Watermark-free)
-    const orImgs = await generateWithOpenRouter(promptText, ar, count, "openai/gpt-5.4-image-2", referenceImage, refList);
-    if (orImgs && orImgs.length > 0) return orImgs;
-
-    return pollinationsImages(promptText, ar, count, "flux");
-  }
-
+  // 4. DIRECT OPENAI API
   if (def.provider === "openai") {
     const key = process.env.OPENAI_API_KEY;
     const size = w === h ? "1024x1024" : w > h ? "1536x1024" : "1024x1536";
@@ -1904,18 +2068,18 @@ async function generateByProvider(
         });
         const d: any = await r.json();
         if (r.ok && d.data?.length) {
-          return (d.data || []).map((x: any) => (x.b64_json ? `data:image/png;base64,${x.b64_json}` : x.url));
+          const imgs = (d.data || []).map((x: any) => (x.b64_json ? `data:image/png;base64,${x.b64_json}` : x.url));
+          return { images: imgs, provider: "GPT Image 1 (OpenAI Direct)" };
         }
       } catch (err: any) {
         console.warn("[openai] OpenAI failed:", err?.message || err);
       }
     }
-    const orImgs = await generateWithOpenRouter(prompt, ar, count, "google/gemini-2.5-flash-image", referenceImage, refList);
-    if (orImgs && orImgs.length > 0) return orImgs;
-
-    return pollinationsImages(prompt, ar, count, "flux");
+    const orImgs = await generateWithOpenRouter(prompt, ar, count, "openrouter/auto", referenceImage, refList);
+    if (orImgs && orImgs.length > 0) return { images: orImgs, provider: "GPT Image 1 (OpenRouter Auto)" };
   }
 
+  // 5. FAL.AI
   if (def.provider === "fal") {
     const key = process.env.FAL_KEY;
     if (key && key.trim() !== "") {
@@ -1927,22 +2091,19 @@ async function generateByProvider(
         });
         const d: any = await r.json();
         if (r.ok && d.images?.length) {
-          return (d.images || []).map((x: any) => x.url);
+          return { images: (d.images || []).map((x: any) => x.url), provider: "FLUX.1 dev (fal.ai)" };
         }
       } catch (err: any) {
         console.warn("[fal] fal.ai failed:", err?.message || err);
       }
     }
-    return pollinationsImages(prompt, ar, count, "flux");
   }
 
-  if (def.provider === "openrouter") {
-    const orImgs = await generateWithOpenRouter(prompt, ar, count, "google/gemini-2.5-flash-image", referenceImage, refList);
-    if (orImgs && orImgs.length > 0) return orImgs;
-    return pollinationsImages(prompt, ar, count, "flux");
-  }
+  // Final fallback to OpenRouter Pro before free Pollinations
+  const finalOr = await generateWithOpenRouter(prompt, ar, count, "google/gemini-2.5-flash-image", referenceImage, refList, referenceImagesWithRoles);
+  if (finalOr && finalOr.length > 0) return { images: finalOr, provider: `${def.name} (OpenRouter Pro)` };
 
-  return pollinationsImages(prompt, ar, count, "flux");
+  return { images: pollinationsImages(prompt, ar, count, "flux", resolutionTier), provider: `${def.name} (Free Fallback)` };
 }
 
 // Which providers are usable right now (drives badges in the UI)
@@ -1962,28 +2123,55 @@ app.get("/api/photo-studio/models", (_req, res) => {
 });
 
 app.post("/api/photo-studio/generate-image", async (req, res) => {
-  const { prompt, model = "nano-banana-2", aspectRatio = "1:1", count = 1, referenceImage = null, referenceImages = [] } = req.body || {};
+  const {
+    prompt,
+    model = "nano-banana-2",
+    aspectRatio = "1:1",
+    resolution = "2k",
+    count = 1,
+    referenceImage = null,
+    referenceImages = [],
+    referenceImagesWithRoles = []
+  } = req.body || {};
   if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
     return res.status(400).json({ success: false, error: "Prompt is required" });
   }
-  const n = Math.min(Math.max(Number(count) || 1, 1), 4);
+  const n = Math.min(Math.max(Number(count) || 1, 1), 6);
   const def = IMAGE_MODELS.find(m => m.id === model) || IMAGE_MODELS[0];
-  const cleanPrompt = prompt.trim().slice(0, 1500);
+  let effectiveAr = aspectRatio;
+  const arMatch = prompt.match(/--ar\s+([0-9:]+)/i);
+  if (arMatch && arMatch[1] && IMAGE_DIMS[arMatch[1]]) {
+    effectiveAr = arMatch[1];
+  } else if (!IMAGE_DIMS[effectiveAr]) {
+    effectiveAr = "4:5";
+  }
+
+  const cleanPrompt = prompt.replace(/--ar\s+[0-9:]+/gi, "").trim() || prompt;
 
   try {
-    const images = await generateByProvider(def.id, cleanPrompt, aspectRatio, n, referenceImage, referenceImages);
-    return res.json({ success: true, images, imageUrl: images[0], provider: def.name, model: def.id });
+    const result = await generateByProvider(def.id, cleanPrompt, effectiveAr, n, referenceImage, referenceImages, referenceImagesWithRoles, resolution);
+    return res.json({
+      success: true,
+      images: result.images,
+      imageUrl: result.images[0],
+      provider: result.provider,
+      model: def.id,
+      aspectRatio: effectiveAr,
+      resolution
+    });
   } catch (err: any) {
     console.warn(`[generate-image] ${def.id} failed, using free FLUX fallback:`, err?.message || err);
   }
 
-  const fallbackImgs = pollinationsImages(cleanPrompt, aspectRatio, n, "flux");
+  const fallbackImgs = pollinationsImages(cleanPrompt, effectiveAr, n, "flux", resolution);
   return res.json({
     success: true,
     images: fallbackImgs,
     imageUrl: fallbackImgs[0],
-    provider: `${def.name} (Photoreal Engine)`,
+    provider: `${def.name} (Free Fallback)`,
     model: def.id,
+    aspectRatio: effectiveAr,
+    resolution
   });
 });
 
@@ -2098,9 +2286,9 @@ app.get("/api/dashboard/config", (req, res) => {
 // SUPABASE SERVER-SIDE ADMIN & STORAGE ENDPOINTS (Uses SUPABASE_SECRET_KEY)
 // ============================================================================
 const getSupabaseAdminConfig = () => {
-  const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "https://qiuljrsqztohzyyghany.supabase.co").replace(/\/$/, "");
-  const secretKey = process.env.SUPABASE_SECRET_KEY || "sb_secret_O2gWUQoFFLFa26i2gn0w3w_5JdEzHLv";
-  const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || "sb_publishable_rkmYkYrptB5AjII4JigQSQ_1jY6RvYh";
+  const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "").replace(/\/$/, "");
+  const secretKey = process.env.SUPABASE_SECRET_KEY || "";
+  const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || "";
   return { url, secretKey, publishableKey };
 };
 
@@ -2108,10 +2296,8 @@ const getSupabaseSecretHeaders = (contentType = "application/json") => {
   const { secretKey } = getSupabaseAdminConfig();
   const headers: Record<string, string> = {
     apikey: secretKey,
+    Authorization: `Bearer ${secretKey}`,
   };
-  if (secretKey.startsWith("eyJ")) {
-    headers["Authorization"] = `Bearer ${secretKey}`;
-  }
   if (contentType) {
     headers["Content-Type"] = contentType;
   }
@@ -2119,7 +2305,12 @@ const getSupabaseSecretHeaders = (contentType = "application/json") => {
 };
 
 async function ensureSupabaseBuckets() {
-  const { url } = getSupabaseAdminConfig();
+  const { url, secretKey } = getSupabaseAdminConfig();
+  if (!url || !secretKey) {
+    console.log("[Supabase Server] SUPABASE_SECRET_KEY not set in environment. Skipping bucket auto-provisioning.");
+    return;
+  }
+
   const buckets = ["website-photos", "user-generations"];
   for (const b of buckets) {
     try {
@@ -2130,8 +2321,113 @@ async function ensureSupabaseBuckets() {
       });
     } catch {}
   }
+
+  // Ensure Admin account exists ONLY if explicitly configured in environment variables
+  try {
+    const adminEmail = process.env.ADMIN_EMAIL;
+    const adminPassword = process.env.ADMIN_PASSWORD;
+    if (!adminEmail || !adminPassword) {
+      return;
+    }
+    const createRes = await fetch(`${url}/auth/v1/admin/users`, {
+      method: "POST",
+      headers: getSupabaseSecretHeaders(),
+      body: JSON.stringify({
+        email: adminEmail,
+        password: adminPassword,
+        email_confirm: true,
+        user_metadata: { full_name: "SK Master Admin", role: "admin" },
+      }),
+    });
+    const created: any = await createRes.json();
+    let adminUserId = created?.id;
+
+    if (!createRes.ok) {
+      // Already exists -> ensure confirmed and password set
+      const listRes = await fetch(`${url}/auth/v1/admin/users?per_page=1000`, {
+        method: "GET",
+        headers: getSupabaseSecretHeaders(),
+      });
+      if (listRes.ok) {
+        const listData: any = await listRes.json();
+        const found = (listData?.users || []).find(
+          (u: any) => String(u?.email || "").toLowerCase() === adminEmail.toLowerCase()
+        );
+        if (found?.id) {
+          adminUserId = found.id;
+          await fetch(`${url}/auth/v1/admin/users/${found.id}`, {
+            method: "PUT",
+            headers: getSupabaseSecretHeaders(),
+            body: JSON.stringify({
+              email_confirm: true,
+              password: adminPassword,
+              user_metadata: { full_name: "SK Master Admin", role: "admin" },
+            }),
+          });
+        }
+      }
+    }
+
+    // Also ensure role='admin' in public.profiles if the table exists
+    if (adminUserId) {
+      await fetch(`${url}/rest/v1/profiles`, {
+        method: "POST",
+        headers: {
+          ...getSupabaseSecretHeaders(),
+          Prefer: "resolution=merge-duplicates,return=minimal",
+        },
+        body: JSON.stringify({
+          id: adminUserId,
+          email: adminEmail,
+          full_name: "SK Master Admin",
+          role: "admin",
+          credit_balance: 99999,
+        }),
+      });
+    }
+  } catch {}
 }
 ensureSupabaseBuckets();
+
+// Helper to auto-confirm an existing user's email via Supabase Admin API
+const confirmSupabaseUserByEmail = async (email: string): Promise<boolean> => {
+  try {
+    const { url, secretKey } = getSupabaseAdminConfig();
+    if (!url || !secretKey) return false;
+    const listRes = await fetch(`${url}/auth/v1/admin/users?per_page=1000`, {
+      method: "GET",
+      headers: getSupabaseSecretHeaders(),
+    });
+    if (!listRes.ok) return false;
+    const listData: any = await listRes.json();
+    const users: any[] = Array.isArray(listData?.users) ? listData.users : [];
+    const target = users.find((u) => String(u?.email || "").toLowerCase() === email.trim().toLowerCase());
+    if (!target?.id) return false;
+
+    const updateRes = await fetch(`${url}/auth/v1/admin/users/${target.id}`, {
+      method: "PUT",
+      headers: getSupabaseSecretHeaders(),
+      body: JSON.stringify({ email_confirm: true }),
+    });
+    return updateRes.ok;
+  } catch {
+    return false;
+  }
+};
+
+// Confirm a user's email immediately via Supabase Admin API
+app.post("/api/supabase/confirm-email", async (req, res) => {
+  try {
+    const { email } = req.body || {};
+    if (!email) {
+      return res.status(400).json({ success: false, error: "Email is required" });
+    }
+    const confirmed = await confirmSupabaseUserByEmail(email);
+    return res.json({ success: confirmed });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || "Confirm email error" });
+  }
+});
 
 // Instant auto-confirmed signup via Supabase Admin API
 app.post("/api/supabase/instant-signup", async (req, res) => {
@@ -2140,7 +2436,10 @@ app.post("/api/supabase/instant-signup", async (req, res) => {
     if (!email || !password) {
       return res.status(400).json({ success: false, error: "Email and password are required" });
     }
-    const { url, publishableKey } = getSupabaseAdminConfig();
+    const { url, publishableKey, secretKey } = getSupabaseAdminConfig();
+    if (!url || !publishableKey || !secretKey) {
+      return res.status(503).json({ success: false, error: "Server admin service is not configured on server" });
+    }
 
     // 1. Create auto-confirmed user via Admin API
     const createRes = await fetch(`${url}/auth/v1/admin/users`, {
@@ -2154,11 +2453,17 @@ app.post("/api/supabase/instant-signup", async (req, res) => {
       }),
     });
     const createData: any = await createRes.json();
-    if (!createRes.ok && !String(createData?.msg || createData?.message || "").toLowerCase().includes("already")) {
-      return res.status(400).json({
-        success: false,
-        error: createData?.msg || createData?.message || "Could not create user",
-      });
+    const errMsg = String(createData?.msg || createData?.message || "").toLowerCase();
+    if (!createRes.ok) {
+      if (errMsg.includes("already") || errMsg.includes("exists") || errMsg.includes("registered")) {
+        // User already signed up earlier -> auto-confirm their email so they can log in right now!
+        await confirmSupabaseUserByEmail(email.trim());
+      } else {
+        return res.status(400).json({
+          success: false,
+          error: createData?.msg || createData?.message || "Could not create user",
+        });
+      }
     }
 
     // 2. Immediately sign in to get session token
@@ -2208,7 +2513,10 @@ app.post("/api/supabase/upload-storage", async (req, res) => {
     const ext = match[2] === "jpeg" ? "jpg" : match[2];
     const buffer = Buffer.from(match[3], "base64");
     const objectPath = `${folderPrefix}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-    const { url } = getSupabaseAdminConfig();
+    const { url, secretKey } = getSupabaseAdminConfig();
+    if (!url || !secretKey) {
+      return res.status(503).json({ success: false, error: "Supabase storage is not configured on server", publicUrl: dataUrl });
+    }
 
     const headers = getSupabaseSecretHeaders(mimeType);
     headers["x-upsert"] = "true";
@@ -2253,10 +2561,16 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 async function startServer() {
   const publicPath = path.join(process.cwd(), "public");
   app.use(express.static(publicPath));
+  const server = http.createServer(app);
 
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: { 
+        middlewareMode: true,
+        hmr: {
+          server: server
+        }
+      },
       appType: "spa",
     });
     app.use(vite.middlewares);
@@ -2268,7 +2582,7 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
+  server.listen(PORT, "0.0.0.0", () => {
     console.log(`🚀 Infinity Prompt Studio server running at http://0.0.0.0:${PORT}`);
   });
 }

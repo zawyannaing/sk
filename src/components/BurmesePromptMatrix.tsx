@@ -34,15 +34,14 @@ import { FilmColorSelectionCarousel } from './FilmColorSelectionCarousel';
 import { SkinRetouchSelectionCarousel } from './SkinRetouchSelectionCarousel';
 import { MakeupSelectionCarousel } from './MakeupSelectionCarousel';
 import { PhotoStyleSelectionCarousel } from './PhotoStyleSelectionCarousel';
-import { QualityEngineSelectionCarousel } from './QualityEngineSelectionCarousel';
 import { PoseSelectionCarousel } from './PoseSelectionCarousel';
 import { CulturalPropsDropdown } from './CulturalPropsDropdown';
-import { ClothesSwapPanel } from './ClothesSwapPanel';
-import { CustomGarmentUploader } from './CustomGarmentUploader';
 import { CoupleDetailsCustomizer } from './CoupleDetailsCustomizer';
 import { WeddingPropsPanel } from './WeddingPropsPanel';
 import { SelectedOptionsSummaryModal } from './SelectedOptionsSummaryModal';
 import { buildComprehensiveMasterPrompt } from '../utils/promptBuilder';
+import { ScrollReveal } from './ScrollReveal';
+import { SupabaseService } from '../utils/supabaseClient';
 
 interface BurmesePromptMatrixProps {
   language: Language;
@@ -55,6 +54,16 @@ interface BurmesePromptMatrixProps {
   engine: string;
   onEngineChange: (engine: string) => void;
   onNavigateView?: (view: any, photoUrl?: string) => void;
+  onSendToPhotoStudio?: (
+    promptText: string,
+    options?: {
+      ratio?: string;
+      referencePhoto?: string | null;
+      referencePhotos?: (string | { url: string; name?: string; id?: string })[];
+      chosenOptions?: { label: string; value: string; emoji?: string }[];
+    }
+  ) => void;
+  activeTabOverride?: 'tab-subject' | 'tab-scene' | 'tab-direction';
 }
 
 export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
@@ -67,20 +76,32 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
   onSavePrompt,
   engine,
   onEngineChange,
-  onNavigateView
+  onNavigateView,
+  onSendToPhotoStudio,
+  activeTabOverride
 }) => {
   const isMyanmar = language === 'my';
 
-  // Workflow tab navigation
-  const [activeTab, setActiveTab] = useState<'tab-subject' | 'tab-scene' | 'tab-direction' | 'tab-engine'>('tab-subject');
+  // Workflow tab navigation (Subject, Scene, Direction)
+  const [activeTab, setActiveTab] = useState<'tab-subject' | 'tab-scene' | 'tab-direction'>('tab-subject');
   const [isViewAll, setIsViewAll] = useState<boolean>(false);
   const [archetypeCategory, setArchetypeCategory] = useState<'all' | 'royal' | 'ethnic' | 'folk' | 'modern'>('all');
+
+  useEffect(() => {
+    if (activeTabOverride) {
+      setActiveTab(activeTabOverride);
+      setIsViewAll(false);
+      const el = document.getElementById(`section-${activeTabOverride}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  }, [activeTabOverride]);
 
   // Deep resource drawer expandable states
   const [expandedDrawers, setExpandedDrawers] = useState<Record<string, boolean>>({
     characterFeature: true,
     garmentCatalog: true,
-    clothesSwapTools: false,
     locationCatalog: false,
     eventCatalog: false,
     lightingCatalog: false,
@@ -94,6 +115,20 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
     setExpandedDrawers(prev => ({
       ...prev,
       [drawerKey]: !prev[drawerKey]
+    }));
+  };
+
+  // Section toggle states for Tab 1 (Subject & Heritage)
+  const [sectionToggles, setSectionToggles] = useState<Record<string, boolean>>({
+    section1: true,
+    section2: false,
+    section3: false,
+  });
+
+  const toggleSection = (secKey: string) => {
+    setSectionToggles(prev => ({
+      ...prev,
+      [secKey]: !prev[secKey]
     }));
   };
 
@@ -112,38 +147,29 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
   // File ref for reference image upload in Tab 1
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // File ref & drag-over for Prompt Section photo upload
-  const promptPhotoInputRef = useRef<HTMLInputElement>(null);
-  const [isPromptDragOver, setIsPromptDragOver] = useState<boolean>(false);
+  // File ref & uploaded files for Studio reference photos
+  const refUploadInputRef = useRef<HTMLInputElement>(null);
+  const [extraUploadedPhotos, setExtraUploadedPhotos] = useState<{ id: string; url: string; name: string }[]>([]);
 
-  const handlePromptDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsPromptDragOver(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        onUpdateSelection({
-          referenceImage: reader.result as string,
-          identityLock: selection.identityLock === 'no_lock' ? 'face_100' : selection.identityLock
-        });
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handlePromptFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        onUpdateSelection({
-          referenceImage: reader.result as string,
-          identityLock: selection.identityLock === 'no_lock' ? 'face_100' : selection.identityLock
-        });
-      };
-      reader.readAsDataURL(file);
-    }
+  const handleExtraPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []) as File[];
+    files.forEach((file: File) => {
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const url = reader.result as string;
+          setExtraUploadedPhotos((prev) => [
+            ...prev,
+            { id: `burmese-up-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, url, name: file.name }
+          ]);
+          if (!selection.referenceImage) {
+            onUpdateSelection({ referenceImage: url, identityLock: 'face_100' });
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+    e.target.value = '';
   };
 
   // Engine syntax mapping
@@ -172,16 +198,38 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
     setAiSynthesizedData(null);
   }, [selection]);
 
-  // Master Prompt Assembly from selection
+  // Check if selection is completely clean / reset all was clicked
+  const isSelectionEmpty = useMemo(() => {
+    return (
+      !selection.customSubjectDetails &&
+      (!selection.subject || selection.subject === 'skip' || selection.subject === '') &&
+      (!selection.ethnicity || selection.ethnicity === 'skip' || selection.ethnicity === '') &&
+      (!selection.garmentStyle || selection.garmentStyle === 'skip' || selection.garmentStyle === '') &&
+      (!selection.location || selection.location === 'skip' || selection.location === '') &&
+      (!selection.event || selection.event === 'skip' || selection.event === '') &&
+      (!selection.timeAndLighting || selection.timeAndLighting === 'skip' || selection.timeAndLighting === '') &&
+      (!selection.camera || selection.camera === 'skip' || selection.camera === '') &&
+      !selection.referenceImage &&
+      !selection.customGarmentImage &&
+      !selection.customInstruction
+    );
+  }, [selection]);
+
+  // Master Prompt Assembly from selection (only when selection is not empty)
   const liveBuilt = useMemo(() => {
+    if (isSelectionEmpty) return null;
     try {
       return buildComprehensiveMasterPrompt(selection, 'txt2img');
     } catch (e) {
       return null;
     }
-  }, [selection]);
+  }, [selection, isSelectionEmpty]);
 
-  const effectivePromptData = aiSynthesizedData || liveBuilt;
+  const effectivePromptData = useMemo(() => {
+    if (aiSynthesizedData) return aiSynthesizedData;
+    if (isSelectionEmpty) return null;
+    return liveBuilt;
+  }, [aiSynthesizedData, isSelectionEmpty, liveBuilt]);
 
   const masterPromptText = useMemo(() => {
     if (!effectivePromptData?.masterPrompt) return '';
@@ -192,18 +240,11 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
     if (quickModifiers.length > 0) {
       p += `, ${quickModifiers.join(', ')}`;
     }
-    // ensure ratio and engine are synced
-    if (!p.includes('--ar')) {
-      p += ` --ar ${selection.aspectRatio || '16:9'}`;
-    }
-    if (!p.includes('--v') && !p.includes('--flux') && !p.includes('--sdxl')) {
-      p += ` ${engineSyntax}`;
-    }
     return p;
-  }, [effectivePromptData, quickModifiers, selection.aspectRatio, selection.referenceImage, engineSyntax]);
+  }, [effectivePromptData, quickModifiers, selection.referenceImage]);
 
   const displayedPromptText = useMemo(() => {
-    if (!effectivePromptData) return masterPromptText;
+    if (!effectivePromptData) return '';
     const modSuffix = quickModifiers.length > 0 ? `, ${quickModifiers.join(', ')}` : '';
     switch (activeFormatTab) {
       case 'flux':
@@ -219,6 +260,88 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
         return masterPromptText;
     }
   }, [activeFormatTab, effectivePromptData, masterPromptText, quickModifiers]);
+
+  // Dynamic Recent Studio Outputs (Connected to localStorage and Supabase)
+  const [recentOutputs, setRecentOutputs] = useState<Array<{
+    id: string;
+    url: string;
+    prompt: string;
+    aspectRatio?: string;
+    createdAt?: number;
+    title?: string;
+  }>>([]);
+
+  const loadRecentOutputs = async () => {
+    try {
+      const items: Array<{
+        id: string;
+        url: string;
+        prompt: string;
+        aspectRatio?: string;
+        createdAt?: number;
+        title?: string;
+      }> = [];
+
+      // 1. Local Storage Library Items
+      try {
+        const rawLocal = localStorage.getItem('infinity_photo_studio_library_items_v2');
+        if (rawLocal) {
+          const parsed = JSON.parse(rawLocal);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((p: any) => {
+              if (p && (p.url || p.prompt)) {
+                items.push({
+                  id: p.id || `loc-${Math.random()}`,
+                  url: p.url || '',
+                  prompt: p.prompt || p.enhancedPrompt || '',
+                  aspectRatio: p.aspectRatio || '16:9',
+                  createdAt: p.createdAt || Date.now(),
+                  title: p.prompt ? (p.prompt.length > 36 ? p.prompt.slice(0, 36) + '...' : p.prompt) : 'Studio Generation'
+                });
+              }
+            });
+          }
+        }
+      } catch {}
+
+      // 2. Supabase Cloud History Records
+      try {
+        const cloud = await SupabaseService.fetchUserHistory();
+        if (Array.isArray(cloud)) {
+          cloud.forEach((c: any) => {
+            if (c && (c.image_url || c.master_prompt)) {
+              if (!items.some(x => (c.image_url && x.url === c.image_url) || (x.prompt && x.prompt === c.master_prompt))) {
+                items.push({
+                  id: c.id || `cloud-${Math.random()}`,
+                  url: c.image_url || '',
+                  prompt: c.master_prompt || '',
+                  aspectRatio: c.aspect_ratio || '16:9',
+                  createdAt: c.created_at ? new Date(c.created_at).getTime() : Date.now(),
+                  title: c.master_prompt ? (c.master_prompt.length > 36 ? c.master_prompt.slice(0, 36) + '...' : c.master_prompt) : 'Cloud Generation'
+                });
+              }
+            }
+          });
+        }
+      } catch {}
+
+      items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      setRecentOutputs(items.slice(0, 6));
+    } catch (e) {
+      console.warn('Failed to load recent studio outputs', e);
+    }
+  };
+
+  useEffect(() => {
+    loadRecentOutputs();
+    const handleSync = () => loadRecentOutputs();
+    window.addEventListener('storage', handleSync);
+    window.addEventListener('studio-library-updated', handleSync);
+    return () => {
+      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('studio-library-updated', handleSync);
+    };
+  }, []);
 
   const handleSynthesizeAiPrompt = async () => {
     setIsSynthesizingAi(true);
@@ -254,7 +377,8 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
 
   // Token counter estimation
   const estimatedTokens = useMemo(() => {
-    return Math.round(displayedPromptText.split(' ').length * 1.35);
+    if (!displayedPromptText) return 0;
+    return Math.round(displayedPromptText.split(' ').filter(Boolean).length * 1.35);
   }, [displayedPromptText]);
 
   // Active Picked Option Chips (ရွေးချယ်ထားချက်များ)
@@ -373,18 +497,6 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
       });
     }
 
-    // Aspect ratio
-    if (selection.aspectRatio) {
-      chips.push({
-        id: 'aspectRatio',
-        labelMm: 'အချိုး',
-        labelEn: 'Ratio',
-        valueEn: selection.aspectRatio,
-        valueMm: selection.aspectRatio,
-        emoji: '📐'
-      });
-    }
-
     return chips;
   }, [selection, isMyanmar]);
 
@@ -395,7 +507,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
         onUpdateSelection({ customSubjectDetails: '' });
         break;
       case 'subject':
-        onUpdateSelection({ subject: 'woman', customSubjectDetails: '' });
+        onUpdateSelection({ subject: '', customSubjectDetails: '' });
         break;
       case 'ethnicity':
         onUpdateSelection({ ethnicity: 'skip', customEthnicityDetails: '' });
@@ -415,15 +527,13 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
       case 'camera':
         onUpdateSelection({ camera: 'skip' });
         break;
-      case 'aspectRatio':
-        onUpdateSelection({ aspectRatio: '16:9' });
-        break;
       default:
         break;
     }
   };
 
   const handleCopyPrompt = () => {
+    if (!displayedPromptText && !masterPromptText) return;
     navigator.clipboard.writeText(displayedPromptText || masterPromptText);
     setCopiedToast(true);
     setTimeout(() => setCopiedToast(false), 2000);
@@ -437,21 +547,22 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
   };
 
   const handleSaveToPresets = () => {
-    if (onSavePrompt) {
+    if (onSavePrompt && (displayedPromptText || masterPromptText)) {
       onSavePrompt(displayedPromptText || masterPromptText, {
         archetype: selection.customSubjectDetails || selection.subject,
         setting: selection.location,
         ratio: selection.aspectRatio || '16:9'
       });
+      setSavedToast(true);
+      setTimeout(() => setSavedToast(false), 2000);
     }
-    setSavedToast(true);
-    setTimeout(() => setSavedToast(false), 2000);
   };
 
   const handleResetMatrix = () => {
     onResetAll();
     setQuickModifiers([]);
     setAiSynthesizedData(null);
+    setExtraUploadedPhotos([]);
     setResetToast(true);
     setTimeout(() => setResetToast(false), 2500);
   };
@@ -527,62 +638,10 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
   ];
 
   return (
-    <div className="flex flex-col w-full">
-      
-      {/* 🌟 Miro-Style Unified Clean Header Bar */}
-      <div className="px-5 sm:px-8 py-3.5 bg-white border-b border-[#e0e2e8] flex flex-wrap items-center justify-between gap-3 shadow-2xs">
-        {/* Left: Miro Canary Yellow Tag & Clean Breadcrumb */}
-        <div className="flex items-center gap-2 text-xs">
-          <span className="font-bold text-[#1c1c1e] flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#ffd02f] border border-[#fcb900]"></span>
-            <span>Burmese Prompt Studio</span>
-          </span>
-          <span className="text-[#c7cad5]">/</span>
-          <span className="text-[#6b6f7e] hidden sm:inline font-medium">Archival v2.5</span>
-          <span className="bg-[#fff8e0] border border-[#fcb900]/30 text-[#746019] px-2.5 py-0.5 rounded-full font-bold text-[10px] hidden md:inline-flex items-center gap-1">
-            <span className="material-symbols-outlined text-[12px]">verified</span>
-            <span>Bagan • Konbaung Authenticated</span>
-          </span>
-        </div>
-
-        {/* Right: Miro Pill Quick Action Switchers */}
-        {onNavigateView && (
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold text-[#8e91a0] hidden lg:inline uppercase tracking-wider">
-              Photo Tools:
-            </span>
-            <button
-              type="button"
-              onClick={() => onNavigateView('old-to-new')}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#e0e2e8] hover:border-[#1c1c1e] text-[#1c1c1e] text-xs font-semibold shadow-2xs transition-all cursor-pointer hover:bg-[#f7f8fa]"
-            >
-              <span className="material-symbols-outlined text-[15px] text-[#0fbcb0]">photo_camera_back</span>
-              <span>{isMyanmar ? '8K Restore' : 'Old Photo Restore'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onNavigateView('photo-edit')}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#e0e2e8] hover:border-[#1c1c1e] text-[#1c1c1e] text-xs font-semibold shadow-2xs transition-all cursor-pointer hover:bg-[#f7f8fa]"
-            >
-              <span className="material-symbols-outlined text-[15px] text-[#4262ff]">brush</span>
-              <span>{isMyanmar ? 'Inpaint' : 'Photo Edit'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onNavigateView('prompt-utility')}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#e0e2e8] hover:border-[#1c1c1e] text-[#1c1c1e] text-xs font-semibold shadow-2xs transition-all cursor-pointer hover:bg-[#f7f8fa]"
-            >
-              <span className="material-symbols-outlined text-[15px] text-[#fcb900]">build</span>
-              <span>{isMyanmar ? 'Keywords' : 'Utilities'}</span>
-            </button>
-          </div>
-        )}
-      </div>
+    <div className="flex flex-col w-full bg-[#0a0b0e] text-zinc-100">
 
       {/* 🌟 Primary 2-Column Miro Canvas Studio Layout */}
-      <div className="px-5 sm:px-8 py-6 grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+      <div className="px-3 sm:px-6 lg:px-8 py-4 sm:py-6 grid grid-cols-1 xl:grid-cols-12 gap-5 sm:gap-6 items-start">
         
         {/* ===================================================================== */}
         {/* LEFT COLUMN: Streamlined Workbench with Miro Multi-Tab Workflow (xl:col-span-7) */}
@@ -593,15 +652,15 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <span className="bg-[#ffd02f] text-[#1c1c1e] text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full">
+                <span className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full">
                   Visual Workspace
                 </span>
-                <span className="text-[#8e91a0] text-xs font-medium">Prompt Matrix</span>
+                <span className="text-zinc-400 text-xs font-medium">Prompt Matrix</span>
               </div>
-              <h1 className="font-sans text-2xl sm:text-3xl text-[#1c1c1e] font-extrabold tracking-tight">
+              <h1 className="font-sans text-xl sm:text-2xl lg:text-3xl text-white font-extrabold tracking-tight">
                 Burmese Prompt Matrix
               </h1>
-              <p className="font-sans text-sm text-[#555a6a] mt-0.5 font-normal">
+              <p className="font-sans text-xs sm:text-sm text-zinc-400 mt-0.5 font-normal">
                 {isMyanmar
                   ? 'ပုဂံ၊ ကုန်းဘောင်၊ နန်းတွင်းနှင့် ခေတ်ပေါ် ရုပ်ရှင်ဆန်သော မြန်မာ့ဓာတ်ပုံ Prompt အထူးပြု စနစ်'
                   : 'Archivally accurate generative parameters for royal court, ethnographic, and cinematic Myanmar portraiture.'}
@@ -611,10 +670,10 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
               <button
                 type="button"
                 onClick={handleResetMatrix}
-                className="px-4 py-2 bg-white border border-[#e0e2e8] hover:border-[#1c1c1e] text-[#1c1c1e] hover:bg-[#f7f8fa] rounded-full text-xs font-semibold font-sans flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                className="px-3.5 py-1.5 sm:px-4 sm:py-2 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-full text-xs font-semibold font-sans flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer active:scale-95"
                 title="Reset matrix to clean baseline"
               >
-                <span className="material-symbols-outlined text-[16px] text-[#6b6f7e]">restart_alt</span>
+                <span className="material-symbols-outlined text-[16px] text-emerald-400">restart_alt</span>
                 <span>Reset</span>
               </button>
             </div>
@@ -622,34 +681,34 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
 
           {/* Reset Toast Feedback */}
           {resetToast && (
-            <div className="p-3 rounded-full bg-[#c3faf5] border border-[#0fbcb0]/30 text-[#187574] font-sans text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+            <div className="p-3 rounded-full bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 font-sans text-xs font-semibold flex items-center gap-2 animate-in fade-in">
               <span className="material-symbols-outlined text-[18px]">check_circle</span>
               <span>Matrix and Live Prompt successfully reset to baseline!</span>
             </div>
           )}
 
-          {/* MIRO WORKFLOW PILL TABS BAR */}
-          <div className="bg-white p-1.5 rounded-full border border-[#e0e2e8] flex flex-wrap gap-1 shadow-2xs">
+          {/* WORKFLOW PILL TABS BAR */}
+          <div className="bg-[#12141c] p-1 sm:p-1.5 rounded-2xl sm:rounded-full border border-zinc-800 flex items-center overflow-x-auto scrollbar-none gap-1 shadow-md">
             {/* Tab 1 */}
             <button
               type="button"
               onClick={() => { setActiveTab('tab-subject'); setIsViewAll(false); }}
-              className={`flex-1 min-w-[120px] py-2 px-3 rounded-full text-left transition-all flex items-center gap-2 cursor-pointer ${
+              className={`shrink-0 sm:flex-1 min-w-[105px] sm:min-w-0 py-2 px-2.5 sm:px-3 rounded-xl sm:rounded-full text-left transition-all flex items-center gap-2 cursor-pointer ${
                 activeTab === 'tab-subject' && !isViewAll
-                  ? 'bg-[#1c1c1e] text-white font-semibold shadow-xs'
-                  : 'text-[#555a6a] hover:text-[#1c1c1e] hover:bg-[#f7f8fa]'
+                  ? 'bg-emerald-500 text-black font-extrabold shadow-sm'
+                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800/60'
               }`}
             >
               <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[11px] shrink-0 ${
                 activeTab === 'tab-subject' && !isViewAll
-                  ? 'bg-[#ffd02f] text-[#1c1c1e]'
-                  : 'bg-[#eef0f3] text-[#555a6a]'
+                  ? 'bg-black text-emerald-400'
+                  : 'bg-zinc-800 text-zinc-400'
               }`}>
                 1
               </span>
               <div className="flex flex-col truncate">
                 <span className="font-sans text-xs font-semibold leading-tight truncate">Subject</span>
-                <span className={`font-sans text-[10px] truncate ${activeTab === 'tab-subject' && !isViewAll ? 'text-white/70' : 'text-[#8e91a0]'}`}>ဝတ်စုံနှင့် လူမျိုး</span>
+                <span className={`font-sans text-[10px] truncate ${activeTab === 'tab-subject' && !isViewAll ? 'text-black/80' : 'text-zinc-500'}`}>ဝတ်စုံနှင့် လူမျိုး</span>
               </div>
             </button>
 
@@ -657,22 +716,22 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
             <button
               type="button"
               onClick={() => { setActiveTab('tab-scene'); setIsViewAll(false); }}
-              className={`flex-1 min-w-[120px] py-2 px-3 rounded-full text-left transition-all flex items-center gap-2 cursor-pointer ${
+              className={`shrink-0 sm:flex-1 min-w-[105px] sm:min-w-0 py-2 px-2.5 sm:px-3 rounded-xl sm:rounded-full text-left transition-all flex items-center gap-2 cursor-pointer ${
                 activeTab === 'tab-scene' && !isViewAll
-                  ? 'bg-[#1c1c1e] text-white font-semibold shadow-xs'
-                  : 'text-[#555a6a] hover:text-[#1c1c1e] hover:bg-[#f7f8fa]'
+                  ? 'bg-emerald-500 text-black font-extrabold shadow-sm'
+                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800/60'
               }`}
             >
               <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[11px] shrink-0 ${
                 activeTab === 'tab-scene' && !isViewAll
-                  ? 'bg-[#ffd02f] text-[#1c1c1e]'
-                  : 'bg-[#eef0f3] text-[#555a6a]'
+                  ? 'bg-black text-emerald-400'
+                  : 'bg-zinc-800 text-zinc-400'
               }`}>
                 2
               </span>
               <div className="flex flex-col truncate">
                 <span className="font-sans text-xs font-semibold leading-tight truncate">Scene</span>
-                <span className={`font-sans text-[10px] truncate ${activeTab === 'tab-scene' && !isViewAll ? 'text-white/70' : 'text-[#8e91a0]'}`}>နောက်ခံနှင့် အလင်း</span>
+                <span className={`font-sans text-[10px] truncate ${activeTab === 'tab-scene' && !isViewAll ? 'text-black/80' : 'text-zinc-500'}`}>နောက်ခံနှင့် အလင်း</span>
               </div>
             </button>
 
@@ -680,45 +739,22 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
             <button
               type="button"
               onClick={() => { setActiveTab('tab-direction'); setIsViewAll(false); }}
-              className={`flex-1 min-w-[120px] py-2 px-3 rounded-full text-left transition-all flex items-center gap-2 cursor-pointer ${
+              className={`shrink-0 sm:flex-1 min-w-[105px] sm:min-w-0 py-2 px-2.5 sm:px-3 rounded-xl sm:rounded-full text-left transition-all flex items-center gap-2 cursor-pointer ${
                 activeTab === 'tab-direction' && !isViewAll
-                  ? 'bg-[#1c1c1e] text-white font-semibold shadow-xs'
-                  : 'text-[#555a6a] hover:text-[#1c1c1e] hover:bg-[#f7f8fa]'
+                  ? 'bg-emerald-500 text-black font-extrabold shadow-sm'
+                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800/60'
               }`}
             >
               <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[11px] shrink-0 ${
                 activeTab === 'tab-direction' && !isViewAll
-                  ? 'bg-[#ffd02f] text-[#1c1c1e]'
-                  : 'bg-[#eef0f3] text-[#555a6a]'
+                  ? 'bg-black text-emerald-400'
+                  : 'bg-zinc-800 text-zinc-400'
               }`}>
                 3
               </span>
               <div className="flex flex-col truncate">
                 <span className="font-sans text-xs font-semibold leading-tight truncate">Direction</span>
-                <span className={`font-sans text-[10px] truncate ${activeTab === 'tab-direction' && !isViewAll ? 'text-white/70' : 'text-[#8e91a0]'}`}>ဟန်ပန်နှင့် ကင်မရာ</span>
-              </div>
-            </button>
-
-            {/* Tab 4 */}
-            <button
-              type="button"
-              onClick={() => { setActiveTab('tab-engine'); setIsViewAll(false); }}
-              className={`flex-1 min-w-[120px] py-2 px-3 rounded-full text-left transition-all flex items-center gap-2 cursor-pointer ${
-                activeTab === 'tab-engine' && !isViewAll
-                  ? 'bg-[#1c1c1e] text-white font-semibold shadow-xs'
-                  : 'text-[#555a6a] hover:text-[#1c1c1e] hover:bg-[#f7f8fa]'
-              }`}
-            >
-              <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[11px] shrink-0 ${
-                activeTab === 'tab-engine' && !isViewAll
-                  ? 'bg-[#ffd02f] text-[#1c1c1e]'
-                  : 'bg-[#eef0f3] text-[#555a6a]'
-              }`}>
-                4
-              </span>
-              <div className="flex flex-col truncate">
-                <span className="font-sans text-xs font-semibold leading-tight truncate">Engine</span>
-                <span className={`font-sans text-[10px] truncate ${activeTab === 'tab-engine' && !isViewAll ? 'text-white/70' : 'text-[#8e91a0]'}`}>AI ချိန်ညှိချက်</span>
+                <span className={`font-sans text-[10px] truncate ${activeTab === 'tab-direction' && !isViewAll ? 'text-black/80' : 'text-zinc-500'}`}>ဟန်ပန်နှင့် ကင်မရာ</span>
               </div>
             </button>
 
@@ -726,10 +762,10 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
             <button
               type="button"
               onClick={() => setIsViewAll(!isViewAll)}
-              className={`px-3 py-2 rounded-full text-xs font-semibold font-sans flex items-center gap-1 transition-all cursor-pointer ${
+              className={`px-3 py-2 rounded-xl sm:rounded-full text-xs font-semibold font-sans flex items-center gap-1 transition-all cursor-pointer shrink-0 ${
                 isViewAll
-                  ? 'bg-[#1c1c1e] text-white shadow-xs'
-                  : 'text-[#555a6a] hover:text-[#1c1c1e] hover:bg-[#f7f8fa]'
+                  ? 'bg-emerald-500 text-black font-bold shadow-xs'
+                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800/60'
               }`}
               title="View all sections on one page"
             >
@@ -745,44 +781,66 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
             {/* TAB 1: SUBJECT & HERITAGE */}
             {/* ============================================================== */}
             {(activeTab === 'tab-subject' || isViewAll) && (
-              <div className="flex flex-col gap-6">
+              <ScrollReveal>
+                <div id="section-tab-subject" className="flex flex-col gap-6">
                 
                 {/* SECTION 1: Character & Cultural Archetype (100% Myanmar Archetype Studio) */}
-                <section className="bg-white rounded-xl p-5 shadow-xs border border-[#d6c3b6]/30 flex flex-col gap-4">
-                  <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-[#d6c3b6]/20">
+                <section className="bg-[#12141c] rounded-2xl p-5 shadow-md border border-zinc-800 flex flex-col gap-4">
+                  <div className={`flex items-center justify-between flex-wrap gap-2 ${sectionToggles.section1 ? 'pb-2 border-b border-zinc-800' : ''}`}>
                     <div className="flex items-center gap-2">
-                      <span className="w-7 h-7 rounded-full bg-[#704112]/10 text-[#704112] font-sans text-sm flex items-center justify-center font-bold border border-[#704112]/20">
+                      <span className="w-7 h-7 rounded-full bg-emerald-500/15 text-emerald-400 font-sans text-sm flex items-center justify-center font-bold border border-emerald-500/30">
                         1
                       </span>
                       <div>
                         <div className="flex items-center gap-2">
-                          <h2 className="font-sans text-base text-[#1e1b19] font-semibold">
+                          <h2 className="font-sans text-base text-zinc-100 font-semibold">
                             Myanmar Character &amp; Cultural Archetype
                           </h2>
-                          <span className="px-2 py-0.5 rounded bg-[#704112]/10 text-[#704112] font-mono text-[10px] font-bold uppercase">
+                          <span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-mono text-[10px] font-bold uppercase">
                             Only Myanmar • 24 Archetypes
                           </span>
                         </div>
-                        <span className="font-sans text-xs text-[#51443a]">
+                        <span className="font-sans text-xs text-zinc-400">
                           မြန်မာ့သမိုင်းဝင် နန်းတွင်း၊ တိုင်းရင်းသား ရိုးရာ၊ ဓလေ့စရိုက်နှင့် ခေတ်သစ် ဇာတ်ကောင်များ (၂၄ မျိုး)
                         </span>
                       </div>
                     </div>
-                    
-                    <button
-                      type="button"
-                      onClick={() => toggleDrawer('characterFeature')}
-                      className="px-3 py-1 rounded-full bg-[#ffdf98]/50 text-[#5a4300] border border-[#775a00]/20 font-sans text-xs font-semibold flex items-center gap-1.5 cursor-pointer hover:bg-[#ffdf98]"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">person_pin</span>
-                      <span>{expandedDrawers.characterFeature ? 'Hide Face Lock & Persona Cards' : 'Open Face Lock & Persona Cards (15)'}</span>
-                    </button>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={sectionToggles.section1}
+                        onClick={() => toggleSection('section1')}
+                        className="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-[#161822] hover:bg-[#1a1d29] border border-zinc-800 transition-all cursor-pointer group"
+                        title={sectionToggles.section1 ? 'Click to collapse section' : 'Click to expand section'}
+                      >
+                        <span className={`font-sans text-xs font-bold transition-colors ${
+                          sectionToggles.section1 ? 'text-emerald-400' : 'text-zinc-400'
+                        }`}>
+                          {sectionToggles.section1 ? 'ON' : 'OFF'}
+                        </span>
+                        <div
+                          className={`w-9 h-5 rounded-full transition-colors relative flex items-center p-0.5 ${
+                            sectionToggles.section1 ? 'bg-emerald-500' : 'bg-zinc-700'
+                          }`}
+                        >
+                          <div
+                            className={`w-4 h-4 rounded-full bg-white shadow-xs transition-transform duration-200 ease-in-out ${
+                              sectionToggles.section1 ? 'translate-x-4' : 'translate-x-0'
+                            }`}
+                          />
+                        </div>
+                      </button>
+                    </div>
                   </div>
 
+                  {sectionToggles.section1 && (
+                    <div className="flex flex-col gap-4 animate-in fade-in duration-200">
                   {/* Category Filter Tabs for 24 Myanmar Archetypes */}
                   <div className="flex flex-col gap-2.5">
                     <div className="flex items-center justify-between flex-wrap gap-2">
-                      <span className="font-sans text-[11px] text-[#847469] uppercase font-bold tracking-wider">
+                      <span className="font-sans text-[11px] text-zinc-400 uppercase font-bold tracking-wider">
                         Step 1A — Select Myanmar Character Archetype (မြန်မာ့ဇာတ်ကောင် စရိုက်လက္ခဏာ ရွေးချယ်ရန်):
                       </span>
                       <div className="flex flex-wrap gap-1">
@@ -799,8 +857,8 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                             onClick={() => setArchetypeCategory(cat.id as any)}
                             className={`px-2.5 py-1 rounded-full font-sans text-[11px] font-semibold transition-all cursor-pointer ${
                               archetypeCategory === cat.id
-                                ? 'bg-[#704112] text-white shadow-2xs'
-                                : 'bg-[#f4ece9] text-[#51443a] hover:bg-[#e9e1dd]'
+                                ? 'bg-emerald-500 text-black font-extrabold shadow-xs'
+                                : 'bg-[#161c2a] border border-zinc-800 text-zinc-400 hover:text-white hover:bg-[#1e2438]'
                             }`}
                           >
                             {isMyanmar ? cat.labelMm : cat.labelEn}
@@ -1151,44 +1209,44 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                               }
                               className={`p-3 rounded-xl text-left transition-all relative flex flex-col items-start gap-1 cursor-pointer ${
                                 isSelected
-                                  ? 'border-2 border-[#704112] bg-[#fff8ec] text-[#1e1b19] shadow-xs'
-                                  : 'border border-[#d6c3b6]/40 bg-[#faf2ee] text-[#1e1b19] hover:border-[#847469] hover:bg-[#f4ece9]'
+                                  ? 'border-2 border-emerald-500 bg-emerald-500/15 text-white shadow-[0_0_15px_rgba(5,177,135,0.25)]'
+                                  : 'border border-zinc-800 bg-[#161c2a] text-zinc-300 hover:border-emerald-500/40 hover:bg-[#1e2438]'
                               }`}
                             >
                               <div className="w-full flex items-center justify-between gap-1.5">
-                                <div className="flex items-center gap-1.5 min-w-0">
-                                  <span
-                                    className={`px-1.5 py-0.5 rounded font-mono text-[10px] font-bold shrink-0 ${
-                                      isSelected
-                                        ? 'bg-[#704112] text-white'
-                                        : 'bg-white border border-[#d6c3b6]/60 text-[#704112]'
-                                    }`}
-                                  >
-                                    {arch.code}
-                                  </span>
-                                  <span className="px-1.5 py-0.5 rounded bg-[#e9e1dd]/70 text-[#51443a] font-mono text-[9px] font-bold uppercase tracking-wider truncate">
-                                    {arch.badge}
-                                  </span>
-                                </div>
-                                <span
-                                  className={`material-symbols-outlined text-[17px] shrink-0 ${
-                                    isSelected ? 'text-[#704112]' : 'text-[#847469]/40'
-                                  }`}
-                                >
-                                  {isSelected ? 'check_circle' : 'radio_button_unchecked'}
-                                </span>
+                                 <div className="flex items-center gap-1.5 min-w-0">
+                                   <span
+                                     className={`px-1.5 py-0.5 rounded font-mono text-[10px] font-extrabold shrink-0 ${
+                                       isSelected
+                                         ? 'bg-emerald-500 text-black'
+                                         : 'bg-zinc-800 border border-emerald-500/30 text-emerald-400'
+                                     }`}
+                                   >
+                                     {arch.code}
+                                   </span>
+                                   <span className="px-1.5 py-0.5 rounded bg-[#1e2438] text-zinc-400 font-mono text-[9px] font-bold uppercase tracking-wider truncate">
+                                     {arch.badge}
+                                   </span>
+                                 </div>
+                                 <span
+                                   className={`material-symbols-outlined text-[17px] shrink-0 ${
+                                     isSelected ? 'text-emerald-400' : 'text-zinc-500'
+                                   }`}
+                                 >
+                                   {isSelected ? 'check_circle' : 'radio_button_unchecked'}
+                                 </span>
                               </div>
                               <span
                                 className={`font-sans text-xs font-bold leading-snug mt-0.5 ${
-                                  isSelected ? 'text-[#704112]' : 'text-[#1e1b19]'
+                                  isSelected ? 'text-emerald-300' : 'text-white'
                                 }`}
                               >
                                 {arch.nameMm}
                               </span>
-                              <span className="font-sans text-[11px] font-medium text-[#51443a] leading-tight">
+                              <span className="font-sans text-[11px] font-medium text-zinc-400 leading-tight">
                                 {arch.nameEn}
                               </span>
-                              <span className="font-sans text-[10px] text-[#847469] line-clamp-1">
+                              <span className="font-sans text-[10px] text-zinc-400 line-clamp-1">
                                 {arch.descMm}
                               </span>
                             </button>
@@ -1197,185 +1255,29 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                     </div>
                   </div>
 
-                  {/* HIGGSFIELD CHARACTER FEATURE DRAWER (15 Myanmar Character Presets, Face Upload & Identity Lock) */}
-                  {expandedDrawers.characterFeature && (
-                    <div className="p-4 rounded-xl bg-[#faf2ee] border border-[#d6c3b6]/50 space-y-4 animate-in fade-in">
-                      <div className="flex items-center justify-between pb-1 border-b border-[#d6c3b6]/30">
-                        <div className="flex items-center gap-2">
-                          <span className="material-symbols-outlined text-[#704112] text-[20px]">person_pin</span>
-                          <h3 className="font-sans text-sm font-bold text-[#704112]">
-                            Visual Myanmar Persona Gallery (15 Cards) &amp; 100% Face Identity Lock
-                          </h3>
-                        </div>
-                        <span className="text-xs font-semibold text-[#51443a]">
-                          Myanmar Portrait Studio
-                        </span>
-                      </div>
-
-                      {/* Character Presets Carousel Grid (All 15 Myanmar Personas) */}
-                      <div className="space-y-2">
-                        <span className="font-sans text-xs text-[#51443a] uppercase font-bold tracking-wider">
-                          Visual Myanmar Persona Cards (ပုံပါ မြန်မာ့ဇာတ်ကောင် ၁၅ မျိုးမှ တိုက်ရိုက်ရွေးပါ):
-                        </span>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 max-h-64 overflow-y-auto pr-1">
-                          {CHARACTER_PRESETS.map((char, idx) => {
-                            const isSelected =
-                              selection.customSubjectDetails === (isMyanmar ? char.nameMm : char.nameEn) ||
-                              selection.customSubjectDetails === char.nameEn ||
-                              selection.customSubjectDetails === char.description;
-                            return (
-                              <button
-                                key={char.id}
-                                type="button"
-                                onClick={() => {
-                                  if (isSelected) {
-                                    onUpdateSelection({ customSubjectDetails: '', garmentStyle: 'skip' });
-                                  } else {
-                                    onUpdateSelection({
-                                      subject: char.subject,
-                                      ethnicity: char.ethnicity,
-                                      poseExpression: char.poseExpression,
-                                      garmentStyle: char.garmentStyle,
-                                      customSubjectDetails: char.description
-                                    });
-                                  }
-                                }}
-                                className={`rounded-xl overflow-hidden border text-left flex flex-col transition-all cursor-pointer ${
-                                  isSelected
-                                    ? 'border-[#704112] ring-2 ring-[#704112] bg-white shadow-sm'
-                                    : 'border-[#d6c3b6]/40 bg-white hover:border-[#847469]'
-                                }`}
-                              >
-                                <div className="h-20 w-full bg-[#f4ece9] relative overflow-hidden">
-                                  <img src={char.previewUrl} alt={char.nameEn} className="w-full h-full object-cover" />
-                                  <span className="absolute top-1.5 left-1.5 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-black/65 text-white">
-                                    {String(idx + 1).padStart(2, '0')}
-                                  </span>
-                                  {isSelected && (
-                                    <span className="absolute top-1.5 right-1.5 material-symbols-outlined text-[16px] text-[#704112] bg-white rounded-full">
-                                      check_circle
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="p-2">
-                                  <span className="font-sans text-xs font-bold text-[#1e1b19] block truncate">
-                                    {char.nameMm}
-                                  </span>
-                                  <span className="font-sans text-[10px] text-[#704112] font-medium block truncate">
-                                    {char.nameEn}
-                                  </span>
-                                  <span className="font-sans text-[10px] text-[#51443a] block truncate">
-                                    {char.taglineMm}
-                                  </span>
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Face Reference Uploader & Identity Lock Mode */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-                        <div>
-                          <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/*"
-                            onChange={handleReferenceImageUpload}
-                            className="hidden"
-                          />
-                          {selection.referenceImage ? (
-                            <div className="flex items-center gap-3 p-3 rounded-lg bg-white border border-[#704112]/50">
-                              <img src={selection.referenceImage} alt="Ref" className="w-14 h-14 object-cover rounded-md border" />
-                              <div className="flex flex-col gap-1">
-                                <span className="font-sans text-xs font-bold text-[#704112]">
-                                  ✓ Face Reference Loaded
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => onUpdateSelection({ referenceImage: null, identityLock: 'no_lock' })}
-                                  className="text-[11px] text-[#ba1a1a] font-semibold text-left"
-                                >
-                                  Remove Photo
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => fileInputRef.current?.click()}
-                              className="w-full p-3.5 rounded-lg border-2 border-dashed border-[#d6c3b6] hover:border-[#704112] bg-white flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors"
-                            >
-                              <span className="material-symbols-outlined text-[24px] text-[#847469]">add_a_photo</span>
-                              <span className="font-sans text-xs font-semibold text-[#1e1b19]">
-                                Upload Character Face Reference Image
-                              </span>
-                              <span className="font-sans text-[11px] text-[#51443a]">
-                                Preserves 100% exact facial structure &amp; identity
-                              </span>
-                            </button>
-                          )}
-                        </div>
-
-                        {/* Identity Lock Mode */}
-                        <div className="flex flex-col gap-1.5">
-                          <span className="font-sans text-xs text-[#51443a] font-bold">
-                            Identity Lock Engine:
-                          </span>
-                          <div className="grid grid-cols-2 gap-1.5">
-                            {IDENTITY_LOCK_OPTIONS.map((lock) => {
-                              const isSelected = (selection.identityLock || 'face_100') === lock.id;
-                              return (
-                                <button
-                                  key={lock.id}
-                                  type="button"
-                                  onClick={() => onUpdateSelection({ identityLock: lock.id })}
-                                  className={`p-2 rounded-lg text-left text-xs font-sans transition-all cursor-pointer ${
-                                    isSelected
-                                      ? 'bg-[#704112] text-white font-semibold'
-                                      : 'bg-white border border-[#d6c3b6]/40 text-[#51443a] hover:bg-[#eee7e3]'
-                                  }`}
-                                >
-                                  <span>{isMyanmar ? lock.labelMm : lock.labelEn}</span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Subject Preserve Feature Box */}
-                      <SubjectPreserveFeatureBox
+                  {/* Couple & Wedding Customizer if subject === 'couple' */}
+                  {selection.subject === 'couple' && (
+                    <div className="space-y-4 animate-in fade-in pt-1">
+                      <CoupleDetailsCustomizer
                         selection={selection}
                         onUpdateSelection={onUpdateSelection}
                         isMyanmar={isMyanmar}
                       />
-
-                      {/* Couple & Wedding Customizer if subject === 'couple' */}
-                      {selection.subject === 'couple' && (
-                        <div className="space-y-3 pt-2">
-                          <CoupleDetailsCustomizer
-                            selection={selection}
-                            onUpdateSelection={onUpdateSelection}
-                            isMyanmar={isMyanmar}
-                          />
-                          <WeddingPropsPanel
-                            selection={selection}
-                            onUpdateSelection={onUpdateSelection}
-                            isMyanmar={isMyanmar}
-                          />
-                        </div>
-                      )}
+                      <WeddingPropsPanel
+                        selection={selection}
+                        onUpdateSelection={onUpdateSelection}
+                        isMyanmar={isMyanmar}
+                      />
                     </div>
                   )}
 
                   {/* Step 1B: Myanmar-Only Ethnic Groups Selector (တိုင်းရင်းသားမျိုးနွယ်စု ၁၄ မျိုး) */}
                   <div className="flex flex-col gap-2 pt-1">
                     <div className="flex items-center justify-between">
-                      <label className="font-sans text-[11px] text-[#847469] uppercase tracking-wider font-bold">
+                      <label className="font-sans text-[11px] text-zinc-400 uppercase tracking-wider font-bold">
                         Step 1B — Myanmar Ethnic Heritage (မြန်မာ့ တိုင်းရင်းသားမျိုးနွယ်စု ၁၄ မျိုး):
                       </label>
-                      <span className="font-mono text-[10px] text-[#704112] font-semibold">
+                      <span className="font-mono text-[10px] text-emerald-400 font-semibold">
                         100% Myanmar Ethnicities Only
                       </span>
                     </div>
@@ -1389,8 +1291,8 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                             onClick={() => onUpdateSelection({ ethnicity: isSelected ? 'burmese' : eth.id })}
                             className={`px-3 py-1.5 rounded-lg font-sans text-xs transition-all cursor-pointer ${
                               isSelected
-                                ? 'bg-[#704112] text-white font-semibold border border-[#704112] shadow-2xs'
-                                : 'bg-[#f4ece9] border border-[#d6c3b6]/40 text-[#51443a] hover:border-[#847469] hover:bg-[#eee7e3]'
+                                ? 'bg-emerald-500 text-black font-extrabold border border-emerald-400 shadow-xs'
+                                : 'bg-[#161c2a] border border-zinc-800 text-zinc-300 hover:border-emerald-500/40 hover:text-white hover:bg-[#1e2438]'
                             }`}
                           >
                             <span>{isMyanmar ? eth.labelMm : eth.labelEn}</span>
@@ -1403,8 +1305,8 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                   {/* Step 1C: Age Group & Myanmar Complexion / Facial Structure Selector */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
                     {/* Age Group Pills */}
-                    <div className="bg-[#faf2ee] p-3.5 rounded-xl border border-[#d6c3b6]/40 flex flex-col gap-2">
-                      <span className="font-sans text-[11px] text-[#704112] uppercase font-bold tracking-wider">
+                    <div className="bg-[#161822] p-3.5 rounded-xl border border-zinc-800 flex flex-col gap-2">
+                      <span className="font-sans text-[11px] text-emerald-400 uppercase font-bold tracking-wider">
                         Step 1C — Age Group (အသက်အရွယ် အပိုင်းအခြား):
                       </span>
                       <div className="flex flex-wrap gap-1.5">
@@ -1423,8 +1325,8 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                               onClick={() => onUpdateSelection({ ageRange: age.id })}
                               className={`px-2.5 py-1 rounded-md font-sans text-xs transition-all cursor-pointer ${
                                 active
-                                  ? 'bg-[#704112] text-white font-semibold'
-                                  : 'bg-white border border-[#d6c3b6]/50 text-[#51443a] hover:bg-[#eee7e3]'
+                                  ? 'bg-emerald-500 text-black font-extrabold shadow-xs'
+                                  : 'bg-[#161c2a] border border-zinc-800 text-zinc-300 hover:border-emerald-500/40 hover:text-white hover:bg-[#1e2438]'
                               }`}
                             >
                               {isMyanmar ? age.labelMm : age.labelEn}
@@ -1435,9 +1337,9 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                     </div>
 
                     {/* Interactive Myanmar Skin Tone & Facial Bone Structure Presets */}
-                    <div className="bg-[#faf2ee] p-3.5 rounded-xl border border-[#d6c3b6]/40 flex flex-col gap-2">
+                    <div className="bg-[#161822] p-3.5 rounded-xl border border-zinc-800 flex flex-col gap-2">
                       <div className="flex items-center justify-between">
-                        <span className="font-sans text-[11px] text-[#704112] uppercase font-bold tracking-wider">
+                        <span className="font-sans text-[11px] text-emerald-400 uppercase font-bold tracking-wider">
                           Step 1D — Myanmar Skin &amp; Facial Tone (မြန်မာ့အသားအရောင်):
                         </span>
                       </div>
@@ -1478,14 +1380,14 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                               onClick={() => onUpdateSelection({ customEthnicityDetails: skin.promptVal })}
                               className={`p-2 rounded-lg text-left transition-all cursor-pointer ${
                                 active
-                                  ? 'bg-[#704112] text-white font-semibold'
-                                  : 'bg-white border border-[#d6c3b6]/50 text-[#1e1b19] hover:bg-[#eee7e3]'
+                                  ? 'bg-emerald-500 text-black font-extrabold shadow-xs'
+                                  : 'bg-[#161c2a] border border-zinc-800 text-zinc-300 hover:border-emerald-500/40 hover:text-white hover:bg-[#1e2438]'
                               }`}
                             >
-                              <span className="font-sans text-[11px] block leading-tight font-bold">
+                              <span className={`font-sans text-[11px] block leading-tight font-bold ${active ? 'text-black' : 'text-white'}`}>
                                 {skin.labelMm}
                               </span>
-                              <span className={`font-sans text-[10px] block ${active ? 'text-white/80' : 'text-[#51443a]'}`}>
+                              <span className={`font-sans text-[10px] block ${active ? 'text-black/80 font-medium' : 'text-zinc-400'}`}>
                                 {skin.labelEn}
                               </span>
                             </button>
@@ -1494,20 +1396,22 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                       </div>
                     </div>
                   </div>
+                    </div>
+                  )}
                 </section>
 
                 {/* SECTION 2: Traditional Dress & Textile Heritage (Clothes & Silk Browser) */}
-                <section className="bg-white rounded-xl p-5 shadow-xs border border-[#d6c3b6]/30 flex flex-col gap-4">
-                  <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-[#d6c3b6]/20">
+                <section className="bg-[#12141c] rounded-2xl p-5 shadow-md border border-zinc-800 flex flex-col gap-4">
+                  <div className={`flex items-center justify-between flex-wrap gap-2 ${sectionToggles.section2 ? 'pb-2 border-b border-zinc-800' : ''}`}>
                     <div className="flex items-center gap-2">
-                      <span className="w-7 h-7 rounded-full bg-[#704112]/10 text-[#704112] font-sans text-sm flex items-center justify-center font-bold border border-[#704112]/20">
+                      <span className="w-7 h-7 rounded-full bg-emerald-500/15 text-emerald-400 font-sans text-sm flex items-center justify-center font-bold border border-emerald-500/30">
                         2
                       </span>
                       <div>
-                        <h2 className="font-sans text-base text-[#1e1b19] font-semibold">
+                        <h2 className="font-sans text-base text-zinc-100 font-semibold">
                           Traditional Dress &amp; Textile Heritage (Clothes Style Browser)
                         </h2>
-                        <span className="font-sans text-xs text-[#51443a]">
+                        <span className="font-sans text-xs text-zinc-400">
                           ရိုးရာဝတ်စုံ၊ တိုင်းရင်းသားဝတ်စုံ၊ အရောင်နှင့် ပိုးချိတ်အသား ရွေးချယ်မှု (၃၈ မျိုး)
                         </span>
                       </div>
@@ -1516,35 +1420,38 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                     <div className="flex items-center gap-2 flex-wrap">
                       <button
                         type="button"
-                        onClick={() => toggleDrawer('garmentCatalog')}
-                        className="px-3 py-1 rounded-full bg-[#704112] text-white font-sans text-xs font-semibold flex items-center gap-1.5 cursor-pointer hover:bg-[#5a330d] transition-colors shadow-2xs"
+                        role="switch"
+                        aria-checked={sectionToggles.section2}
+                        onClick={() => toggleSection('section2')}
+                        className="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-[#161822] hover:bg-[#1a1d29] border border-zinc-800 transition-all cursor-pointer group"
+                        title={sectionToggles.section2 ? 'Click to collapse section' : 'Click to expand section'}
                       >
-                        <span className="material-symbols-outlined text-[15px]">checkroom</span>
-                        <span>
-                          {expandedDrawers.garmentCatalog
-                            ? 'Hide Clothes Browser'
-                            : 'Open Clothes & Silk Browser (38 Styles)'}
+                        <span className={`font-sans text-xs font-bold transition-colors ${
+                          sectionToggles.section2 ? 'text-emerald-400' : 'text-zinc-400'
+                        }`}>
+                          {sectionToggles.section2 ? 'ON' : 'OFF'}
                         </span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => toggleDrawer('clothesSwapTools')}
-                        className="px-3 py-1 rounded-full bg-[#ffdf98]/60 text-[#5a4300] border border-[#775a00]/25 font-sans text-xs font-semibold flex items-center gap-1.5 cursor-pointer hover:bg-[#ffdf98] transition-colors"
-                      >
-                        <span className="material-symbols-outlined text-[15px]">swap_horiz</span>
-                        <span>
-                          {expandedDrawers.clothesSwapTools
-                            ? 'Hide Clothes Swap Upload'
-                            : 'Custom Outfit Upload & Swap'}
-                        </span>
+                        <div
+                          className={`w-9 h-5 rounded-full transition-colors relative flex items-center p-0.5 ${
+                            sectionToggles.section2 ? 'bg-emerald-500' : 'bg-zinc-700'
+                          }`}
+                        >
+                          <div
+                            className={`w-4 h-4 rounded-full bg-white shadow-xs transition-transform duration-200 ease-in-out ${
+                              sectionToggles.section2 ? 'translate-x-4' : 'translate-x-0'
+                            }`}
+                          />
+                        </div>
                       </button>
                     </div>
                   </div>
 
+                  {sectionToggles.section2 && (
+                    <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+
                   {/* Quick Heritage Archetype Picks (1-Click Featured Burmese Silhouettes) */}
                   <div className="flex flex-col gap-2">
-                    <span className="font-sans text-[11px] text-[#847469] uppercase font-bold tracking-wider">
+                    <span className="font-sans text-[11px] text-zinc-400 uppercase font-bold tracking-wider">
                       Quick Royal &amp; Ethnic Archetypes (အမြန်ရွေးရန် အဓိက မြန်မာ့ရိုးရာ ဝတ်စုံများ):
                     </span>
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
@@ -1566,22 +1473,22 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                             onClick={() => onUpdateSelection({ garmentStyle: item.id })}
                             className={`flex items-center gap-2.5 p-2.5 rounded-xl text-left border transition-all cursor-pointer ${
                               active
-                                ? 'bg-[#fff8ec] border-[#704112] ring-1 ring-[#704112]/40 shadow-2xs'
-                                : 'bg-[#faf2ee] border-[#d6c3b6]/40 hover:bg-[#f4ece9]'
+                                ? 'bg-emerald-500/15 border-2 border-emerald-500 shadow-[0_0_15px_rgba(5,177,135,0.25)]'
+                                : 'bg-[#161c2a] border-zinc-800 text-zinc-300 hover:border-emerald-500/40 hover:bg-[#1e2438]'
                             }`}
                           >
-                            <span className={`w-7 h-7 rounded-lg flex items-center justify-center font-mono text-[11px] font-bold shrink-0 ${
+                            <span className={`w-7 h-7 rounded-lg flex items-center justify-center font-mono text-[11px] font-extrabold shrink-0 ${
                               active
-                                ? 'bg-[#704112] text-white'
-                                : 'bg-white border border-[#d6c3b6]/60 text-[#704112]'
+                                ? 'bg-emerald-500 text-black'
+                                : 'bg-zinc-800 border border-emerald-500/30 text-emerald-400'
                             }`}>
                               {item.code}
                             </span>
                             <div className="min-w-0 flex-1">
-                              <p className="font-sans text-xs text-[#1e1b19] font-bold truncate">
+                              <p className={`font-sans text-xs font-bold truncate ${active ? 'text-emerald-300' : 'text-white'}`}>
                                 {item.titleMm}
                               </p>
-                              <p className="font-sans text-[10px] text-[#51443a] truncate">
+                              <p className="font-sans text-[10px] text-zinc-400 truncate">
                                 {item.titleEn}
                               </p>
                             </div>
@@ -1601,48 +1508,63 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                       />
                     </div>
                   )}
-
-                  {/* OPTIONAL CLOTHES SWAP & CUSTOM GARMENT IMAGE UPLOADER */}
-                  {expandedDrawers.clothesSwapTools && (
-                    <div className="p-4 rounded-xl bg-[#faf2ee] border border-[#d6c3b6]/60 space-y-4 animate-in fade-in">
-                      <ClothesSwapPanel
-                        language={language}
-                        selection={selection}
-                        onUpdateSelection={onUpdateSelection}
-                      />
-                      <CustomGarmentUploader
-                        language={language}
-                        selection={selection}
-                        onUpdateSelection={onUpdateSelection}
-                      />
                     </div>
                   )}
                 </section>
 
                 {/* SECTION 3: Thanaka, Royal Coiffure & Cultural Jewelry Browser */}
-                <section className="bg-white rounded-xl p-5 shadow-xs border border-[#d6c3b6]/30 flex flex-col gap-4">
-                  <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-[#d6c3b6]/20">
+                <section className="bg-[#12141c] rounded-2xl p-5 shadow-md border border-zinc-800 flex flex-col gap-4">
+                  <div className={`flex items-center justify-between flex-wrap gap-2 ${sectionToggles.section3 ? 'pb-2 border-b border-zinc-800' : ''}`}>
                     <div className="flex items-center gap-2">
-                      <span className="w-7 h-7 rounded-full bg-[#704112]/10 text-[#704112] font-sans text-sm flex items-center justify-center font-bold border border-[#704112]/20">
+                      <span className="w-7 h-7 rounded-full bg-emerald-500/15 text-emerald-400 font-sans text-sm flex items-center justify-center font-bold border border-emerald-500/30">
                         3
                       </span>
                       <div>
-                        <h2 className="font-sans text-base text-[#1e1b19] font-semibold">
+                        <h2 className="font-sans text-base text-zinc-100 font-semibold">
                           Thanaka, Royal Coiffure &amp; Cultural Jewelry Browser
                         </h2>
-                        <span className="font-sans text-xs text-[#51443a]">
+                        <span className="font-sans text-xs text-zinc-400">
                           သနပ်ခါး လိမ်းခြယ်မှု၊ ဆံထုံးပန်းအလှ နှင့် နန်းတွင်း လက်ဝတ်ရတနာ ဘရောက်ဇာ (၄၆ မျိုး)
                         </span>
                       </div>
                     </div>
-                    <span className="bg-[#ffdf98]/50 text-[#5a4300] border border-[#775a00]/20 font-sans text-xs px-2.5 py-0.5 rounded-full font-semibold">
-                      Jewelry, Hair &amp; Thanaka Studio
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="bg-emerald-500/15 text-emerald-300 text-emerald-300 border border-emerald-500/30 font-sans text-xs px-2.5 py-0.5 rounded-full font-semibold">
+                        Jewelry, Hair &amp; Thanaka Studio
+                      </span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={sectionToggles.section3}
+                        onClick={() => toggleSection('section3')}
+                        className="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-[#161822] hover:bg-[#1a1d29] border border-zinc-800 transition-all cursor-pointer group"
+                        title={sectionToggles.section3 ? 'Click to collapse section' : 'Click to expand section'}
+                      >
+                        <span className={`font-sans text-xs font-bold transition-colors ${
+                          sectionToggles.section3 ? 'text-emerald-400' : 'text-zinc-400'
+                        }`}>
+                          {sectionToggles.section3 ? 'ON' : 'OFF'}
+                        </span>
+                        <div
+                          className={`w-9 h-5 rounded-full transition-colors relative flex items-center p-0.5 ${
+                            sectionToggles.section3 ? 'bg-emerald-500' : 'bg-zinc-700'
+                          }`}
+                        >
+                          <div
+                            className={`w-4 h-4 rounded-full bg-white shadow-xs transition-transform duration-200 ease-in-out ${
+                              sectionToggles.section3 ? 'translate-x-4' : 'translate-x-0'
+                            }`}
+                          />
+                        </div>
+                      </button>
+                    </div>
                   </div>
 
+                  {sectionToggles.section3 && (
+                    <div className="flex flex-col gap-4 animate-in fade-in duration-200">
                   {/* Step 3A: Thanaka & Burmese Beauty Application Bar */}
                   <div className="flex flex-col gap-2">
-                    <span className="font-sans text-[11px] text-[#847469] uppercase font-bold tracking-wider">
+                    <span className="font-sans text-[11px] text-zinc-400 uppercase font-bold tracking-wider">
                       Step 3A — Thanaka &amp; Burmese Cosmetics Application (သနပ်ခါး နှင့် မိတ်ကပ် စတိုင်):
                     </span>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
@@ -1684,27 +1606,27 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                             onClick={() => onUpdateSelection({ makeup: item.id })}
                             className={`flex items-start gap-2.5 p-3 rounded-xl text-left border transition-all cursor-pointer ${
                               active
-                                ? 'bg-[#fff8ec] border-[#704112] ring-1 ring-[#704112]/40 shadow-2xs'
-                                : 'bg-[#faf2ee] border-[#d6c3b6]/40 hover:bg-[#f4ece9]'
+                                ? 'bg-emerald-500/15 border-2 border-emerald-500 shadow-[0_0_15px_rgba(5,177,135,0.25)]'
+                                : 'bg-[#161c2a] border-zinc-800 hover:border-emerald-500/40 hover:bg-[#1e2438]'
                             }`}
                           >
                             <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
                               active
-                                ? 'bg-[#704112] text-white'
-                                : 'bg-white border border-[#d6c3b6]/50 text-[#704112]'
+                                ? 'bg-emerald-500 text-black font-extrabold'
+                                : 'bg-zinc-800 border border-emerald-500/30 text-emerald-400'
                             }`}>
                               <span className="material-symbols-outlined text-[18px]">
                                 {item.icon}
                               </span>
                             </span>
                             <div className="min-w-0 flex-1">
-                              <p className="font-sans text-xs text-[#1e1b19] font-bold leading-snug">
+                              <p className={`font-sans text-xs font-bold leading-snug ${active ? 'text-emerald-300' : 'text-white'}`}>
                                 {item.titleMm}
                               </p>
-                              <p className="font-sans text-[10px] text-[#704112] font-medium">
+                              <p className="font-sans text-[10px] text-emerald-400 font-medium">
                                 {item.titleEn}
                               </p>
-                              <p className="font-sans text-[10px] text-[#51443a] mt-0.5 line-clamp-1">
+                              <p className="font-sans text-[10px] text-zinc-400 mt-0.5 line-clamp-1">
                                 {item.desc}
                               </p>
                             </div>
@@ -1716,7 +1638,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
 
                   {/* Step 3B: Full-Width Royal Jewelry, Hair Coiffure & Cultural Props Style Browser */}
                   <div className="flex flex-col gap-2">
-                    <span className="font-sans text-[11px] text-[#847469] uppercase font-bold tracking-wider">
+                    <span className="font-sans text-[11px] text-zinc-400 uppercase font-bold tracking-wider">
                       Step 3B — Browse Royal Jewelry, Hair Coiffure &amp; Cultural Accessories (ရတနာ၊ ဆံထုံးနှင့် ရိုးရာအသုံးအဆောင် ဘရောက်ဇာ):
                     </span>
                     <CulturalPropsDropdown
@@ -1725,29 +1647,33 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                       onUpdateSelection={onUpdateSelection}
                     />
                   </div>
+                    </div>
+                  )}
                 </section>
 
               </div>
+            </ScrollReveal>
             )}
 
             {/* ============================================================== */}
             {/* TAB 2: SCENE & AMBIANCE */}
             {/* ============================================================== */}
             {(activeTab === 'tab-scene' || isViewAll) && (
-              <div className="flex flex-col gap-6">
+              <ScrollReveal>
+                <div id="section-tab-scene" className="flex flex-col gap-6">
                 
                 {/* SECTION 4: Background Setting & Environment */}
-                <section className="bg-white rounded-xl p-5 shadow-xs border border-[#d6c3b6]/30 flex flex-col gap-4">
-                  <div className="flex items-center justify-between pb-1 border-b border-[#d6c3b6]/20">
+                <section className="bg-[#12141c] rounded-2xl p-5 shadow-md border border-zinc-800 flex flex-col gap-4">
+                  <div className="flex items-center justify-between pb-1 border-b border-zinc-800">
                     <div className="flex items-center gap-2">
-                      <span className="w-7 h-7 rounded-full bg-[#704112]/10 text-[#704112] font-sans text-sm flex items-center justify-center font-bold border border-[#704112]/20">
+                      <span className="w-7 h-7 rounded-full bg-emerald-500/15 text-emerald-400 font-sans text-sm flex items-center justify-center font-bold border border-emerald-500/30">
                         4
                       </span>
                       <div>
-                        <h2 className="font-sans text-base text-[#1e1b19] font-semibold">
+                        <h2 className="font-sans text-base text-zinc-100 font-semibold">
                           Background Setting &amp; Environment
                         </h2>
-                        <span className="font-sans text-xs text-[#51443a]">
+                        <span className="font-sans text-xs text-zinc-400">
                           နောက်ခံ သဘာဝနှင့် သမိုင်းဝင်နေရာများ
                         </span>
                       </div>
@@ -1757,7 +1683,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                         <button
                           type="button"
                           onClick={() => onNavigateView('composite-harmonizer')}
-                          className="px-2.5 py-1 rounded-full bg-[#fff8e0] text-[#746019] border border-[#fcb900]/40 font-sans text-xs font-semibold flex items-center gap-1 cursor-pointer hover:bg-[#ffe082] transition-colors"
+                          className="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-sans text-xs font-semibold flex items-center gap-1 cursor-pointer hover:bg-emerald-500/25 transition-colors"
                           title="Open Background Changer Studio with 24+ Presets & Contact Shadows"
                         >
                           <span className="material-symbols-outlined text-[16px]">wallpaper</span>
@@ -1767,7 +1693,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                       <button
                         type="button"
                         onClick={() => toggleDrawer('locationCatalog')}
-                        className="px-2.5 py-1 rounded-full bg-[#bcedda]/50 text-[#214f41] border border-[#275546]/20 font-sans text-xs font-semibold flex items-center gap-1 cursor-pointer hover:bg-[#bcedda]"
+                        className="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-sans text-xs font-semibold flex items-center gap-1 cursor-pointer hover:bg-emerald-500/25"
                       >
                         <span className="material-symbols-outlined text-[16px]">map</span>
                         <span>{expandedDrawers.locationCatalog ? 'Hide 36 Locations' : 'Browse 36 Locations'}</span>
@@ -1775,7 +1701,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                     </div>
                   </div>
 
-                  {/* Landmark Visual Grid */}
+                  {/* Landmark Visual Grid (Clean responsive cards without photo) */}
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {LOCATION_CARDS.map((loc) => {
                       const isSelected = selection.location === loc.locationVal;
@@ -1784,31 +1710,29 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                           key={loc.id}
                           type="button"
                           onClick={() => onUpdateSelection({ location: loc.locationVal })}
-                          className={`p-2.5 rounded-lg text-left transition-all flex flex-col gap-2 relative cursor-pointer ${
+                          className={`p-3 rounded-lg text-left transition-all flex items-start justify-between relative cursor-pointer ${
                             isSelected
-                              ? 'border-2 border-[#704112] bg-[#704112]/5 shadow-xs'
-                              : 'border border-[#d6c3b6]/40 bg-[#faf2ee] hover:border-[#847469] hover:bg-[#f4ece9]'
+                              ? 'border-2 border-emerald-500 bg-emerald-500/15 shadow-[0_0_15px_rgba(5,177,135,0.2)]'
+                              : 'border border-zinc-800 bg-[#161c2a] text-zinc-300 hover:border-emerald-500/40 hover:bg-[#1e2438]'
                           }`}
                         >
-                          <div
-                            className="h-24 w-full rounded bg-cover bg-center overflow-hidden shadow-inner"
-                            style={{ backgroundImage: `url(${loc.img})` }}
-                          />
-                          <div className="flex items-start justify-between w-full">
-                            <div>
-                              <span className={`font-sans text-sm font-semibold block leading-tight ${isSelected ? 'text-[#704112]' : 'text-[#1e1b19]'}`}>
-                                {loc.titleEn}
-                              </span>
-                              <span className="font-sans text-xs text-[#51443a]">
-                                {loc.titleMm}
-                              </span>
-                            </div>
-                            {isSelected && (
-                              <span className="material-symbols-outlined text-[#704112] text-[18px]">
-                                check_circle
-                              </span>
-                            )}
+                          <div className="flex flex-col gap-0.5">
+                            <span className={`font-sans text-sm font-semibold block leading-tight ${isSelected ? 'text-emerald-400' : 'text-zinc-100'}`}>
+                              {loc.titleEn}
+                            </span>
+                            <span className="font-sans text-xs text-zinc-400">
+                              {loc.titleMm}
+                            </span>
                           </div>
+                          {isSelected ? (
+                            <span className="material-symbols-outlined text-emerald-400 text-[18px]">
+                              check_circle
+                            </span>
+                          ) : (
+                            <span className="material-symbols-outlined text-zinc-400/30 text-[18px]">
+                              radio_button_unchecked
+                            </span>
+                          )}
                         </button>
                       );
                     })}
@@ -1816,7 +1740,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
 
                   {/* 🌟 36 LOCATIONS CAROUSEL DRAWER */}
                   {expandedDrawers.locationCatalog && (
-                    <div className="p-4 rounded-xl bg-[#faf2ee] border border-[#d6c3b6]/50 space-y-4 animate-in fade-in">
+                    <div className="p-4 rounded-xl bg-[#161822] border border-zinc-800 space-y-4 animate-in fade-in">
                       <LocationSelectionCarousel
                         language={language}
                         selection={selection}
@@ -1826,15 +1750,15 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                   )}
 
                   {/* Festivals & Events Section */}
-                  <div className="pt-2 border-t border-[#d6c3b6]/30">
+                  <div className="pt-2 border-t border-zinc-800">
                     <div className="flex items-center justify-between pb-2">
-                      <span className="font-sans text-xs text-[#847469] uppercase font-bold">
+                      <span className="font-sans text-xs text-zinc-400 uppercase font-bold">
                         Festivals &amp; Cultural Events (ပွဲတော်များနှင့် အခမ်းအနားများ)
                       </span>
                       <button
                         type="button"
                         onClick={() => toggleDrawer('eventCatalog')}
-                        className="text-xs text-[#704112] font-semibold hover:underline"
+                        className="text-xs text-emerald-400 font-semibold hover:underline"
                       >
                         {expandedDrawers.eventCatalog ? 'Close 30 Events' : 'Browse 30 Festivals'}
                       </button>
@@ -1850,22 +1774,22 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                 </section>
 
                 {/* SECTION 5: Era & Historical Period */}
-                <section className="bg-white rounded-xl p-5 shadow-xs border border-[#d6c3b6]/30 flex flex-col gap-4">
-                  <div className="flex items-center justify-between pb-1 border-b border-[#d6c3b6]/20">
+                <section className="bg-[#12141c] rounded-2xl p-5 shadow-md border border-zinc-800 flex flex-col gap-4">
+                  <div className="flex items-center justify-between pb-1 border-b border-zinc-800">
                     <div className="flex items-center gap-2">
-                      <span className="w-7 h-7 rounded-full bg-[#704112]/10 text-[#704112] font-sans text-sm flex items-center justify-center font-bold border border-[#704112]/20">
+                      <span className="w-7 h-7 rounded-full bg-emerald-500/15 text-emerald-400 font-sans text-sm flex items-center justify-center font-bold border border-emerald-500/30">
                         5
                       </span>
                       <div>
-                        <h2 className="font-sans text-base text-[#1e1b19] font-semibold">
+                        <h2 className="font-sans text-base text-zinc-100 font-semibold">
                           Era &amp; Historical Period
                         </h2>
-                        <span className="font-sans text-xs text-[#51443a]">
+                        <span className="font-sans text-xs text-zinc-400">
                           ခေတ်ကာလ အချိန်စနစ်
                         </span>
                       </div>
                     </div>
-                    <span className="bg-[#f4ece9] text-[#51443a] font-sans text-xs px-2.5 py-0.5 rounded-full">
+                    <span className="bg-[#1a1d29] text-zinc-400 font-sans text-xs px-2.5 py-0.5 rounded-full">
                       Temporal Tuning
                     </span>
                   </div>
@@ -1887,20 +1811,20 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                           onClick={() => onUpdateSelection({ weddingEra: item.id })}
                           className={`p-3 rounded-lg text-left transition-all flex flex-col gap-0.5 cursor-pointer ${
                             isSelected
-                              ? 'border-2 border-[#704112] bg-[#704112]/5 shadow-xs'
-                              : 'border border-[#d6c3b6]/40 bg-[#faf2ee] hover:border-[#847469] hover:bg-[#f4ece9]'
+                              ? 'border-2 border-emerald-500 bg-emerald-500/15 shadow-[0_0_15px_rgba(5,177,135,0.2)]'
+                              : 'border border-zinc-800 bg-[#161c2a] text-zinc-300 hover:border-emerald-500/40 hover:bg-[#1e2438]'
                           }`}
                         >
                           <div className="flex items-center justify-between w-full">
-                            <span className={`font-sans text-sm font-semibold ${isSelected ? 'text-[#704112]' : 'text-[#1e1b19]'}`}>
+                            <span className={`font-sans text-sm font-semibold ${isSelected ? 'text-emerald-400' : 'text-zinc-100'}`}>
                               {item.titleEn}
                             </span>
-                            <span className={`material-symbols-outlined text-[16px] ${isSelected ? 'text-[#704112]' : 'text-[#847469]/30'}`}>
+                            <span className={`material-symbols-outlined text-[16px] ${isSelected ? 'text-emerald-400' : 'text-zinc-400/30'}`}>
                               {isSelected ? 'check_circle' : 'radio_button_unchecked'}
                             </span>
                           </div>
-                          <span className="font-sans text-xs text-[#51443a]">{item.time}</span>
-                          <span className="font-sans text-[11px] text-[#847469]">{item.titleMm}</span>
+                          <span className="font-sans text-xs text-zinc-400">{item.time}</span>
+                          <span className="font-sans text-[11px] text-zinc-400">{item.titleMm}</span>
                         </button>
                       );
                     })}
@@ -1908,17 +1832,17 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                 </section>
 
                 {/* SECTION 6: Atmospheric Lighting & Chiaroscuro */}
-                <section className="bg-white rounded-xl p-5 shadow-xs border border-[#d6c3b6]/30 flex flex-col gap-4">
-                  <div className="flex items-center justify-between pb-1 border-b border-[#d6c3b6]/20">
+                <section className="bg-[#12141c] rounded-2xl p-5 shadow-md border border-zinc-800 flex flex-col gap-4">
+                  <div className="flex items-center justify-between pb-1 border-b border-zinc-800">
                     <div className="flex items-center gap-2">
-                      <span className="w-7 h-7 rounded-full bg-[#704112]/10 text-[#704112] font-sans text-sm flex items-center justify-center font-bold border border-[#704112]/20">
+                      <span className="w-7 h-7 rounded-full bg-emerald-500/15 text-emerald-400 font-sans text-sm flex items-center justify-center font-bold border border-emerald-500/30">
                         6
                       </span>
                       <div>
-                        <h2 className="font-sans text-base text-[#1e1b19] font-semibold">
+                        <h2 className="font-sans text-base text-zinc-100 font-semibold">
                           Atmospheric Lighting &amp; Chiaroscuro
                         </h2>
-                        <span className="font-sans text-xs text-[#51443a]">
+                        <span className="font-sans text-xs text-zinc-400">
                           အလင်းရောင် အထားအသို
                         </span>
                       </div>
@@ -1926,7 +1850,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                     <button
                       type="button"
                       onClick={() => toggleDrawer('lightingCatalog')}
-                      className="px-2.5 py-1 rounded-full bg-[#ffdf98]/50 text-[#5a4300] border border-[#775a00]/20 font-sans text-xs font-semibold flex items-center gap-1 cursor-pointer hover:bg-[#ffdf98]"
+                      className="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-sans text-xs font-semibold flex items-center gap-1 cursor-pointer hover:bg-emerald-500/25"
                     >
                       <span className="material-symbols-outlined text-[16px]">wb_sunny</span>
                       <span>{expandedDrawers.lightingCatalog ? 'Hide 30 Lights' : 'Browse 30 Lights & Moods'}</span>
@@ -1950,21 +1874,21 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                           onClick={() => onUpdateSelection({ timeAndLighting: item.id })}
                           className={`p-3 rounded-lg text-left transition-all flex flex-col gap-1 cursor-pointer ${
                             isSelected
-                              ? 'border-2 border-[#704112] bg-[#704112]/5 shadow-xs'
-                              : 'border border-[#d6c3b6]/40 bg-[#faf2ee] hover:border-[#847469] hover:bg-[#f4ece9]'
+                              ? 'border-2 border-emerald-500 bg-emerald-500/15 shadow-[0_0_15px_rgba(5,177,135,0.2)]'
+                              : 'border border-zinc-800 bg-[#161c2a] text-zinc-300 hover:border-emerald-500/40 hover:bg-[#1e2438]'
                           }`}
                         >
                           <div className="flex items-center justify-between w-full">
-                            <span className={`font-sans text-sm font-semibold leading-snug ${isSelected ? 'text-[#704112]' : 'text-[#1e1b19]'}`}>
+                            <span className={`font-sans text-sm font-semibold leading-snug ${isSelected ? 'text-emerald-400' : 'text-zinc-100'}`}>
                               {item.titleEn}
                             </span>
                             {isSelected && (
-                              <span className="material-symbols-outlined text-[#704112] text-[18px]">
+                              <span className="material-symbols-outlined text-emerald-400 text-[18px]">
                                 check_circle
                               </span>
                             )}
                           </div>
-                          <span className="font-sans text-xs text-[#51443a]">
+                          <span className="font-sans text-xs text-zinc-400">
                             {item.titleMm}
                           </span>
                         </button>
@@ -1974,7 +1898,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
 
                   {/* 30 LIGHTING & 15 MOODS CAROUSEL DRAWER */}
                   {expandedDrawers.lightingCatalog && (
-                    <div className="p-4 rounded-xl bg-[#faf2ee] border border-[#d6c3b6]/50 space-y-4 animate-in fade-in">
+                    <div className="p-4 rounded-xl bg-[#161822] border border-zinc-800 space-y-4 animate-in fade-in">
                       <LightingSelectionCarousel
                         language={language}
                         selection={selection}
@@ -1990,26 +1914,28 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                 </section>
 
               </div>
+            </ScrollReveal>
             )}
 
             {/* ============================================================== */}
             {/* TAB 3: ART & DIRECTION */}
             {/* ============================================================== */}
             {(activeTab === 'tab-direction' || isViewAll) && (
-              <div className="flex flex-col gap-6">
+              <ScrollReveal>
+                <div id="section-tab-direction" className="flex flex-col gap-6">
                 
                 {/* SECTION 7: Pose, Expression & Poise */}
-                <section className="bg-white rounded-xl p-5 shadow-xs border border-[#d6c3b6]/30 flex flex-col gap-4">
-                  <div className="flex items-center justify-between pb-1 border-b border-[#d6c3b6]/20">
+                <section className="bg-[#12141c] rounded-2xl p-5 shadow-md border border-zinc-800 flex flex-col gap-4">
+                  <div className="flex items-center justify-between pb-1 border-b border-zinc-800">
                     <div className="flex items-center gap-2">
-                      <span className="w-7 h-7 rounded-full bg-[#704112]/10 text-[#704112] font-sans text-sm flex items-center justify-center font-bold border border-[#704112]/20">
+                      <span className="w-7 h-7 rounded-full bg-emerald-500/15 text-emerald-400 font-sans text-sm flex items-center justify-center font-bold border border-emerald-500/30">
                         7
                       </span>
                       <div>
-                        <h2 className="font-sans text-base text-[#1e1b19] font-semibold">
+                        <h2 className="font-sans text-base text-zinc-100 font-semibold">
                           Pose, Expression &amp; Poise
                         </h2>
-                        <span className="font-sans text-xs text-[#51443a]">
+                        <span className="font-sans text-xs text-zinc-400">
                           ဟန်ပန်၊ အမူအရာ နှင့် သရုပ်ဖော်မှု
                         </span>
                       </div>
@@ -2017,7 +1943,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                     <button
                       type="button"
                       onClick={() => toggleDrawer('poseCatalog')}
-                      className="px-2.5 py-1 rounded-full bg-[#ffdf98]/50 text-[#5a4300] border border-[#775a00]/20 font-sans text-xs font-semibold flex items-center gap-1 cursor-pointer hover:bg-[#ffdf98]"
+                      className="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-sans text-xs font-semibold flex items-center gap-1 cursor-pointer hover:bg-emerald-500/25"
                     >
                       <span className="material-symbols-outlined text-[16px]">accessibility_new</span>
                       <span>{expandedDrawers.poseCatalog ? 'Hide 25 Poses' : 'Browse 25 Signature Poses'}</span>
@@ -2026,13 +1952,13 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1.5">
-                      <span className="font-sans text-xs text-[#847469] uppercase font-semibold">
+                      <span className="font-sans text-xs text-zinc-400 uppercase font-semibold">
                         Burmese Royal Gesture (အကနှင့် ဟန်ပန်)
                       </span>
                       <select
                         value={selection.poseExpression || 'looking_at_camera'}
                         onChange={(e) => onUpdateSelection({ poseExpression: e.target.value })}
-                        className="w-full bg-[#faf2ee] border border-[#d6c3b6]/40 px-3.5 py-2.5 rounded-lg font-sans text-sm text-[#1e1b19] focus:outline-none focus:ring-1 focus:ring-[#704112]"
+                        className="w-full bg-[#161822] border border-zinc-800 px-3.5 py-2.5 rounded-lg font-sans text-sm text-zinc-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                       >
                         <option value="looking_at_camera">Looking at Camera with Dignity (တည့်တည့်ရှုကြည့်ဟန်)</option>
                         <option value="graceful_dance">Graceful Classical Court Dance Gesture (ကဗျာလွတ်အကဟန်)</option>
@@ -2044,7 +1970,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <span className="font-sans text-xs text-[#847469] uppercase font-semibold">
+                      <span className="font-sans text-xs text-zinc-400 uppercase font-semibold">
                         Facial Emotion (မျက်နှာ အမူအရာ)
                       </span>
                       <div className="grid grid-cols-2 gap-2">
@@ -2059,8 +1985,8 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                             onClick={() => onUpdateSelection({ poseExpression: item.val })}
                             className={`flex items-center gap-2 p-2 rounded-lg text-xs cursor-pointer transition-colors ${
                               (selection.poseExpression || 'looking_at_camera') === item.val
-                                ? 'bg-[#faf2ee] border border-[#704112]/60 font-semibold text-[#704112]'
-                                : 'bg-[#faf2ee] border border-[#d6c3b6]/30 text-[#1e1b19] hover:bg-[#f4ece9]'
+                                ? 'bg-[#161822] border border-emerald-500/30 font-semibold text-emerald-400'
+                                : 'bg-[#161c2a] border border-zinc-800 text-zinc-300 hover:bg-[#1e2438]'
                             }`}
                           >
                             <input
@@ -2068,7 +1994,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                               name="emotion"
                               checked={(selection.poseExpression || 'looking_at_camera') === item.val}
                               onChange={() => onUpdateSelection({ poseExpression: item.val })}
-                              className="accent-[#704112]"
+                              className="accent-emerald-500"
                             />
                             <span>{item.title}</span>
                           </label>
@@ -2079,7 +2005,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
 
                   {/* 25 POSES CAROUSEL DRAWER */}
                   {expandedDrawers.poseCatalog && (
-                    <div className="p-4 rounded-xl bg-[#faf2ee] border border-[#d6c3b6]/50 space-y-4 animate-in fade-in">
+                    <div className="p-4 rounded-xl bg-[#161822] border border-zinc-800 space-y-4 animate-in fade-in">
                       <PoseSelectionCarousel
                         language={language}
                         selection={selection}
@@ -2090,17 +2016,17 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                 </section>
 
                 {/* SECTION 8: Camera Optics & Composition */}
-                <section className="bg-white rounded-xl p-5 shadow-xs border border-[#d6c3b6]/30 flex flex-col gap-4">
-                  <div className="flex items-center justify-between pb-1 border-b border-[#d6c3b6]/20">
+                <section className="bg-[#12141c] rounded-2xl p-5 shadow-md border border-zinc-800 flex flex-col gap-4">
+                  <div className="flex items-center justify-between pb-1 border-b border-zinc-800">
                     <div className="flex items-center gap-2">
-                      <span className="w-7 h-7 rounded-full bg-[#704112]/10 text-[#704112] font-sans text-sm flex items-center justify-center font-bold border border-[#704112]/20">
+                      <span className="w-7 h-7 rounded-full bg-emerald-500/15 text-emerald-400 font-sans text-sm flex items-center justify-center font-bold border border-emerald-500/30">
                         8
                       </span>
                       <div>
-                        <h2 className="font-sans text-base text-[#1e1b19] font-semibold">
+                        <h2 className="font-sans text-base text-zinc-100 font-semibold">
                           Camera Optics &amp; Composition
                         </h2>
-                        <span className="font-sans text-xs text-[#51443a]">
+                        <span className="font-sans text-xs text-zinc-400">
                           ကင်မရာ မှန်ဘီလူးနှင့် ရိုက်ကွက်
                         </span>
                       </div>
@@ -2108,7 +2034,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                     <button
                       type="button"
                       onClick={() => toggleDrawer('cameraCatalog')}
-                      className="px-2.5 py-1 rounded-full bg-[#ffdf98]/50 text-[#5a4300] border border-[#775a00]/20 font-sans text-xs font-semibold flex items-center gap-1 cursor-pointer hover:bg-[#ffdf98]"
+                      className="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-sans text-xs font-semibold flex items-center gap-1 cursor-pointer hover:bg-emerald-500/25"
                     >
                       <span className="material-symbols-outlined text-[16px]">photo_camera</span>
                       <span>{expandedDrawers.cameraCatalog ? 'Hide 25 Cameras' : 'Browse 25 Cameras & Angles'}</span>
@@ -2116,12 +2042,12 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div className="flex flex-col gap-1 p-2.5 bg-[#faf2ee] border border-[#d6c3b6]/30 rounded-lg">
-                      <span className="font-sans text-xs text-[#847469] uppercase font-semibold">Shot Framing</span>
+                    <div className="flex flex-col gap-1 p-2.5 bg-[#161822] border border-zinc-800 rounded-lg">
+                      <span className="font-sans text-xs text-zinc-400 uppercase font-semibold">Shot Framing</span>
                       <select
                         value={selection.cameraAngle || 'eye_level'}
                         onChange={(e) => onUpdateSelection({ cameraAngle: e.target.value })}
-                        className="bg-transparent font-sans text-sm text-[#1e1b19] font-medium focus:outline-none"
+                        className="bg-transparent font-sans text-sm text-zinc-100 font-medium focus:outline-none"
                       >
                         <option value="eye_level">Eye-Level Medium Close-Up</option>
                         <option value="full_body">Full-Length Royal Stance</option>
@@ -2131,12 +2057,12 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                       </select>
                     </div>
 
-                    <div className="flex flex-col gap-1 p-2.5 bg-[#faf2ee] border border-[#d6c3b6]/30 rounded-lg">
-                      <span className="font-sans text-xs text-[#847469] uppercase font-semibold">Lens &amp; Aperture</span>
+                    <div className="flex flex-col gap-1 p-2.5 bg-[#161822] border border-zinc-800 rounded-lg">
+                      <span className="font-sans text-xs text-zinc-400 uppercase font-semibold">Lens &amp; Aperture</span>
                       <select
                         value={selection.camera || 'sony_a7rv'}
                         onChange={(e) => onUpdateSelection({ camera: e.target.value })}
-                        className="bg-transparent font-sans text-sm text-[#1e1b19] font-medium focus:outline-none"
+                        className="bg-transparent font-sans text-sm text-zinc-100 font-medium focus:outline-none"
                       >
                         <option value="sony_a7rv">Sony A7R V (85mm f/1.2 Lens)</option>
                         <option value="canon_r5">Canon EOS R5 (50mm f/1.2)</option>
@@ -2145,31 +2071,11 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                         <option value="leica_m11">Leica M11 (Summilux 50mm)</option>
                       </select>
                     </div>
-
-                    <div className="flex flex-col gap-1 p-2.5 bg-[#faf2ee] border border-[#d6c3b6]/30 rounded-lg">
-                      <span className="font-sans text-xs text-[#847469] uppercase font-semibold">Aspect Ratio</span>
-                      <div className="flex items-center gap-1 pt-1">
-                        {['16:9', '9:16', '4:5', '1:1', '2:3'].map((ar) => (
-                          <button
-                            key={ar}
-                            type="button"
-                            onClick={() => onUpdateSelection({ aspectRatio: ar })}
-                            className={`px-2.5 py-1 text-xs rounded-md font-sans transition-all cursor-pointer ${
-                              (selection.aspectRatio || '16:9') === ar
-                                ? 'bg-[#704112] text-white font-semibold shadow-xs'
-                                : 'bg-[#f4ece9] border border-[#d6c3b6]/30 text-[#51443a] hover:bg-[#eee7e3]'
-                            }`}
-                          >
-                            {ar}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
                   </div>
 
                   {/* 25 CAMERAS & ANGLES CAROUSEL DRAWER */}
                   {expandedDrawers.cameraCatalog && (
-                    <div className="p-4 rounded-xl bg-[#faf2ee] border border-[#d6c3b6]/50 space-y-4 animate-in fade-in">
+                    <div className="p-4 rounded-xl bg-[#161822] border border-zinc-800 space-y-4 animate-in fade-in">
                       <CameraSelectionCarousel
                         language={language}
                         selection={selection}
@@ -2185,17 +2091,17 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                 </section>
 
                 {/* SECTION 9: Aesthetic & Photographic Medium */}
-                <section className="bg-white rounded-xl p-5 shadow-xs border border-[#d6c3b6]/30 flex flex-col gap-4">
-                  <div className="flex items-center justify-between pb-1 border-b border-[#d6c3b6]/20">
+                <section className="bg-[#12141c] rounded-2xl p-5 shadow-md border border-zinc-800 flex flex-col gap-4">
+                  <div className="flex items-center justify-between pb-1 border-b border-zinc-800">
                     <div className="flex items-center gap-2">
-                      <span className="w-7 h-7 rounded-full bg-[#704112]/10 text-[#704112] font-sans text-sm flex items-center justify-center font-bold border border-[#704112]/20">
+                      <span className="w-7 h-7 rounded-full bg-emerald-500/15 text-emerald-400 font-sans text-sm flex items-center justify-center font-bold border border-emerald-500/30">
                         9
                       </span>
                       <div>
-                        <h2 className="font-sans text-base text-[#1e1b19] font-semibold">
+                        <h2 className="font-sans text-base text-zinc-100 font-semibold">
                           Aesthetic &amp; Photographic Medium
                         </h2>
-                        <span className="font-sans text-xs text-[#51443a]">
+                        <span className="font-sans text-xs text-zinc-400">
                           ဓာတ်ပုံအနုပညာ အသွင်အပြင်
                         </span>
                       </div>
@@ -2203,7 +2109,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                     <button
                       type="button"
                       onClick={() => toggleDrawer('filmRetouchCatalog')}
-                      className="px-2.5 py-1 rounded-full bg-[#ffdf98]/50 text-[#5a4300] border border-[#775a00]/20 font-sans text-xs font-semibold flex items-center gap-1 cursor-pointer hover:bg-[#ffdf98]"
+                      className="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-sans text-xs font-semibold flex items-center gap-1 cursor-pointer hover:bg-emerald-500/25"
                     >
                       <span className="material-symbols-outlined text-[16px]">palette</span>
                       <span>{expandedDrawers.filmRetouchCatalog ? 'Hide 20 Film LUTs' : 'Browse 20 Film LUTs & Retouch'}</span>
@@ -2226,19 +2132,19 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                           onClick={() => onUpdateSelection({ colorGrade: item.id })}
                           className={`p-3 rounded-lg flex flex-col gap-1 cursor-pointer transition-all ${
                             isSelected
-                              ? 'border-2 border-[#704112] bg-[#faf2ee] shadow-xs'
-                              : 'border border-[#d6c3b6]/30 bg-[#faf2ee] hover:border-[#847469] hover:bg-[#f4ece9]'
+                              ? 'border-2 border-emerald-500 bg-emerald-500/15 shadow-[0_0_15px_rgba(5,177,135,0.2)]'
+                              : 'border border-zinc-800 bg-[#161c2a] text-zinc-300 hover:border-emerald-500/40 hover:bg-[#1e2438]'
                           }`}
                         >
                           <div className="flex items-center justify-between">
-                            <span className={`font-sans text-sm font-semibold ${isSelected ? 'text-[#704112]' : 'text-[#1e1b19]'}`}>
+                            <span className={`font-sans text-sm font-semibold ${isSelected ? 'text-emerald-400' : 'text-zinc-100'}`}>
                               {item.title}
                             </span>
-                            <span className={`material-symbols-outlined text-[18px] ${isSelected ? 'text-[#704112]' : 'text-[#847469]/30'}`}>
+                            <span className={`material-symbols-outlined text-[18px] ${isSelected ? 'text-emerald-400' : 'text-zinc-400/30'}`}>
                               {isSelected ? 'verified' : 'radio_button_unchecked'}
                             </span>
                           </div>
-                          <span className="font-sans text-xs text-[#51443a] leading-snug">
+                          <span className="font-sans text-xs text-zinc-400 leading-snug">
                             {item.desc}
                           </span>
                         </div>
@@ -2248,7 +2154,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
 
                   {/* 20 FILM LUTS, RETOUCH & MAKEUP CAROUSEL DRAWER */}
                   {expandedDrawers.filmRetouchCatalog && (
-                    <div className="p-4 rounded-xl bg-[#faf2ee] border border-[#d6c3b6]/50 space-y-4 animate-in fade-in">
+                    <div className="p-4 rounded-xl bg-[#161822] border border-zinc-800 space-y-4 animate-in fade-in">
                       <FilmColorSelectionCarousel
                         language={language}
                         selection={selection}
@@ -2274,98 +2180,10 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                 </section>
 
               </div>
+            </ScrollReveal>
             )}
 
-            {/* ============================================================== */}
-            {/* TAB 4: ENGINE & OUTPUT */}
-            {/* ============================================================== */}
-            {(activeTab === 'tab-engine' || isViewAll) && (
-              <div className="flex flex-col gap-6">
-                
-                {/* SECTION 10: Target AI Engine & Constraints */}
-                <section className="bg-white rounded-xl p-5 shadow-xs border border-[#d6c3b6]/30 flex flex-col gap-4">
-                  <div className="flex items-center justify-between pb-1 border-b border-[#d6c3b6]/20">
-                    <div className="flex items-center gap-2">
-                      <span className="w-7 h-7 rounded-full bg-[#704112]/10 text-[#704112] font-sans text-sm flex items-center justify-center font-bold border border-[#704112]/20">
-                        10
-                      </span>
-                      <div>
-                        <h2 className="font-sans text-base text-[#1e1b19] font-semibold">
-                          Target AI Engine &amp; Constraints
-                        </h2>
-                        <span className="font-sans text-xs text-[#51443a]">
-                          AI မော်ဒယ် သတ်မှတ်ချက်နှင့် ဖယ်ထုတ်ရန် စာသားများ
-                        </span>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => toggleDrawer('qualityCatalog')}
-                      className="px-2.5 py-1 rounded-full bg-[#ffdf98]/50 text-[#5a4300] border border-[#775a00]/20 font-sans text-xs font-semibold flex items-center gap-1 cursor-pointer hover:bg-[#ffdf98]"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">auto_awesome</span>
-                      <span>{expandedDrawers.qualityCatalog ? 'Hide Quality Engines' : 'Master Render Quality Engines'}</span>
-                    </button>
-                  </div>
 
-                  <div className="flex flex-col gap-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-sans text-xs text-[#51443a] mr-2 font-medium">Target Syntax:</span>
-                      {[
-                        { id: 'midjourney-v6', label: 'Midjourney v6.1' },
-                        { id: 'flux-1', label: 'Flux.1 Dev / Pro' },
-                        { id: 'sdxl', label: 'SDXL 1.0 Turbo' },
-                        { id: 'dalle-3', label: 'DALL-E 3' }
-                      ].map((eng) => (
-                        <button
-                          key={eng.id}
-                          type="button"
-                          onClick={() => onEngineChange(eng.id)}
-                          className={`px-3 py-1.5 rounded-md font-sans text-xs font-semibold transition-all cursor-pointer ${
-                            engine === eng.id
-                              ? 'bg-[#704112] text-white shadow-xs'
-                              : 'bg-[#f4ece9] border border-[#d6c3b6]/30 text-[#51443a] hover:bg-[#eee7e3]'
-                          }`}
-                        >
-                          {eng.label}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Negative Prompt Safeguards Box */}
-                    <div className="flex flex-col gap-1.5 pt-1">
-                      <div className="flex items-center justify-between">
-                        <label className="font-sans text-xs text-[#847469] uppercase font-semibold">
-                          Burmese Authenticity Negative Safeguards (ဖယ်ထုတ်ချက်)
-                        </label>
-                        <button
-                          type="button"
-                          onClick={handleCopyNegative}
-                          className="px-2.5 py-1 bg-[#f4ece9] border border-[#d6c3b6]/30 rounded text-xs font-sans text-[#1e1b19] hover:bg-[#eee7e3] transition-colors cursor-pointer"
-                        >
-                          {negCopiedToast ? 'Copied!' : 'Copy Negative'}
-                        </button>
-                      </div>
-                      <div className="p-3 bg-[#faf2ee] border border-[#d6c3b6]/30 rounded-lg font-mono text-xs text-[#51443a] leading-relaxed select-all">
-                        {liveBuilt?.negativePrompt || '--no modern western clothing, sunglasses, plastic, wrist watch, distorted hands, extra fingers, inaccurate generic anime face, non-Burmese Chinese or Japanese traditional costumes, synthetic nylon fabrics, low quality render, deformed facial anatomy'}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 🌟 QUALITY ENGINE PROFILES DRAWER */}
-                  {expandedDrawers.qualityCatalog && (
-                    <div className="p-4 rounded-xl bg-[#faf2ee] border border-[#d6c3b6]/50 space-y-4 animate-in fade-in">
-                      <QualityEngineSelectionCarousel
-                        language={language}
-                        selection={selection}
-                        onUpdateSelection={onUpdateSelection}
-                      />
-                    </div>
-                  )}
-                </section>
-
-              </div>
-            )}
 
           </div>
 
@@ -2374,194 +2192,128 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
         {/* ===================================================================== */}
         {/* RIGHT COLUMN: Elevated Master Synthesizer Copilot Sidebar (xl:col-span-5) */}
         {/* ===================================================================== */}
-        <div className="xl:col-span-5 flex flex-col gap-6 sticky top-24">
+        <div id="section-output-card" className="xl:col-span-5 flex flex-col gap-5 sticky top-24">
           
-          {/* Visual Showcase & Photo Reference Card */}
-          <div className="bg-white rounded-2xl p-5 shadow-xs border border-[#e0e2e8] flex flex-col gap-4">
+          {/* Real-Time Prompt Modifiers Quick Chips (Instant Cultural Modifiers) */}
+          <div className="bg-[#12141c] rounded-2xl p-4 shadow-md border border-zinc-800 flex flex-col gap-2.5">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#ffd02f] border border-[#fcb900] animate-ping"></span>
-                <span className="font-sans text-sm text-[#1c1c1e] font-bold">
-                  {selection.referenceImage ? (isMyanmar ? 'ထည့်သွင်းထားသော Reference Photo' : 'Attached Reference Photo') : (isMyanmar ? 'စတူဒီယို ဓာတ်ပုံ နမူနာ' : 'Curated Visual Showcase')}
-                </span>
-              </div>
-              {selection.referenceImage ? (
-                <span className="font-sans text-xs bg-[#eefaf6] text-[#00875a] border border-[#00b473]/30 px-3 py-0.5 rounded-full font-bold flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[13px]">lock</span>
-                  <span>100% Identity Locked</span>
-                </span>
-              ) : (
-                <span className="font-sans text-xs bg-[#c3faf5] text-[#187574] border border-[#0fbcb0]/30 px-3 py-0.5 rounded-full font-bold flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[13px]">verified</span>
-                  <span>98.4% Cultural Fidelity</span>
-                </span>
-              )}
+              <span className="font-sans text-[11px] text-zinc-400 uppercase font-bold tracking-wider flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[15px] text-emerald-400">auto_awesome</span>
+                <span>Instant Cultural Modifiers</span>
+              </span>
+              <span className="font-sans text-[11px] text-zinc-500">Click to append</span>
             </div>
-
-            {/* Hidden file input for prompt section upload */}
-            <input
-              ref={promptPhotoInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handlePromptFileChange}
-              className="hidden"
-            />
-
-            {/* Interactive Image Dropzone & Preview Container */}
-            <div
-              onDragOver={(e) => { e.preventDefault(); setIsPromptDragOver(true); }}
-              onDragLeave={() => setIsPromptDragOver(false)}
-              onDrop={handlePromptDrop}
-              className={`relative w-full aspect-[4/3] rounded-xl overflow-hidden group shadow-2xs border transition-all ${
-                isPromptDragOver
-                  ? 'border-2 border-[#ffd02f] ring-4 ring-[#ffd02f]/20 bg-[#fffdf0]'
-                  : 'border-[#e0e2e8] bg-[#1c1c1e]'
-              }`}
-            >
-              <img
-                src={selection.referenceImage || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1000&q=85"}
-                alt="Showcase"
-                className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 ${
-                  isPromptDragOver ? 'opacity-40' : 'opacity-100'
-                }`}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent pointer-events-none" />
-
-              {/* Drag overlay feedback */}
-              {isPromptDragOver && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#ffd02f]/90 text-[#1c1c1e] z-30 font-bold text-sm">
-                  <span className="material-symbols-outlined text-[36px]">file_upload</span>
-                  <span>{isMyanmar ? 'ဓာတ်ပုံအား ဤနေရာတွင် ချပါ' : 'Drop photo to attach to prompt'}</span>
-                </div>
-              )}
-
-              {/* Top controls: Reverse Prompt & Remove buttons */}
-              <div className="absolute top-3 left-3 right-3 flex items-center justify-between z-10">
-                {selection.referenceImage ? (
-                  <>
-                    <span className="bg-black/70 backdrop-blur-md text-[#ffd02f] font-mono text-[10px] font-bold px-2.5 py-1 rounded-full border border-white/20 flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-[#00b473]"></span>
-                      <span>{isMyanmar ? 'လူအစစ် ပုံတူ ထည့်သွင်းပြီး' : 'Face Reference Loaded'}</span>
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      {onNavigateView && (
-                        <button
-                          type="button"
-                          onClick={() => onNavigateView('photo-to-text', selection.referenceImage || undefined)}
-                          className="px-2.5 py-1 rounded-full bg-[#ffd02f] text-[#1c1c1e] font-sans text-[11px] font-bold flex items-center gap-1 shadow-sm hover:bg-[#fcb900] cursor-pointer"
-                          title="Extract prompts from this photo"
-                        >
-                          <span className="material-symbols-outlined text-[13px]">auto_fix_normal</span>
-                          <span>Photo to Text</span>
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => onUpdateSelection({ referenceImage: null, identityLock: 'no_lock' })}
-                        className="p-1 rounded-full bg-black/60 text-white/90 hover:text-white hover:bg-[#ba1a1a] transition-colors cursor-pointer"
-                        title="Remove photo"
-                      >
-                        <span className="material-symbols-outlined text-[15px]">close</span>
-                      </button>
-                    </div>
-                  </>
-                ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                '+ Golden Hour',
+                '+ More Thanaka Pattern',
+                '+ Heavy Monsoon Rain',
+                '+ Gilded 24k Gold Accents',
+                '+ Kodak Portra Grain'
+              ].map((mod) => {
+                const isApplied = quickModifiers.includes(mod);
+                return (
                   <button
+                    key={mod}
                     type="button"
-                    onClick={() => promptPhotoInputRef.current?.click()}
-                    className="ml-auto px-3 py-1 rounded-full bg-white/95 hover:bg-white text-[#1c1c1e] font-sans text-xs font-bold flex items-center gap-1.5 shadow-md border border-[#e0e2e8] cursor-pointer transition-all hover:scale-102"
+                    onClick={() => toggleQuickModifier(mod)}
+                    className={`text-xs px-3 py-1.5 rounded-full transition-all cursor-pointer font-medium ${
+                      isApplied
+                        ? 'bg-emerald-500 text-black font-extrabold shadow-sm'
+                        : 'bg-[#161822] hover:bg-[#1f2232] text-zinc-300 border border-zinc-800'
+                    }`}
                   >
-                    <span className="material-symbols-outlined text-[16px] text-[#4262ff]">add_a_photo</span>
-                    <span>{isMyanmar ? 'ဓာတ်ပုံတင်ရန်' : 'Upload Photo'}</span>
+                    {mod}
                   </button>
-                )}
-              </div>
-
-              {/* Glassmorphic Metadata Overlay HUD inside image */}
-              <div className="absolute bottom-3 left-3 right-3 bg-white/95 backdrop-blur-md border border-[#e0e2e8] p-2.5 rounded-xl shadow-xs flex items-center justify-between">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="px-2.5 py-0.5 rounded-full bg-[#f7f8fa] text-[#1c1c1e] font-sans text-xs font-semibold">
-                    {selection.customSubjectDetails || selection.subject || 'Bagan Court'}
-                  </span>
-                  <span className="px-2.5 py-0.5 rounded-full bg-[#f7f8fa] text-[#1c1c1e] font-sans text-xs font-semibold">
-                    {selection.timeAndLighting || 'Dawn Mist'}
-                  </span>
-                </div>
-                <span className="font-sans text-xs text-[#1c1c1e] font-extrabold px-2.5 py-0.5 rounded-full bg-[#ffd02f]">
-                  {selection.aspectRatio || '16:9'} RAW
-                </span>
-              </div>
-            </div>
-
-            {/* Quick Upload Action Strip */}
-            <div className="p-3 bg-[#f7f8fa] rounded-xl border border-[#e0e2e8] flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[18px] text-[#4262ff]">upload_file</span>
-                <div className="flex flex-col">
-                  <span className="font-sans text-xs font-bold text-[#1c1c1e]">
-                    {isMyanmar ? 'Reference Photo ထည့်သွင်းရန်' : 'Upload Reference Photo'}
-                  </span>
-                  <span className="font-sans text-[10px] text-[#6b6f7e]">
-                    {isMyanmar ? 'မျက်နှာသွင်ပြင်နှင့် ဝတ်စုံကို ၁၀၀% အတိအကျ ထိန်းသိမ်းမည်' : 'Drag photo here or click upload to lock likeness in prompt'}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => promptPhotoInputRef.current?.click()}
-                  className="px-3 py-1.5 rounded-full bg-[#1c1c1e] hover:bg-black text-white font-sans text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                >
-                  <span className="material-symbols-outlined text-[15px] text-[#ffd02f]">add_photo_alternate</span>
-                  <span>{isMyanmar ? 'ဖိုင်ရွေးမည်' : 'Browse File'}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Real-Time Prompt Modifiers Quick Chips (Miro Pills) */}
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <span className="font-sans text-[11px] text-[#8e91a0] uppercase font-bold tracking-wider">
-                  Instant Cultural Modifiers
-                </span>
-                <span className="font-sans text-[11px] text-[#8e91a0]">Click to append</span>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  '+ Golden Hour',
-                  '+ More Thanaka Pattern',
-                  '+ Heavy Monsoon Rain',
-                  '+ Gilded 24k Gold Accents',
-                  '+ Kodak Portra Grain'
-                ].map((mod) => {
-                  const isApplied = quickModifiers.includes(mod);
-                  return (
-                    <button
-                      key={mod}
-                      type="button"
-                      onClick={() => toggleQuickModifier(mod)}
-                      className={`text-xs px-3 py-1 rounded-full transition-all cursor-pointer font-medium ${
-                        isApplied
-                          ? 'bg-[#1c1c1e] text-[#ffd02f] font-bold shadow-2xs'
-                          : 'bg-[#f7f8fa] hover:bg-[#eef0f3] text-[#555a6a] border border-[#e0e2e8]'
-                      }`}
-                    >
-                      {mod}
-                    </button>
-                  );
-                })}
-              </div>
+                );
+              })}
             </div>
           </div>
 
+          {/* Reference Photos & File Upload Bar (Transfers to Photo Prompt Studio) */}
+          <div className="bg-[#12141c] rounded-2xl p-4 shadow-md border border-zinc-800 flex flex-col gap-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[17px] text-emerald-400">add_photo_alternate</span>
+                <span className="font-sans text-xs font-bold text-white">
+                  {isMyanmar ? 'Reference Photo ထည့်သွင်းရန်' : 'Reference Photos & Files'}
+                </span>
+                {(selection.referenceImage || extraUploadedPhotos.length > 0) && (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
+                    {(selection.referenceImage ? 1 : 0) + extraUploadedPhotos.length} Attached
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => refUploadInputRef.current?.click()}
+                className="px-2.5 py-1 rounded-full bg-emerald-500 hover:bg-emerald-400 text-black text-[11px] font-extrabold flex items-center gap-1 cursor-pointer transition-all shadow-xs"
+              >
+                <span className="material-symbols-outlined text-[13px] text-black">upload_file</span>
+                <span>{isMyanmar ? 'ဖိုင်တင်မည်' : '+ Upload Files'}</span>
+              </button>
+            </div>
+
+            <input
+              ref={refUploadInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleExtraPhotoUpload}
+              className="hidden"
+            />
+
+            {(selection.referenceImage || extraUploadedPhotos.length > 0) ? (
+              <div className="flex flex-wrap gap-1.5 pt-0.5">
+                {selection.referenceImage && (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-xs">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="font-semibold text-emerald-300 text-[11px] truncate max-w-[140px]">
+                      {selection.customSubjectDetails || 'Character Reference'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onUpdateSelection({ referenceImage: null, identityLock: 'no_lock' })}
+                      className="text-red-400 hover:text-red-300 ml-0.5 cursor-pointer"
+                      title="Remove"
+                    >
+                      <span className="material-symbols-outlined text-[13px]">close</span>
+                    </button>
+                  </div>
+                )}
+                {extraUploadedPhotos.map(p => (
+                  <div key={p.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-800 border border-zinc-700 text-xs">
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-400" />
+                    <span className="font-medium text-zinc-200 text-[11px] truncate max-w-[140px]">
+                      {p.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setExtraUploadedPhotos(prev => prev.filter(x => x.id !== p.id))}
+                      className="text-zinc-400 hover:text-red-400 ml-0.5 cursor-pointer"
+                      title="Remove"
+                    >
+                      <span className="material-symbols-outlined text-[13px]">close</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <span className="text-[11px] text-zinc-500">
+                {isMyanmar
+                  ? 'ဓါတ်ပုံတင်ထားပါက Photo Prompt Studio တွင် ပုံထွက်ရန် အလိုအလျောက် သယ်ဆောင်သွားမည်'
+                  : 'Uploaded reference photos will automatically transfer to Photo Prompt Studio'}
+              </span>
+            )}
+          </div>
+
           {/* 🌟 ရွေးချယ်ထားချက်များ (PICKED OPTIONS CHIP TRAY) */}
-          <div className="bg-white rounded-xl p-4 shadow-xs border border-[#d6c3b6]/30 flex flex-col gap-2.5">
+          <div className="bg-[#12141c] rounded-2xl p-4 shadow-md border border-zinc-800 flex flex-col gap-2.5">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-[#1e1b19] flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[16px] text-[#704112]">tune</span>
+              <span className="font-bold text-white flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[16px] text-emerald-400">tune</span>
                 <span>{isMyanmar ? 'ရွေးချယ်ထားချက်များ' : 'Active Picked Options'}</span>
-                <span className="text-[10px] text-[#704112] font-mono font-bold bg-[#ffdcc2]/50 px-2 py-0.5 rounded-full">
+                <span className="text-[10px] text-emerald-400 font-mono font-bold bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full">
                   {activeOptionChips.length}
                 </span>
               </span>
@@ -2570,14 +2322,14 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                 <button
                   type="button"
                   onClick={handleResetMatrix}
-                  className="px-2 py-0.5 rounded bg-[#f4ece9] text-[#ba1a1a] hover:bg-[#ffdad6]/40 font-semibold text-[11px] cursor-pointer"
+                  className="px-2.5 py-1 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30 font-semibold text-[11px] cursor-pointer transition-colors"
                 >
                   Reset All
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsSummaryModalOpen(true)}
-                  className="text-[11px] text-[#704112] font-bold hover:underline cursor-pointer"
+                  className="text-[11px] text-emerald-400 font-bold hover:underline cursor-pointer"
                 >
                   {isMyanmar ? 'အကျဉ်းချုပ်' : 'Summary'}
                 </button>
@@ -2585,29 +2337,29 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
             </div>
 
             {activeOptionChips.length === 0 ? (
-              <span className="text-xs text-[#847469] italic">
-                {isMyanmar ? 'အချက်အလက်များ မရွေးချယ်ရသေးပါ' : 'No custom options selected. Pick options on the left.'}
+              <span className="text-xs text-zinc-500 italic py-1">
+                {isMyanmar ? 'အချက်အလက်များ အားလုံး ရှင်းလင်းပြီးပါပြီ (Clean Slate)' : 'All parameters cleared. Pick options on the left to begin.'}
               </span>
             ) : (
               <div className="flex flex-wrap gap-1.5">
                 {activeOptionChips.map((chip) => (
                   <div
                     key={chip.id}
-                    className="flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-md bg-[#faf2ee] border border-[#d6c3b6]/40 text-xs"
+                    className="flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-lg bg-[#161822] border border-zinc-800 text-xs text-zinc-200"
                   >
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#704112]">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
                       {chip.labelEn}:
                     </span>
-                    <span className="font-semibold text-[#1e1b19]">
+                    <span className="font-medium text-zinc-200">
                       {(isMyanmar ? chip.valueMm : chip.valueEn).replace(/^🚫\s*/, '')}
                     </span>
                     <button
                       type="button"
                       onClick={() => handleDeleteOption(chip.id)}
-                      className="p-0.5 text-[#847469] hover:text-[#ba1a1a] cursor-pointer"
+                      className="p-0.5 text-zinc-500 hover:text-red-400 cursor-pointer ml-0.5"
                       title="Remove"
                     >
-                      <span className="material-symbols-outlined text-[14px]">close</span>
+                      <span className="material-symbols-outlined text-[13px]">close</span>
                     </button>
                   </div>
                 ))}
@@ -2616,245 +2368,360 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
           </div>
 
           {/* Live Generated Master Prompt Output Card */}
-          <div className="bg-white rounded-xl p-5 shadow-xs border border-[#d6c3b6]/30 flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-sans text-base text-[#1e1b19] font-semibold">
-                    Master Synthesized Prompt
-                  </h3>
-                  {aiSynthesizedData && (
-                    <span className="px-2 py-0.5 rounded-full bg-[#ffd02f] text-[#1c1c1e] text-[10px] font-extrabold">
-                      AI Pro Synthesized
+          <ScrollReveal delay={0.1}>
+            <div className="bg-[#12141c] rounded-2xl p-5 shadow-lg border border-zinc-800 flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-sans text-base text-white font-bold">
+                      Master Synthesized Prompt
+                    </h3>
+                    {aiSynthesizedData && (
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-black text-[10px] font-black">
+                        AI Pro Synthesized
+                      </span>
+                    )}
+                  </div>
+                  <span className="font-sans text-xs text-zinc-400">
+                    ထုတ်ပေးလိုက်သော အဆင့်မြင့် မြန်မာ့ရိုးရာ AI စာသား
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 px-3 py-1 rounded-xl">
+                  <span className="material-symbols-outlined text-[16px] text-emerald-400">speed</span>
+                  <span className="font-sans text-xs text-zinc-300">
+                    Tokens: <strong className="text-emerald-400 font-bold">{estimatedTokens}</strong>
+                  </span>
+                </div>
+              </div>
+
+              {/* Multi-Engine Format Selector Tabs */}
+              <div className="flex flex-wrap items-center gap-1.5 p-1 bg-[#161822] rounded-xl border border-zinc-800">
+                {[
+                  { id: 'master', label: 'Master' },
+                  { id: 'flux', label: 'FLUX / GPT Prose' },
+                  { id: 'midjourney', label: 'Midjourney v6.1' },
+                  { id: 'sdxl', label: 'SDXL' },
+                  { id: 'negative', label: 'Negative' },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveFormatTab(tab.id as any)}
+                    className={`px-2.5 py-1 rounded-lg font-sans text-[11px] font-bold transition-all cursor-pointer ${
+                      activeFormatTab === tab.id
+                        ? 'bg-emerald-500 text-black font-extrabold shadow-sm'
+                        : 'text-zinc-400 hover:text-white hover:bg-zinc-800/60'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Active Parameters Pill Badges */}
+              <div className="flex flex-wrap items-center gap-1.5 pb-0.5">
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-xs font-semibold">
+                  {activeFormatTab === 'flux' ? 'Natural Prose (No Flags)' : engineSyntax.split(' ')[0]}
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-teal-500/10 text-teal-300 border border-teal-500/30 text-xs font-semibold flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[12px]">verified</span>
+                  <span>100% Burmese Cultural Taxonomy</span>
+                </span>
+              </div>
+
+              {/* Attached Reference Photo Indicator in Prompt Card */}
+              {selection.referenceImage && (
+                <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                    <span className="material-symbols-outlined text-[18px]">lock</span>
+                  </div>
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                      <span className="font-sans text-xs font-bold text-emerald-300 truncate">
+                        {isMyanmar ? 'ဓာတ်ပုံတွဲဆက်ထားပြီး (၁၀၀% Likeness Lock)' : 'Reference Photo Locked in Prompt'}
+                      </span>
+                    </div>
+                    <span className="font-sans text-[10px] text-emerald-400/80 truncate">
+                      {isMyanmar ? '--cref tag ဖြင့် မျက်နှာနှင့် အသားအရောင်ကို ထိန်းသိမ်းထားသည်' : 'Preserving exact bone structure & micro-pores with --cref'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onUpdateSelection({ referenceImage: null, identityLock: 'no_lock' })}
+                    className="text-xs font-bold text-red-400 hover:underline px-2 py-1 rounded cursor-pointer"
+                  >
+                    {isMyanmar ? 'ဖယ်ရှားမည်' : 'Remove'}
+                  </button>
+                </div>
+              )}
+
+              {/* Master English Prompt Display with Miro Flat Style */}
+              <div className="relative bg-[#0a0b0e] border border-zinc-800 p-4 rounded-xl flex flex-col gap-2 shadow-2xs">
+                <div className="flex items-center justify-between pb-1.5 border-b border-zinc-800">
+                  <span className="font-sans text-[11px] text-zinc-300 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-[15px] text-emerald-400">terminal</span>
+                    <span>
+                      {activeFormatTab === 'flux'
+                        ? 'FLUX.1 / GPT Image 2 Prose'
+                        : activeFormatTab === 'midjourney'
+                        ? 'Midjourney v6.1 Command'
+                        : activeFormatTab === 'sdxl'
+                        ? 'SDXL Tag-Weighted Prompt'
+                        : activeFormatTab === 'negative'
+                        ? 'Anti-Hallucination Negative Prompt'
+                        : `${engine.toUpperCase()} Master Prompt`}
+                    </span>
+                  </span>
+                  <span className={`font-sans text-xs text-emerald-400 font-bold transition-opacity ${copiedToast ? 'opacity-100' : 'opacity-0'}`}>
+                    ✓ Copied to Clipboard
+                  </span>
+                </div>
+
+                {/* Synthesized Text */}
+                <div className="font-mono text-xs text-zinc-100 leading-relaxed select-all max-h-48 overflow-y-auto">
+                  {displayedPromptText || (
+                    <span className="text-zinc-500 italic">
+                      {isMyanmar
+                        ? 'ရွေးချယ်ထားချက်များ အားလုံး ရှင်းလင်းထားပါသည်။ ဘယ်ဘက်မှ ဇာတ်ကောင်၊ နန်းတွင်းခေတ်၊ ရိုးရာပိုးချိတ်ထည် သို့မဟုတ် အလင်းအမှောင်တို့ကို ရွေးချယ်ပြီး Master Prompt တည်ဆောက်ပါ...'
+                        : 'All options reset and cleared. Pick an archetype, royal era, silk attire, or studio lighting on the left to build a prompt...'}
                     </span>
                   )}
                 </div>
-                <span className="font-sans text-xs text-[#51443a]">
-                  ထုတ်ပေးလိုက်သော အဆင့်မြင့် မြန်မာ့ရိုးရာ AI စာသား
-                </span>
               </div>
-              <div className="flex items-center gap-1.5 bg-[#f4ece9] border border-[#d6c3b6]/30 px-3 py-1 rounded-lg">
-                <span className="material-symbols-outlined text-[16px] text-[#275546]">speed</span>
-                <span className="font-sans text-xs text-[#1e1b19]">
-                  Tokens: <strong className="text-[#704112] font-bold">{estimatedTokens}</strong>
-                </span>
-              </div>
-            </div>
 
-            {/* Multi-Engine Format Selector Tabs */}
-            <div className="flex flex-wrap items-center gap-1.5 p-1 bg-[#f4ece9] rounded-xl border border-[#d6c3b6]/30">
-              {[
-                { id: 'master', label: 'Master' },
-                { id: 'flux', label: 'FLUX / GPT Prose' },
-                { id: 'midjourney', label: 'Midjourney v6.1' },
-                { id: 'sdxl', label: 'SDXL' },
-                { id: 'negative', label: 'Negative' },
-              ].map((tab) => (
+              {/* Action Control Buttons */}
+              <div className="grid grid-cols-2 gap-2.5 pt-1">
                 <button
-                  key={tab.id}
                   type="button"
-                  onClick={() => setActiveFormatTab(tab.id as any)}
-                  className={`px-2.5 py-1 rounded-lg font-sans text-[11px] font-bold transition-all cursor-pointer ${
-                    activeFormatTab === tab.id
-                      ? 'bg-[#1c1c1e] text-[#ffd02f] shadow-2xs'
-                      : 'text-[#51443a] hover:bg-white/70'
-                  }`}
+                  onClick={handleCopyPrompt}
+                  disabled={!displayedPromptText && !masterPromptText}
+                  className="h-10 px-4 rounded-full bg-emerald-500 hover:bg-emerald-400 text-black font-sans text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer active:scale-98 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  {tab.label}
+                  <span className="material-symbols-outlined text-[17px] text-black">content_copy</span>
+                  <span>{copiedToast ? 'Copied!' : `Copy ${activeFormatTab.toUpperCase()}`}</span>
                 </button>
-              ))}
-            </div>
 
-            {/* Active Parameters Pill Badges */}
-            <div className="flex flex-wrap items-center gap-1.5 pb-0.5">
-              <span className="px-2 py-0.5 rounded-full bg-[#ffdf98]/50 text-[#5a4300] border border-[#775a00]/20 text-xs font-semibold">
-                {activeFormatTab === 'flux' ? 'Natural Prose (No Flags)' : engineSyntax.split(' ')[0]}
-              </span>
-              <span className="px-2 py-0.5 rounded-full bg-[#ffdcc2]/50 text-[#2e1500] border border-[#704112]/20 text-xs font-semibold">
-                --ar {selection.aspectRatio || '16:9'}
-              </span>
-              <span className="px-2 py-0.5 rounded-full bg-[#bcedda]/50 text-[#214f41] border border-[#275546]/20 text-xs font-semibold flex items-center gap-1">
-                <span className="material-symbols-outlined text-[12px]">verified</span>
-                <span>100% Burmese Cultural Taxonomy</span>
-              </span>
-            </div>
+                <button
+                  type="button"
+                  onClick={handleSaveToPresets}
+                  disabled={!displayedPromptText && !masterPromptText}
+                  className="h-10 px-4 rounded-full bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-200 font-sans text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <span className="material-symbols-outlined text-[17px] text-zinc-400">bookmark_add</span>
+                  <span>{savedToast ? 'Saved!' : 'Save Preset'}</span>
+                </button>
+              </div>
 
-            {/* Attached Reference Photo Indicator in Prompt Card */}
-            {selection.referenceImage && (
-              <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-[#eefaf6] border border-[#00b473]/30">
-                <img
-                  src={selection.referenceImage}
-                  alt="Reference"
-                  className="w-10 h-10 rounded-lg object-cover border border-[#00b473]/40 shrink-0"
-                />
-                <div className="flex flex-col flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#00b473] animate-pulse"></span>
-                    <span className="font-sans text-xs font-bold text-[#065f46] truncate">
-                      {isMyanmar ? 'ဓာတ်ပုံတွဲဆက်ထားပြီး (၁၀၀% Likeness Lock)' : 'Reference Photo Locked in Prompt'}
-                    </span>
-                  </div>
-                  <span className="font-sans text-[10px] text-[#047857] truncate">
-                    {isMyanmar ? '--cref tag ဖြင့် မျက်နှာနှင့် အသားအရောင်ကို ထိန်းသိမ်းထားသည်' : 'Preserving exact bone structure & micro-pores with --cref'}
+              {/* Burmese 5-Point Cultural & Studio Director's Breakdown (Open by default) */}
+              <details open className="group bg-emerald-950/20 border border-emerald-500/30 rounded-xl p-3.5 text-xs cursor-pointer">
+                <summary className="font-sans font-bold text-emerald-400 flex items-center justify-between select-none list-none">
+                  <span className="flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-[16px]">translate</span>
+                    <span>မြန်မာဘာသာ အသေးစိတ် ဒါရိုက်တာ ရှင်းလင်းချက် (၅ ချက်)</span>
                   </span>
+                  <span className="material-symbols-outlined text-[16px] text-emerald-400 group-open:rotate-180 transition-transform">
+                    expand_more
+                  </span>
+                </summary>
+                <div className="font-sans text-[11px] text-zinc-300 whitespace-pre-line leading-relaxed pt-2.5 border-t border-emerald-500/20 mt-2">
+                  {effectivePromptData?.descriptionMm || (
+                    <span className="text-zinc-500 italic">
+                      {isMyanmar
+                        ? 'ရွေးချယ်ထားချက်များ အသစ်စတင်ရန် ဘယ်ဘက်မှ ကဏ္ဍများကို ရွေးချယ်ပါ'
+                        : 'Select options on the left to see the director breakdown.'}
+                    </span>
+                  )}
                 </div>
+                {effectivePromptData?.cameraNotes && (
+                  <div className="mt-2 pt-2 border-t border-emerald-500/20 font-mono text-[10px] text-emerald-400 font-semibold">
+                    OPTICS: {effectivePromptData.cameraNotes}
+                  </div>
+                )}
+              </details>
+
+              {/* Generate Full AI Prompt Button */}
+              <button
+                type="button"
+                onClick={handleSynthesizeAiPrompt}
+                disabled={isSynthesizingAi || isGeneratingPrompt}
+                className="w-full py-3 px-5 rounded-full bg-zinc-900 hover:bg-zinc-800 text-white font-sans text-xs font-bold flex items-center justify-center gap-2 transition-all border border-zinc-800 shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                {isSynthesizingAi || isGeneratingPrompt ? (
+                  <>
+                    <span className="material-symbols-outlined text-[16px] animate-spin text-emerald-400">refresh</span>
+                    <span>AI Engine Synthesizing Master Prompt...</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-[16px] text-emerald-400">electric_bolt</span>
+                    <span>AI Synthesize Master Prompt &amp; Burmese Story</span>
+                  </>
+                )}
+              </button>
+
+              {/* Send Prompt Directly to Photo Prompt Studio & Generate Image */}
+              {onSendToPhotoStudio && (
                 <button
                   type="button"
-                  onClick={() => onUpdateSelection({ referenceImage: null, identityLock: 'no_lock' })}
-                  className="text-xs font-bold text-[#ba1a1a] hover:underline px-2 py-1 rounded cursor-pointer"
+                  onClick={() => {
+                    const allRefPhotos: { id: string; url: string; name: string }[] = [];
+                    if (selection.referenceImage) {
+                      allRefPhotos.push({
+                        id: 'char-ref',
+                        url: selection.referenceImage,
+                        name: selection.customSubjectDetails || 'Character Reference'
+                      });
+                    }
+                    if (selection.customGarmentImage) {
+                      allRefPhotos.push({
+                        id: 'garment-ref',
+                        url: selection.customGarmentImage,
+                        name: 'Custom Garment'
+                      });
+                    }
+                    extraUploadedPhotos.forEach(p => {
+                      if (!allRefPhotos.some(x => x.url === p.url)) {
+                        allRefPhotos.push(p);
+                      }
+                    });
+
+                    const optionsForStudio = activeOptionChips.map(c => ({
+                      label: isMyanmar ? c.labelMm : c.labelEn,
+                      value: (isMyanmar ? c.valueMm : c.valueEn).replace(/^🚫\s*/, ''),
+                      emoji: c.emoji
+                    }));
+
+                    onSendToPhotoStudio(displayedPromptText || masterPromptText, {
+                      ratio: selection.aspectRatio || '16:9',
+                      referencePhoto: allRefPhotos[0]?.url || selection.referenceImage || null,
+                      referencePhotos: allRefPhotos,
+                      chosenOptions: optionsForStudio
+                    });
+                  }}
+                  className="w-full py-3 px-5 rounded-full bg-gradient-to-r from-[#05b187] to-teal-400 hover:brightness-110 text-black font-sans text-xs font-extrabold flex items-center justify-center gap-2 transition-all shadow-md border border-emerald-400/40 cursor-pointer active:scale-98"
                 >
-                  {isMyanmar ? 'ဖယ်ရှားမည်' : 'Remove'}
+                  <span className="material-symbols-outlined text-[17px] text-black">photo_camera</span>
+                  <span>
+                    {isMyanmar
+                      ? 'Photo Prompt Studio တွင် ပုံထုတ်မည် (Generate Image)'
+                      : 'Generate Image in Photo Prompt Studio'}
+                  </span>
+                  <span className="material-symbols-outlined text-[15px] text-black">arrow_forward</span>
                 </button>
+              )}
+            </div>
+          </ScrollReveal>
+
+          {/* Dynamic Real Recent Studio Outputs Strip */}
+          <div className="bg-[#12141c] rounded-2xl p-4 shadow-md border border-zinc-800 flex flex-col gap-2.5">
+            <div className="flex items-center justify-between pb-1 border-b border-zinc-800/80">
+              <span className="font-sans text-xs text-zinc-400 uppercase font-bold tracking-wider flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[16px] text-emerald-400">history</span>
+                <span>{isMyanmar ? 'မကြာသေးမီက စတူဒီယို ထုတ်လုပ်မှုများ' : 'Recent Studio Outputs'}</span>
+                {recentOutputs.length > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full bg-emerald-500/10 text-emerald-400 font-mono text-[10px] font-bold border border-emerald-500/20">
+                    {recentOutputs.length}
+                  </span>
+                )}
+              </span>
+              <button
+                type="button"
+                onClick={loadRecentOutputs}
+                className="text-xs text-emerald-400 hover:text-emerald-300 font-semibold cursor-pointer flex items-center gap-1 transition-colors"
+                title="Refresh recent history"
+              >
+                <span className="material-symbols-outlined text-[14px]">refresh</span>
+                <span>{isMyanmar ? 'ပြန်ဆွဲရန်' : 'Refresh'}</span>
+              </button>
+            </div>
+
+            {recentOutputs.length === 0 ? (
+              <div className="p-3 rounded-xl bg-[#161822] border border-zinc-800/80 text-center">
+                <span className="text-xs text-zinc-500 italic block">
+                  {isMyanmar
+                    ? 'မကြာသေးမီက ထုတ်ထားသော ဓာတ်ပုံများ မရှိသေးပါ။ Photo Prompt Studio တွင် ပုံထုတ်ပြီးပါက ဤနေရာတွင် အလိုအလျောက် ပေါ်လာပါမည်။'
+                    : 'No studio outputs yet. Generated photos from Photo Prompt Studio will automatically appear here.'}
+                </span>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {recentOutputs.map((item, idx) => (
+                  <div
+                    key={item.id || idx}
+                    onClick={() => {
+                      if (item.prompt) {
+                        setAiSynthesizedData({
+                          masterPrompt: item.prompt,
+                          negativePrompt: "--no modern western clothing, sunglasses, plastic, wrist watch, distorted hands, extra fingers, inaccurate generic anime face, non-Burmese Chinese or Japanese traditional costumes, Indian saree, bindi, synthetic nylon fabrics, low quality render, deformed facial anatomy",
+                          midjourneyFormat: `/imagine prompt: ${item.prompt} --v 6.1 --style raw`,
+                          fluxFormat: item.prompt.replace(/--\w+\s+\S+/g, '').trim(),
+                          sdxlFormat: item.prompt,
+                          descriptionMm: 'မကြာသေးမီက ထုတ်လုပ်ခဲ့သော စတူဒီယို ပရွမ့်ကို ပြန်လည် ဆွဲတင်ထားပါသည်',
+                          descriptionEn: 'Loaded from recent studio output history'
+                        });
+                      }
+                    }}
+                    className="flex items-center justify-between p-2 rounded-xl bg-[#161822] border border-zinc-800/80 hover:border-emerald-500/40 hover:bg-[#1a1d29] cursor-pointer transition-all group"
+                    title="Click to load this prompt into matrix"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      {item.url ? (
+                        <img
+                          src={item.url}
+                          alt="Thumbnail"
+                          className="w-10 h-10 rounded-lg object-cover border border-zinc-700/80 shrink-0 group-hover:scale-105 transition-transform"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLElement).style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <span className="w-10 h-10 rounded-lg bg-zinc-800 text-emerald-400 flex items-center justify-center font-mono font-bold text-xs shrink-0">
+                          {idx + 1}
+                        </span>
+                      )}
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className="font-sans text-xs text-zinc-200 font-semibold leading-tight truncate group-hover:text-emerald-400">
+                          {item.title || item.prompt?.slice(0, 35) || 'Studio Output'}
+                        </span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          {item.aspectRatio && (
+                            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-400">
+                              {item.aspectRatio}
+                            </span>
+                          )}
+                          <span className="text-[10px] text-zinc-500">
+                            {new Date(item.createdAt || Date.now()).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0 ml-2">
+                      {onSendToPhotoStudio && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSendToPhotoStudio(item.prompt, {
+                              ratio: item.aspectRatio || '16:9',
+                              referencePhoto: item.url || null
+                            });
+                          }}
+                          className="p-1 rounded-lg hover:bg-emerald-500/20 text-zinc-400 hover:text-emerald-400 transition-colors"
+                          title="Send directly to Photo Studio"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">photo_camera</span>
+                        </button>
+                      )}
+                      <span className="material-symbols-outlined text-zinc-500 group-hover:text-emerald-400 text-[18px] group-hover:translate-x-0.5 transition-all">
+                        arrow_forward
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
-
-            {/* Master English Prompt Display with Miro Flat Style */}
-            <div className="relative bg-[#f7f8fa] border border-[#e0e2e8] p-4 rounded-xl flex flex-col gap-2 shadow-2xs">
-              <div className="flex items-center justify-between pb-1.5 border-b border-[#eef0f3]">
-                <span className="font-sans text-[11px] text-[#1c1c1e] font-bold uppercase tracking-wider flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-[15px] text-[#4262ff]">terminal</span>
-                  <span>
-                    {activeFormatTab === 'flux'
-                      ? 'FLUX.1 / GPT Image 2 Prose'
-                      : activeFormatTab === 'midjourney'
-                      ? 'Midjourney v6.1 Command'
-                      : activeFormatTab === 'sdxl'
-                      ? 'SDXL Tag-Weighted Prompt'
-                      : activeFormatTab === 'negative'
-                      ? 'Anti-Hallucination Negative Prompt'
-                      : `${engine.toUpperCase()} Master Prompt`}
-                  </span>
-                </span>
-                <span className={`font-sans text-xs text-[#00b473] font-bold transition-opacity ${copiedToast ? 'opacity-100' : 'opacity-0'}`}>
-                  ✓ Copied to Clipboard
-                </span>
-              </div>
-
-              {/* Synthesized Text */}
-              <div className="font-mono text-xs text-[#1c1c1e] leading-relaxed select-all max-h-48 overflow-y-auto">
-                {displayedPromptText || 'Assembling master prompt from chosen parameters...'}
-              </div>
-            </div>
-
-            {/* Miro Pill Action Control Buttons */}
-            <div className="grid grid-cols-2 gap-2.5 pt-1">
-              <button
-                type="button"
-                onClick={handleCopyPrompt}
-                className="h-10 px-4 rounded-full bg-[#1c1c1e] text-white hover:bg-[#2c2c34] font-sans text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-98"
-              >
-                <span className="material-symbols-outlined text-[17px] text-[#ffd02f]">content_copy</span>
-                <span>{copiedToast ? 'Copied!' : `Copy ${activeFormatTab.toUpperCase()}`}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleSaveToPresets}
-                className="h-10 px-4 rounded-full bg-white border border-[#c7cad5] hover:bg-[#f7f8fa] text-[#1c1c1e] font-sans text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs"
-              >
-                <span className="material-symbols-outlined text-[17px] text-[#6b6f7e]">bookmark_add</span>
-                <span>{savedToast ? 'Saved!' : 'Save Preset'}</span>
-              </button>
-            </div>
-
-            {/* Burmese 5-Point Cultural & Studio Director's Breakdown (Open by default) */}
-            <details open className="group bg-[#fff8e0]/80 border border-[#fcb900]/40 rounded-xl p-3.5 text-xs cursor-pointer">
-              <summary className="font-sans font-bold text-[#746019] flex items-center justify-between select-none list-none">
-                <span className="flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-[16px]">translate</span>
-                  <span>မြန်မာဘာသာ အသေးစိတ် ဒါရိုက်တာ ရှင်းလင်းချက် (၅ ချက်)</span>
-                </span>
-                <span className="material-symbols-outlined text-[16px] text-[#746019] group-open:rotate-180 transition-transform">
-                  expand_more
-                </span>
-              </summary>
-              <div className="font-sans text-[11px] text-[#5c480a] whitespace-pre-line leading-relaxed pt-2.5 border-t border-[#fcb900]/30 mt-2">
-                {effectivePromptData?.descriptionMm || 'ဤပရွမ့်ဖော်ပြချက်တွင် ရွေးချယ်ထားသော မြန်မာ့ရိုးရာ နန်းတွင်း ဝတ်စုံ၊ သနပ်ခါး၊ ဆံထုံး နှင့် နောက်ခံ ရှုခင်းတို့ကို အတိအကျ ပေါင်းစပ်ထားပြီး သဘာဝကျသော ရွှေရောင်အလင်းရောင်ဖြင့် ပုံဖော်ပေးပါသည်။'}
-              </div>
-              {effectivePromptData?.cameraNotes && (
-                <div className="mt-2 pt-2 border-t border-[#fcb900]/20 font-mono text-[10px] text-[#704112] font-semibold">
-                  OPTICS: {effectivePromptData.cameraNotes}
-                </div>
-              )}
-            </details>
-
-            {/* Generate Full AI Prompt Button - Miro Signature Black Button */}
-            <button
-              type="button"
-              onClick={handleSynthesizeAiPrompt}
-              disabled={isSynthesizingAi || isGeneratingPrompt}
-              className="w-full py-3 px-5 rounded-full bg-[#1c1c1e] text-white hover:bg-[#2c2c34] font-sans text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer disabled:opacity-50"
-            >
-              {isSynthesizingAi || isGeneratingPrompt ? (
-                <>
-                  <span className="material-symbols-outlined text-[16px] animate-spin text-[#ffd02f]">refresh</span>
-                  <span>AI Engine Synthesizing Master Prompt...</span>
-                </>
-              ) : (
-                <>
-                  <span className="material-symbols-outlined text-[16px] text-[#ffd02f]">electric_bolt</span>
-                  <span>AI Synthesize Master Prompt &amp; Burmese Story</span>
-                </>
-              )}
-            </button>
-
-          </div>
-
-          {/* Recent Generation Mini Strip */}
-          <div className="bg-white rounded-xl p-4 shadow-xs border border-[#d6c3b6]/30 flex flex-col gap-2">
-            <div className="flex items-center justify-between pb-1">
-              <span className="font-sans text-xs text-[#847469] uppercase font-semibold">
-                Recent Studio Outputs
-              </span>
-              <span className="font-sans text-xs text-[#704112] font-semibold cursor-pointer hover:underline">
-                View All
-              </span>
-            </div>
-            <div className="flex flex-col gap-2">
-              <div
-                onClick={() => onUpdateSelection({ location: 'mandalay_palace', aspectRatio: '16:9' })}
-                className="flex items-center justify-between p-2 rounded-lg bg-[#faf2ee] border border-[#d6c3b6]/30 hover:bg-[#f4ece9] cursor-pointer transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="w-8 h-8 rounded bg-[#e9e1dd] flex items-center justify-center font-bold text-xs text-[#704112]">
-                    01
-                  </span>
-                  <div className="flex flex-col">
-                    <span className="font-sans text-xs text-[#1e1b19] font-semibold leading-none">
-                      Mandalay Palace Moat Sunset
-                    </span>
-                    <span className="font-sans text-[11px] text-[#51443a]">
-                      Konbaung • 85mm • 16:9
-                    </span>
-                  </div>
-                </div>
-                <span className="material-symbols-outlined text-[#847469] text-[18px]">
-                  arrow_forward
-                </span>
-              </div>
-
-              <div
-                onClick={() => onUpdateSelection({ location: 'inle_lake', aspectRatio: '4:5' })}
-                className="flex items-center justify-between p-2 rounded-lg bg-[#faf2ee] border border-[#d6c3b6]/30 hover:bg-[#f4ece9] cursor-pointer transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="w-8 h-8 rounded bg-[#e9e1dd] flex items-center justify-center font-bold text-xs text-[#704112]">
-                    02
-                  </span>
-                  <div className="flex flex-col">
-                    <span className="font-sans text-xs text-[#1e1b19] font-semibold leading-none">
-                      Intha Leg Rower Dawn Mist
-                    </span>
-                    <span className="font-sans text-[11px] text-[#51443a]">
-                      Shan State • Hasselblad • 4:5
-                    </span>
-                  </div>
-                </div>
-                <span className="material-symbols-outlined text-[#847469] text-[18px]">
-                  arrow_forward
-                </span>
-              </div>
-            </div>
           </div>
 
         </div>
@@ -2875,6 +2742,57 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
         }}
         isGeneratingPrompt={isGeneratingPrompt}
       />
+
+      {/* 🌟 LUXURY MOBILE FLOATING ACTION BAR */}
+      <div className="xl:hidden fixed bottom-4 left-3 right-3 z-30 pointer-events-none">
+        <div className="bg-[#1c1c1e]/95 backdrop-blur-md text-white p-2.5 px-3.5 rounded-2xl shadow-2xl border border-white/10 flex items-center justify-between gap-2.5 pointer-events-auto max-w-lg mx-auto">
+          <div className="flex items-center gap-2 truncate">
+            <span className="w-2 h-2 rounded-full bg-[#00b473] animate-pulse shrink-0" />
+            <div className="flex flex-col truncate">
+              <span className="text-[10px] text-white/60 font-semibold uppercase tracking-wider">Master Prompt</span>
+              <span className="text-xs font-bold text-white truncate max-w-[150px] sm:max-w-[220px]">
+                {(displayedPromptText || masterPromptText || 'Configuring details...').slice(0, 36)}...
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                const el = document.getElementById('section-output-card');
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              className="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+            >
+              <span className="material-symbols-outlined text-[15px] text-[#ffd02f]">description</span>
+              <span>{isMyanmar ? 'ကတ်' : 'Output'}</span>
+            </button>
+            {onSendToPhotoStudio && (
+              <button
+                type="button"
+                onClick={() => {
+                  const refs: { id: string; url: string; name: string }[] = [];
+                  if (selection.referenceImage) {
+                    refs.push({ id: 'ref-main', url: selection.referenceImage, name: selection.customSubjectDetails || 'Reference Photo' });
+                  }
+                  if (selection.customGarmentImage) {
+                    refs.push({ id: 'ref-garment', url: selection.customGarmentImage, name: 'Garment Reference' });
+                  }
+                  onSendToPhotoStudio(displayedPromptText || masterPromptText, {
+                    ratio: selection.aspectRatio || '4:5',
+                    referencePhoto: selection.referenceImage,
+                    referencePhotos: refs
+                  });
+                }}
+                className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#ffd02f] to-[#ffae00] text-[#1c1c1e] text-xs font-black shadow-xs transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+              >
+                <span className="material-symbols-outlined text-[15px]">photo_camera</span>
+                <span>{isMyanmar ? 'ပုံထုတ်မည်' : 'Generate'}</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
 
     </div>
   );

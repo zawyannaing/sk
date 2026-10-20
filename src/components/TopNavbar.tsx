@@ -40,7 +40,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
         isPortalMode ? 'left-0' : `left-0 ${isCollapsed ? 'md:left-20' : 'md:left-64'}`
       }`}
     >
-      {/* Left: Mobile/Sidebar toggle + Engine Selector */}
+      {/* Left: Mobile/Sidebar toggle + Logo + Engine Selector */}
       <div className="flex items-center gap-2 sm:gap-3 shrink-0">
         {!isPortalMode && onToggleCollapse && (
           <button
@@ -54,6 +54,20 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
             </span>
           </button>
         )}
+
+        {/* Brand Logo & Name */}
+        <div 
+          onClick={() => onSelectMainSection && onSelectMainSection('portal')}
+          className="flex items-center gap-2 cursor-pointer group"
+          title="SHOW AI PROMPT STUDIO"
+        >
+          <div className="w-8 h-8 rounded-xl overflow-hidden bg-white/80 border border-emerald-500/40 shadow-xs flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+            <img src="/logo.png" alt="SHOW Logo" className="w-full h-full object-contain p-0.5" />
+          </div>
+          <span className="font-logo font-extrabold text-xs text-emerald-400 tracking-wider hidden xl:inline whitespace-nowrap">
+            SHOW AI PROMPT STUDIO
+          </span>
+        </div>
 
         {/* Portal Home Button */}
         {onSelectMainSection && (
@@ -90,7 +104,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
             onClick={() => onSelectMainSection('video-prompt')}
             className={`flex items-center gap-1 px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
               activeMainSection === 'video-prompt'
-                ? 'bg-[#121318] text-[#ccff00] font-bold shadow-[0_0_12px_rgba(204,255,0,0.3)]'
+                ? 'bg-[#121318] text-[#05b187] font-bold shadow-[0_0_12px_rgba(5,177,135,0.3)]'
                 : 'text-zinc-600 hover:text-zinc-950 hover:bg-white/80'
             }`}
           >

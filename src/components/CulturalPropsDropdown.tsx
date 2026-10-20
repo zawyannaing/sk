@@ -187,30 +187,30 @@ export const CulturalPropsDropdown: React.FC<CulturalPropsDropdownProps> = ({
   const totalSelectedCount = matchedPresets.length + customChips.length;
 
   return (
-    <div className="space-y-4 rounded-2xl bg-[#fdf9f6] border border-[#d6c3b6] p-4 shadow-sm text-[#1e1b19]">
+    <div className="space-y-4 rounded-2xl bg-[#0f1420] border border-zinc-800 p-4 shadow-sm text-white">
       {/* Header Row */}
-      <div className="flex items-center justify-between flex-wrap gap-2 pb-2.5 border-b border-[#d6c3b6]/60">
+      <div className="flex items-center justify-between flex-wrap gap-2 pb-2.5 border-b border-zinc-800">
         <div className="flex items-center gap-2.5 flex-wrap">
-          <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-[#704112]/10 text-[#704112] border border-[#704112]/20">
+          <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
             <Gem className="h-4 w-4" />
           </span>
           <div>
-            <h3 className="text-xs font-bold text-[#1e1b19] uppercase tracking-wider flex items-center gap-1.5">
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
               <span>
                 {isMyanmar
                   ? 'ရတနာ၊ ဆံထုံးနှင့် ယဉ်ကျေးမှု အဆင်တန်ဆာ ဘရောက်ဇာ (Jewelry, Hair & Props Browser)'
                   : 'Royal Jewelry, Coiffure & Cultural Props Browser'}
               </span>
-              <span className="px-2 py-0.5 rounded-full bg-[#ffdf98]/70 text-[#5a4300] border border-[#775a00]/20 text-[10px] font-bold">
+              <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
                 {CULTURAL_PROP_PRESETS.length} Items
               </span>
               {totalSelectedCount > 0 && (
-                <span className="px-2 py-0.5 rounded-full bg-[#704112] text-white text-[10px] font-mono font-bold">
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-black text-[10px] font-mono font-extrabold">
                   {totalSelectedCount} Selected
                 </span>
               )}
             </h3>
-            <p className="text-[11px] text-[#51443a]">
+            <p className="text-[11px] text-zinc-400">
               {isMyanmar
                 ? 'နန်းတွင်း ရွှေထည်၊ ပတ္တမြား၊ ကျောက်စိမ်း၊ ဆံထုံး၊ ပန်းအလှနှင့် ရိုးရာအသုံးအဆောင်များကို တစ်ခုထက်မက ပေါင်းစပ်ရွေးချယ်နိုင်ပါသည်'
                 : 'Multi-select Burmese royal jewelry, Mogok rubies, jadeite, hair coiffures, flowers, and handheld props'}
@@ -220,14 +220,14 @@ export const CulturalPropsDropdown: React.FC<CulturalPropsDropdownProps> = ({
 
         <div className="flex items-center gap-2 flex-wrap">
           {/* Grid vs Carousel Toggle */}
-          <div className="flex items-center bg-[#f4ece9] p-0.5 rounded-xl border border-[#d6c3b6]">
+          <div className="flex items-center bg-[#141b2a] p-0.5 rounded-xl border border-zinc-800">
             <button
               type="button"
               onClick={() => setViewMode('grid')}
               className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer ${
                 viewMode === 'grid'
-                  ? 'bg-white text-[#704112] shadow-xs border border-[#d6c3b6]/60'
-                  : 'text-[#51443a] hover:text-[#1e1b19]'
+                  ? 'bg-emerald-500 text-black font-bold shadow-xs border border-emerald-500'
+                  : 'text-zinc-400 hover:text-white'
               }`}
             >
               <LayoutGrid className="h-3.5 w-3.5" />
@@ -238,8 +238,8 @@ export const CulturalPropsDropdown: React.FC<CulturalPropsDropdownProps> = ({
               onClick={() => setViewMode('carousel')}
               className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer ${
                 viewMode === 'carousel'
-                  ? 'bg-white text-[#704112] shadow-xs border border-[#d6c3b6]/60'
-                  : 'text-[#51443a] hover:text-[#1e1b19]'
+                  ? 'bg-emerald-500 text-black font-bold shadow-xs border border-emerald-500'
+                  : 'text-zinc-400 hover:text-white'
               }`}
             >
               <GalleryHorizontal className="h-3.5 w-3.5" />
@@ -251,21 +251,21 @@ export const CulturalPropsDropdown: React.FC<CulturalPropsDropdownProps> = ({
             <button
               type="button"
               onClick={handleClearAll}
-              className="text-[11px] bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold px-2.5 py-1 rounded-xl border border-rose-200 transition-all flex items-center gap-1 cursor-pointer"
+              className="text-[11px] bg-[#161c2a] hover:bg-rose-950/40 text-rose-400 font-semibold px-2.5 py-1 rounded-xl border border-zinc-800 transition-all flex items-center gap-1 cursor-pointer"
             >
               <Trash2 className="h-3 w-3" />
               <span>{isMyanmar ? 'အားလုံးဖျက်မည်' : 'Clear All'}</span>
             </button>
           )}
 
-          <div className="flex items-center gap-1 bg-[#f4ece9] p-0.5 rounded-xl border border-[#d6c3b6]">
+          <div className="flex items-center gap-1 bg-[#141b2a] p-0.5 rounded-xl border border-zinc-800">
             <button
               type="button"
               onClick={() => onUpdateSelection({ includeCulturalProps: true })}
               className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
                 selection.includeCulturalProps !== false
-                  ? 'bg-[#704112] text-white shadow-xs'
-                  : 'text-[#51443a] hover:text-[#1e1b19]'
+                  ? 'bg-emerald-500 text-black font-extrabold shadow-xs'
+                  : 'text-zinc-400 hover:text-white'
               }`}
             >
               {isMyanmar ? 'ထည့်မည်' : 'Enable'}
@@ -276,7 +276,7 @@ export const CulturalPropsDropdown: React.FC<CulturalPropsDropdownProps> = ({
               className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
                 selection.includeCulturalProps === false
                   ? 'bg-rose-600 text-white shadow-xs'
-                  : 'text-[#51443a] hover:text-[#1e1b19]'
+                  : 'text-zinc-400 hover:text-white'
               }`}
             >
               {isMyanmar ? 'မလိုပါ' : 'None'}
@@ -288,8 +288,8 @@ export const CulturalPropsDropdown: React.FC<CulturalPropsDropdownProps> = ({
       {selection.includeCulturalProps !== false && (
         <div className="space-y-4">
           {/* 1-Click Curated Jewelry & Coiffure Combos */}
-          <div className="p-3 rounded-xl bg-white border border-[#d6c3b6]/70 space-y-2">
-            <span className="text-[11px] font-bold text-[#704112] flex items-center gap-1.5">
+          <div className="p-3 rounded-xl bg-[#111622] border border-zinc-800 space-y-2">
+            <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1.5">
               <Wand2 className="h-3.5 w-3.5" />
               <span>
                 {isMyanmar
@@ -303,9 +303,9 @@ export const CulturalPropsDropdown: React.FC<CulturalPropsDropdownProps> = ({
                   key={combo.id}
                   type="button"
                   onClick={() => handleApplyCombo(combo.presetIds)}
-                  className="px-2.5 py-1.5 rounded-xl bg-[#faf2ee] hover:bg-[#ffdf98]/60 border border-[#d6c3b6] hover:border-[#704112]/40 text-xs font-medium text-[#1e1b19] flex items-center gap-1.5 transition-all cursor-pointer"
+                  className="px-2.5 py-1.5 rounded-xl bg-[#161c2a] hover:bg-emerald-500/20 border border-zinc-800 hover:border-emerald-500/40 text-xs font-medium text-zinc-300 hover:text-white flex items-center gap-1.5 transition-all cursor-pointer"
                 >
-                  <Crown className="h-3 w-3 text-[#704112] shrink-0" />
+                  <Crown className="h-3 w-3 text-emerald-400 shrink-0" />
                   <span>{isMyanmar ? combo.labelMm : combo.labelEn}</span>
                 </button>
               ))}
@@ -314,8 +314,8 @@ export const CulturalPropsDropdown: React.FC<CulturalPropsDropdownProps> = ({
 
           {/* SELECTED ITEMS BADGES / CHIPS DISPLAY */}
           {totalSelectedCount > 0 && (
-            <div className="space-y-1.5 p-3 rounded-xl bg-[#fff8ec] border border-[#704112]/30 shadow-2xs">
-              <span className="text-[11px] font-bold text-[#704112] uppercase tracking-wider block">
+            <div className="space-y-1.5 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 shadow-2xs">
+              <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider block">
                 {isMyanmar
                   ? `လက်ရှိ ရွေးချယ်ထားသော ရတနာ၊ ဆံထုံးနှင့် အသုံးအဆောင်များ (${totalSelectedCount} ခု):`
                   : `Active Jewelry, Hair & Accessories (${totalSelectedCount}):`}
@@ -325,14 +325,14 @@ export const CulturalPropsDropdown: React.FC<CulturalPropsDropdownProps> = ({
                 {matchedPresets.map((prop) => (
                   <span
                     key={prop.id}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-[#704112]/40 text-[#1e1b19] text-xs font-semibold shadow-2xs"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#161c2a] border border-emerald-500/40 text-white text-xs font-semibold shadow-2xs"
                   >
-                    <Gem className="h-3 w-3 text-[#704112] shrink-0" />
+                    <Gem className="h-3 w-3 text-emerald-400 shrink-0" />
                     <span>{isMyanmar ? prop.labelMm : prop.labelEn}</span>
                     <button
                       type="button"
                       onClick={() => handleSelectProp(prop)}
-                      className="ml-1 text-[#847469] hover:text-rose-600 transition-colors p-0.5 rounded-full hover:bg-rose-50 cursor-pointer"
+                      className="ml-1 text-zinc-400 hover:text-rose-400 transition-colors p-0.5 rounded-full cursor-pointer"
                       title="Remove"
                     >
                       <X className="h-3 w-3" />
@@ -343,14 +343,14 @@ export const CulturalPropsDropdown: React.FC<CulturalPropsDropdownProps> = ({
                 {customChips.map((chipText, index) => (
                   <span
                     key={`custom-${index}`}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-[#d6c3b6] text-[#51443a] text-xs font-medium"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#141b2a] border border-zinc-800 text-zinc-300 text-xs font-medium"
                   >
-                    <Layers className="h-3 w-3 text-[#704112] shrink-0" />
+                    <Layers className="h-3 w-3 text-emerald-400 shrink-0" />
                     <span>{chipText}</span>
                     <button
                       type="button"
                       onClick={() => handleRemoveChip(chipText)}
-                      className="ml-1 text-[#847469] hover:text-rose-600 transition-colors p-0.5 rounded-full cursor-pointer"
+                      className="ml-1 text-zinc-400 hover:text-rose-400 transition-colors p-0.5 rounded-full cursor-pointer"
                       title="Remove"
                     >
                       <X className="h-3 w-3" />
@@ -377,14 +377,14 @@ export const CulturalPropsDropdown: React.FC<CulturalPropsDropdownProps> = ({
                     onClick={() => setSelectedCategory(cat.id)}
                     className={`px-3 py-1.5 text-xs whitespace-nowrap rounded-xl border transition-all flex items-center gap-1.5 cursor-pointer ${
                       active
-                        ? 'bg-[#704112] border-[#704112] text-white font-bold shadow-xs'
-                        : 'bg-white border-[#d6c3b6]/80 text-[#51443a] hover:bg-[#f4ece9] hover:text-[#1e1b19]'
+                        ? 'bg-emerald-500 text-black font-extrabold border-emerald-500 shadow-xs'
+                        : 'bg-[#141b2a] border-zinc-800 text-zinc-400 hover:bg-[#1c2438] hover:text-white'
                     }`}
                   >
                     <span>{isMyanmar ? cat.labelMm : cat.labelEn}</span>
                     <span
                       className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                        active ? 'bg-white/20 text-white' : 'bg-[#f4ece9] text-[#704112]'
+                        active ? 'bg-black/30 text-white' : 'bg-[#161c2a] text-emerald-400'
                       }`}
                     >
                       {count}
@@ -396,19 +396,19 @@ export const CulturalPropsDropdown: React.FC<CulturalPropsDropdownProps> = ({
 
             {/* Search Input */}
             <div className="relative min-w-[200px]">
-              <Search className="h-3.5 w-3.5 text-[#847469] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Search className="h-3.5 w-3.5 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={isMyanmar ? 'ရတနာ၊ ဆံထုံး၊ ပန်း ရှာရန်...' : 'Search ruby, jade, sadon, umbrella...'}
-                className="w-full rounded-xl bg-white border border-[#d6c3b6] pl-8 pr-7 py-1.5 text-xs text-[#1e1b19] placeholder-[#847469] focus:border-[#704112] focus:outline-none"
+                className="w-full rounded-xl bg-[#161c2a] border border-zinc-800 pl-8 pr-7 py-1.5 text-xs text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#847469] hover:text-[#1e1b19]"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -429,15 +429,15 @@ export const CulturalPropsDropdown: React.FC<CulturalPropsDropdownProps> = ({
                     onClick={() => handleSelectProp(prop)}
                     className={`p-3 rounded-xl border text-left transition-all flex items-start gap-3 group cursor-pointer ${
                       selected
-                        ? 'bg-[#fff8ec] border-[#704112] ring-2 ring-[#704112]/20 shadow-xs'
-                        : 'bg-white border-[#d6c3b6]/60 hover:border-[#704112]/50 hover:bg-[#faf2ee]/60'
+                        ? 'bg-emerald-500/15 border-2 border-emerald-500 shadow-[0_0_15px_rgba(5,177,135,0.25)]'
+                        : 'bg-[#141b2a] border border-zinc-800 hover:border-emerald-500/40 hover:bg-[#1a2234]'
                     }`}
                   >
                     <div
                       className={`w-10 h-10 rounded-xl border shrink-0 flex flex-col items-center justify-center transition-colors ${
                         selected
-                          ? 'bg-[#704112] text-white border-[#704112]'
-                          : 'bg-[#faf2ee] text-[#704112] border-[#d6c3b6]/60 group-hover:border-[#704112]/40'
+                          ? 'bg-emerald-500 text-black font-extrabold border-emerald-500'
+                          : 'bg-[#161c2a] text-emerald-400 border-zinc-800 group-hover:border-emerald-500/30'
                       }`}
                     >
                       <Gem className="h-4 w-4" />
@@ -448,28 +448,28 @@ export const CulturalPropsDropdown: React.FC<CulturalPropsDropdownProps> = ({
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-1">
-                        <p className="text-xs font-bold text-[#1e1b19] leading-snug line-clamp-1">
+                        <p className={`text-xs font-bold leading-snug line-clamp-1 ${selected ? 'text-emerald-300' : 'text-zinc-200'}`}>
                           {isMyanmar ? prop.labelMm : prop.labelEn}
                         </p>
                         <span
                           className={`p-0.5 rounded-full shrink-0 transition-colors ${
                             selected
-                              ? 'bg-[#704112] text-white'
-                              : 'border border-[#d6c3b6] text-transparent group-hover:border-[#704112]/50'
+                              ? 'bg-emerald-500 text-black font-extrabold'
+                              : 'border border-zinc-700 text-transparent group-hover:border-emerald-500/30'
                           }`}
                         >
                           <Check className="h-3 w-3 stroke-[3]" />
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="text-[9px] font-mono font-bold uppercase px-1.5 py-0.2 rounded bg-[#f4ece9] text-[#704112]">
+                        <span className="text-[9px] font-mono font-bold uppercase px-1.5 py-0.2 rounded bg-[#161c2a] text-emerald-400">
                           {badgeText}
                         </span>
-                        <p className="text-[10px] font-medium text-[#704112] truncate">
+                        <p className="text-[10px] font-medium text-emerald-400 truncate">
                           {isMyanmar ? prop.labelEn : prop.labelMm}
                         </p>
                       </div>
-                      <p className="text-[10px] text-[#51443a] line-clamp-2 mt-1 leading-relaxed">
+                      <p className="text-[10px] text-zinc-400 line-clamp-2 mt-1 leading-relaxed">
                         {prop.promptText}
                       </p>
                     </div>
@@ -477,14 +477,14 @@ export const CulturalPropsDropdown: React.FC<CulturalPropsDropdownProps> = ({
                 );
               })}
               {filteredProps.length === 0 && (
-                <div className="col-span-full py-6 text-center text-xs text-[#847469]">
+                <div className="col-span-full py-6 text-center text-xs text-zinc-400">
                   {isMyanmar ? 'ရှာဖွေထားသော အဆင်တန်ဆာ မတွေ့ပါ။' : 'No matching items found.'}
                 </div>
               )}
             </div>
           ) : (
-            <div className="space-y-2 bg-white border border-[#d6c3b6]/70 rounded-xl p-3 relative">
-              <div className="flex items-center justify-between text-xs text-[#704112] font-bold">
+            <div className="space-y-2 bg-[#111622] border border-zinc-800 rounded-xl p-3 relative">
+              <div className="flex items-center justify-between text-xs text-emerald-400 font-bold">
                 <span className="flex items-center gap-1.5">
                   <Sparkles className="h-3.5 w-3.5" />
                   <span>
@@ -498,14 +498,14 @@ export const CulturalPropsDropdown: React.FC<CulturalPropsDropdownProps> = ({
                   <button
                     type="button"
                     onClick={() => handleScroll('left')}
-                    className="p-1 rounded-lg bg-[#faf2ee] hover:bg-[#704112] hover:text-white text-[#704112] border border-[#d6c3b6] transition-all"
+                    className="p-1 rounded-lg bg-[#161c2a] hover:bg-emerald-500 hover:text-black text-emerald-400 border border-zinc-800 transition-all cursor-pointer"
                   >
                     <ChevronLeft className="h-3.5 w-3.5" />
                   </button>
                   <button
                     type="button"
                     onClick={() => handleScroll('right')}
-                    className="p-1 rounded-lg bg-[#faf2ee] hover:bg-[#704112] hover:text-white text-[#704112] border border-[#d6c3b6] transition-all"
+                    className="p-1 rounded-lg bg-[#161c2a] hover:bg-emerald-500 hover:text-black text-emerald-400 border border-zinc-800 transition-all cursor-pointer"
                   >
                     <ChevronRight className="h-3.5 w-3.5" />
                   </button>
@@ -526,17 +526,17 @@ export const CulturalPropsDropdown: React.FC<CulturalPropsDropdownProps> = ({
                       onClick={() => handleSelectProp(prop)}
                       className={`snap-start shrink-0 w-[210px] p-3 rounded-xl border text-left transition-all flex flex-col justify-between gap-2 group cursor-pointer ${
                         selected
-                          ? 'bg-[#fff8ec] border-[#704112] ring-2 ring-[#704112]/20 shadow-xs'
-                          : 'bg-[#faf2ee]/60 border-[#d6c3b6]/60 hover:border-[#704112]/50 hover:bg-white'
+                          ? 'bg-emerald-500/15 border-2 border-emerald-500 shadow-[0_0_15px_rgba(5,177,135,0.25)]'
+                          : 'bg-[#141b2a] border border-zinc-800 hover:border-emerald-500/40 hover:bg-[#1a2234]'
                       }`}
                     >
                       <div className="flex items-center justify-between gap-1">
-                        <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-md bg-white border border-[#d6c3b6]/60 text-[#704112]">
+                        <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-md bg-[#161c2a] border border-zinc-800 text-emerald-400">
                           #{String(idx + 1).padStart(2, '0')} · {badgeText}
                         </span>
                         <span
                           className={`p-0.5 rounded-full ${
-                            selected ? 'bg-[#704112] text-white' : 'border border-[#d6c3b6] text-transparent'
+                            selected ? 'bg-emerald-500 text-black font-extrabold' : 'border border-zinc-700 text-transparent'
                           }`}
                         >
                           <Check className="h-3.5 w-3.5 stroke-[3]" />
@@ -544,10 +544,10 @@ export const CulturalPropsDropdown: React.FC<CulturalPropsDropdownProps> = ({
                       </div>
 
                       <div>
-                        <p className="text-xs font-bold text-[#1e1b19] line-clamp-2 leading-snug">
+                        <p className={`text-xs font-bold line-clamp-2 leading-snug ${selected ? 'text-emerald-300' : 'text-zinc-200'}`}>
                           {isMyanmar ? prop.labelMm : prop.labelEn}
                         </p>
-                        <p className="text-[10px] text-[#51443a] line-clamp-2 mt-1">
+                        <p className="text-[10px] text-zinc-400 line-clamp-2 mt-1">
                           {prop.promptText}
                         </p>
                       </div>
@@ -570,9 +570,9 @@ export const CulturalPropsDropdown: React.FC<CulturalPropsDropdownProps> = ({
                   if (prop) handleSelectProp(prop);
                   e.target.value = '';
                 }}
-                className="w-full rounded-xl bg-white border border-[#d6c3b6] hover:border-[#704112] px-3 py-2 text-xs font-semibold text-[#1e1b19] focus:outline-none appearance-none cursor-pointer pr-9"
+                className="w-full rounded-xl bg-[#161c2a] border border-zinc-800 hover:border-emerald-500/50 px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:border-emerald-500 appearance-none cursor-pointer pr-9"
               >
-                <option value="" disabled>
+                <option value="" disabled className="bg-[#161c2a] text-zinc-400">
                   {isMyanmar
                     ? `Dropdown မနူးမှ အဆင်တန်ဆာ (${CULTURAL_PROP_PRESETS.length}) မျိုး ရွေးရန်...`
                     : `Quick add from ${CULTURAL_PROP_PRESETS.length} jewelry & prop presets...`}
@@ -581,11 +581,11 @@ export const CulturalPropsDropdown: React.FC<CulturalPropsDropdownProps> = ({
                   const categoryProps = CULTURAL_PROP_PRESETS.filter((p) => p.category === cat.id);
                   if (categoryProps.length === 0) return null;
                   return (
-                    <optgroup key={cat.id} label={isMyanmar ? cat.labelMm : cat.labelEn}>
+                    <optgroup key={cat.id} label={isMyanmar ? cat.labelMm : cat.labelEn} className="bg-[#161c2a] text-emerald-400 font-bold">
                       {categoryProps.map((prop) => {
                         const selected = isPropSelected(prop);
                         return (
-                          <option key={prop.id} value={prop.id}>
+                          <option key={prop.id} value={prop.id} className="bg-[#161c2a] text-zinc-200">
                             {selected ? '[Selected] ' : ''}
                             {isMyanmar ? prop.labelMm : prop.labelEn}
                           </option>
@@ -595,7 +595,7 @@ export const CulturalPropsDropdown: React.FC<CulturalPropsDropdownProps> = ({
                   );
                 })}
               </select>
-              <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#704112]">
+              <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-emerald-400">
                 <ChevronDown className="h-4 w-4" />
               </div>
             </div>
@@ -614,7 +614,7 @@ export const CulturalPropsDropdown: React.FC<CulturalPropsDropdownProps> = ({
                   includeCulturalProps: true,
                 })
               }
-              className="w-full rounded-xl bg-white border border-[#d6c3b6] px-3 py-2 text-xs text-[#1e1b19] placeholder-[#847469] focus:border-[#704112] focus:outline-none transition-all"
+              className="w-full rounded-xl bg-[#161c2a] border border-zinc-800 px-3 py-2 text-xs text-white placeholder-zinc-500 focus:border-emerald-500 focus:outline-none transition-all"
             />
           </div>
         </div>

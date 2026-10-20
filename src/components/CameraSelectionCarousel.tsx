@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Language, MatrixSelection } from '../types';
 import { CAMERA_OPTIONS } from '../data/presetData';
-import { Sparkles, ChevronLeft, ChevronRight, Check, ChevronDown, Camera } from 'lucide-react';
+import { Sparkles, ChevronLeft, ChevronRight, Check, ChevronDown, Camera, X } from 'lucide-react';
 
 interface CameraSelectionCarouselProps {
   language: Language;
@@ -9,12 +9,15 @@ interface CameraSelectionCarouselProps {
   onUpdateSelection: (updates: Partial<MatrixSelection>) => void;
 }
 
+const cleanEmoji = (text: string = '') =>
+  text.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}]/gu, '').trim();
+
 const CAMERA_CATEGORIES = [
   { id: 'all', labelMm: 'အကုန်လုံး (၂၀ မျိုး)', labelEn: 'All Lenses & Bodies (20)' },
-  { id: 'portrait_prime', labelMm: '📸 ပို့ထရိတ်နှင့် ပရိုလန်းစ် (၆ မျိုး)', labelEn: 'Portrait & Prime Lenses' },
-  { id: 'tele_wide_cinema', labelMm: '🏔️ မြင်ကွင်းကျယ်နှင့် စီနီမာလန်းစ် (၅ မျိုး)', labelEn: 'Wide, Zoom & Cinema Lenses' },
-  { id: 'vintage_special', labelMm: '🎞️ ရှေးဟောင်းနှင့် အနုပညာလန်းစ် (၂ မျိုး)', labelEn: 'Vintage & Special Lenses' },
-  { id: 'pro_bodies', labelMm: '📷 ပရော်ဖက်ရှင်နယ် ကင်မရာများ (၇ မျိုး)', labelEn: 'Pro Flagship Bodies' },
+  { id: 'portrait_prime', labelMm: 'ပို့ထရိတ်နှင့် ပရိုလန်းစ် (၆ မျိုး)', labelEn: 'Portrait & Prime Lenses' },
+  { id: 'tele_wide_cinema', labelMm: 'မြင်ကွင်းကျယ်နှင့် စီနီမာလန်းစ် (၅ မျိုး)', labelEn: 'Wide, Zoom & Cinema Lenses' },
+  { id: 'vintage_special', labelMm: 'ရှေးဟောင်းနှင့် အနုပညာလန်းစ် (၂ မျိုး)', labelEn: 'Vintage & Special Lenses' },
+  { id: 'pro_bodies', labelMm: 'ပရော်ဖက်ရှင်နယ် ကင်မရာများ (၇ မျိုး)', labelEn: 'Pro Flagship Bodies' },
 ];
 
 export const CameraSelectionCarousel: React.FC<CameraSelectionCarouselProps> = ({
@@ -43,6 +46,15 @@ export const CameraSelectionCarousel: React.FC<CameraSelectionCarouselProps> = (
     return 'pro_bodies'; // hasselblad, leica, canon, sony, fujifilm, nikon, iphone
   };
 
+  const getCategoryLabel = (catId: string) => {
+    switch (catId) {
+      case 'portrait_prime': return isMyanmar ? 'Portrait / Prime' : 'Portrait / Prime';
+      case 'tele_wide_cinema': return isMyanmar ? 'Wide & Cinema' : 'Wide & Cinema';
+      case 'vintage_special': return isMyanmar ? 'Vintage Lens' : 'Vintage Lens';
+      default: return isMyanmar ? 'Pro Body' : 'Pro Body';
+    }
+  };
+
   // Filter options
   const filteredOptions = CAMERA_OPTIONS.filter((c) => {
     if (c.id === 'skip') return false; // Shown in header skip button
@@ -59,15 +71,15 @@ export const CameraSelectionCarousel: React.FC<CameraSelectionCarouselProps> = (
   };
 
   return (
-    <div className="space-y-3.5 rounded-2xl bg-slate-950/90 border border-cyan-800/80 p-4 backdrop-blur-md shadow-xl">
+    <div className="space-y-4 rounded-xl bg-[#0f1420] border border-zinc-800 p-4 sm:p-5 shadow-xs">
       
       {/* Header Row */}
-      <div className="flex items-center justify-between flex-wrap gap-2 pb-1 border-b border-cyan-900/50">
-        <label className="flex items-center gap-2 text-xs font-bold text-cyan-400 uppercase tracking-wider">
-          <Camera className="h-4 w-4 text-cyan-400" />
+      <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-zinc-800">
+        <label className="flex items-center gap-2 text-xs font-bold text-emerald-400 uppercase tracking-wider">
+          <Camera className="h-4 w-4 text-emerald-400" />
           <span>
             {isMyanmar
-              ? `ကင်မရာနှင့် လန်းစ် ဆက်တင် (Camera & Lens Setup - ၂၀ မျိုး)`
+              ? `ကင်မရာနှင့် လန်းစ် ဆက်တင် (၂၀ မျိုး)`
               : `Select Camera & Lens Setup (20 Options):`}
           </span>
         </label>
@@ -76,47 +88,47 @@ export const CameraSelectionCarousel: React.FC<CameraSelectionCarouselProps> = (
           <button
             type="button"
             onClick={() => onUpdateSelection({ camera: 'skip' })}
-            className="text-[10px] bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold px-2.5 py-1 rounded-lg border border-slate-700 transition-all flex items-center gap-1 shadow"
+            className="text-[11px] bg-[#161c2a] hover:bg-rose-950/40 text-rose-400 font-semibold px-2.5 py-1 rounded-md border border-zinc-800 transition-all flex items-center gap-1 cursor-pointer"
           >
-            🚫 {isMyanmar ? 'မရွေးပါ (Auto)' : 'Skip / Auto'}
+            <X className="w-3 h-3" />
+            <span>{isMyanmar ? 'မရွေးပါ (Auto)' : 'Skip / Auto'}</span>
           </button>
 
-          <span className="text-[11px] text-cyan-200 font-bold bg-cyan-950/90 px-2.5 py-1 rounded-lg border border-cyan-700/80 shadow max-w-[200px] truncate">
-            {currentCamObj.emoji || '📸'}{' '}
-            {isMyanmar ? (currentCamObj.labelMm || currentCamObj.label) : (currentCamObj.labelEn || currentCamObj.label)}
+          <span className="text-[11px] font-bold bg-emerald-500/15 text-emerald-400 px-2.5 py-1 rounded-md border border-emerald-500/30 max-w-[200px] truncate">
+            {cleanEmoji(isMyanmar ? (currentCamObj.labelMm || currentCamObj.label) : (currentCamObj.labelEn || currentCamObj.label))}
           </span>
         </div>
       </div>
 
       {/* Quick Category Filter Tabs */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-cyan-600/40">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
         {CAMERA_CATEGORIES.map((cat) => (
           <button
             key={cat.id}
             type="button"
             onClick={() => setSelectedCategory(cat.id)}
-            className={`px-2.5 py-1 text-[11px] whitespace-nowrap rounded-lg border transition-all ${
+            className={`px-3 py-1 text-xs whitespace-nowrap rounded-full border transition-all cursor-pointer ${
               selectedCategory === cat.id
-                ? 'bg-cyan-950/90 border-cyan-400 text-cyan-200 font-bold shadow-[0_0_12px_rgba(6,182,212,0.3)]'
-                : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                ? 'bg-emerald-500 text-black font-extrabold border-emerald-500 shadow-2xs'
+                : 'bg-[#141b2a] text-zinc-400 border-zinc-800 hover:bg-[#1c2438] hover:text-white'
             }`}
           >
-            {isMyanmar ? cat.labelMm : cat.labelEn}
+            {cleanEmoji(isMyanmar ? cat.labelMm : cat.labelEn)}
           </button>
         ))}
       </div>
 
-      {/* 🌟 HORIZONTAL SCROLLABLE CAROUSEL (ကင်မရာနှင့် လန်းစ်များ ဘေးတိုက် ဆွဲကြည့်ရန်) */}
-      <div className="space-y-1.5 bg-slate-900/60 border border-slate-800 rounded-xl p-2.5 relative">
-        <div className="flex items-center justify-between text-[11px] text-cyan-300 font-bold">
+      {/* 🌟 HORIZONTAL SCROLLABLE CAROUSEL */}
+      <div className="space-y-2 bg-[#111622] border border-zinc-800 rounded-xl p-3 relative">
+        <div className="flex items-center justify-between text-xs text-emerald-400 font-bold">
           <span className="flex items-center gap-1.5">
-            <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
+            <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
             <span>
               {isMyanmar
                 ? `ကင်မရာနှင့် လန်းစ်များ ဘေးတိုက် ဆွဲကြည့်ပါ (↔):`
                 : `Camera & Lens Options (Scroll Horizontally ↔):`}
             </span>
-            <span className="text-[10px] text-cyan-400/80 font-mono">
+            <span className="text-[10px] text-zinc-400 font-mono">
               ({filteredOptions.length} Options)
             </span>
           </span>
@@ -126,7 +138,7 @@ export const CameraSelectionCarousel: React.FC<CameraSelectionCarouselProps> = (
             <button
               type="button"
               onClick={() => handleScroll('left')}
-              className="p-1 rounded-lg bg-slate-800 hover:bg-cyan-500 hover:text-slate-950 text-cyan-300 border border-slate-700 transition-all shadow"
+              className="p-1 rounded-md bg-[#161c2a] hover:bg-emerald-500 hover:text-black text-emerald-400 border border-zinc-800 transition-all shadow-2xs cursor-pointer"
               title="Scroll Left"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
@@ -134,7 +146,7 @@ export const CameraSelectionCarousel: React.FC<CameraSelectionCarouselProps> = (
             <button
               type="button"
               onClick={() => handleScroll('right')}
-              className="p-1 rounded-lg bg-slate-800 hover:bg-cyan-500 hover:text-slate-950 text-cyan-300 border border-slate-700 transition-all shadow"
+              className="p-1 rounded-md bg-[#161c2a] hover:bg-emerald-500 hover:text-black text-emerald-400 border border-zinc-800 transition-all shadow-2xs cursor-pointer"
               title="Scroll Right"
             >
               <ChevronRight className="h-3.5 w-3.5" />
@@ -145,43 +157,45 @@ export const CameraSelectionCarousel: React.FC<CameraSelectionCarouselProps> = (
         {/* Horizontal Strip */}
         <div
           ref={scrollContainerRef}
-          className="flex gap-2 overflow-x-auto py-1 px-0.5 scrollbar-thin scrollbar-thumb-cyan-500/50 scrollbar-track-slate-950 snap-x snap-mandatory"
+          className="flex gap-2.5 overflow-x-auto py-1 px-0.5 scrollbar-thin snap-x snap-mandatory"
           style={{ scrollBehavior: 'smooth' }}
         >
           {filteredOptions.map((cam) => {
             const isSelected = currentCamId === cam.id;
+            const categoryTag = getCategoryLabel(getCategory(cam.id));
+
             return (
               <button
                 key={cam.id}
                 type="button"
                 onClick={() => onUpdateSelection({ camera: isSelected ? 'skip' : cam.id })}
-                className={`snap-start shrink-0 min-w-[200px] max-w-[250px] p-2.5 rounded-xl border text-left transition-all relative flex flex-col justify-between gap-1.5 group cursor-pointer ${
+                className={`snap-start shrink-0 min-w-[190px] max-w-[240px] p-3 rounded-lg border text-left transition-all relative flex flex-col justify-between gap-2 cursor-pointer ${
                   isSelected
-                    ? 'bg-cyan-950/90 border-cyan-400 text-cyan-100 font-bold shadow-[0_0_15px_rgba(6,182,212,0.3)] ring-1 ring-cyan-400/80'
-                    : 'bg-slate-950/80 border-slate-800 text-slate-300 hover:border-cyan-500/60 hover:bg-slate-900/90'
+                    ? 'bg-emerald-500/15 border-2 border-emerald-500 text-white font-bold shadow-[0_0_15px_rgba(5,177,135,0.25)]'
+                    : 'bg-[#141b2a] border border-zinc-800 text-zinc-300 hover:border-emerald-500/40 hover:bg-[#1a2234]'
                 }`}
               >
-                <div className="flex items-start justify-between gap-1">
-                  <span className="text-2xl p-1 rounded-lg bg-slate-900/90 border border-slate-800 group-hover:scale-110 transition-transform">
-                    {cam.emoji || '📸'}
+                <div className="flex items-center justify-between gap-1 w-full">
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isSelected ? 'text-emerald-400' : 'text-zinc-400'}`}>
+                    {categoryTag}
                   </span>
                   {isSelected ? (
-                    <span className="p-0.5 rounded-full bg-cyan-400 text-slate-950 shrink-0">
-                      <Check className="h-3.5 w-3.5 stroke-[3]" />
+                    <span className="p-0.5 rounded-full bg-emerald-500 text-black font-extrabold shrink-0">
+                      <Check className="h-3 w-3 stroke-[3]" />
                     </span>
                   ) : (
-                    <span className="p-0.5 rounded-full border border-slate-700 text-slate-600 group-hover:border-cyan-400 group-hover:text-cyan-400 transition-colors">
+                    <span className="p-0.5 rounded-full border border-zinc-700 text-transparent">
                       <Check className="h-3 w-3" />
                     </span>
                   )}
                 </div>
 
                 <div>
-                  <p className="text-[11px] font-semibold leading-tight line-clamp-2">
-                    {isMyanmar ? (cam.labelMm || cam.label) : (cam.labelEn || cam.label)}
+                  <p className={`text-xs leading-tight line-clamp-2 ${isSelected ? 'font-bold text-emerald-300' : 'font-medium text-zinc-200'}`}>
+                    {cleanEmoji(isMyanmar ? (cam.labelMm || cam.label) : (cam.labelEn || cam.label))}
                   </p>
                   {cam.lens && (
-                    <p className="text-[9px] text-cyan-300/80 font-mono mt-1 line-clamp-1">
+                    <p className="text-[10px] text-zinc-400 font-mono mt-1 line-clamp-1">
                       {cam.lens} ({cam.aperture})
                     </p>
                   )}
@@ -194,16 +208,16 @@ export const CameraSelectionCarousel: React.FC<CameraSelectionCarouselProps> = (
 
       {/* Fast Dropdown Menu Access */}
       <div className="space-y-1">
-        <div className="flex items-center justify-between text-[11px] text-slate-400">
-          <span className="font-semibold text-slate-300">
-            {isMyanmar ? 'သို့မဟုတ် Dropdown မနူးမှ တိုက်ရိုက် ရွေးချယ်ရန်:' : 'Or Fast Select via Dropdown Menu:'}
+        <div className="flex items-center justify-between text-xs text-zinc-400">
+          <span className="font-semibold">
+            {isMyanmar ? 'သို့မဟုတ် Dropdown မနူးမှ တိုက်ရိုက် ရွေးချယ်ရန်:' : 'Or Select via Dropdown Menu:'}
           </span>
         </div>
         <div className="relative">
           <select
             value={currentCamId}
             onChange={(e) => onUpdateSelection({ camera: e.target.value })}
-            className="w-full rounded-xl bg-slate-900 border border-cyan-500/40 hover:border-cyan-400 px-3 py-2 text-xs font-semibold text-cyan-200 focus:outline-none appearance-none cursor-pointer pr-10 shadow-inner"
+            className="w-full rounded-lg bg-[#161c2a] border border-zinc-800 hover:border-emerald-500/50 px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:border-emerald-500 appearance-none cursor-pointer pr-10 shadow-2xs"
           >
             {CAMERA_CATEGORIES.filter((c) => c.id !== 'all').map((cat) => {
               const catOptions = CAMERA_OPTIONS.filter((cam) => getCategory(cam.id) === cat.id && cam.id !== 'skip');
@@ -212,16 +226,16 @@ export const CameraSelectionCarousel: React.FC<CameraSelectionCarouselProps> = (
               return (
                 <optgroup
                   key={cat.id}
-                  label={isMyanmar ? cat.labelMm : cat.labelEn}
-                  className="bg-slate-950 text-cyan-400 font-bold"
+                  label={cleanEmoji(isMyanmar ? cat.labelMm : cat.labelEn)}
+                  className="bg-[#161c2a] text-emerald-400 font-bold"
                 >
                   {catOptions.map((cam) => (
                     <option
                       key={cam.id}
                       value={cam.id}
-                      className="bg-slate-900 text-slate-100 py-1"
+                      className="bg-[#161c2a] text-zinc-200 py-1"
                     >
-                      {cam.emoji || '📸'} {isMyanmar ? (cam.labelMm || cam.label) : (cam.labelEn || cam.label)}
+                      {cleanEmoji(isMyanmar ? (cam.labelMm || cam.label) : (cam.labelEn || cam.label))}
                     </option>
                   ))}
                 </optgroup>
@@ -229,7 +243,7 @@ export const CameraSelectionCarousel: React.FC<CameraSelectionCarouselProps> = (
             })}
           </select>
 
-          <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-cyan-400">
+          <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-emerald-400">
             <ChevronDown className="h-4 w-4" />
           </div>
         </div>
@@ -237,14 +251,14 @@ export const CameraSelectionCarousel: React.FC<CameraSelectionCarouselProps> = (
 
       {/* Selected Lens & Aperture Info Callout */}
       {currentCamId !== 'skip' && currentCamObj.lens && (
-        <div className="p-2.5 rounded-xl bg-cyan-950/40 border border-cyan-500/40 flex items-center justify-between text-xs text-cyan-200/90 flex-wrap gap-1">
+        <div className="p-2.5 rounded-lg bg-[#111622] border border-zinc-800 flex items-center justify-between text-xs text-zinc-400 flex-wrap gap-1 shadow-2xs">
           <span className="flex items-center gap-1.5">
-            <span>📸</span>
+            <Camera className="w-3.5 h-3.5 text-emerald-400" />
             <span>{isMyanmar ? 'လန်းစ် (Lens Model):' : 'Lens Model:'}</span>
-            <strong className="text-cyan-300 font-semibold">{currentCamObj.lens}</strong>
+            <strong className="text-emerald-400 font-semibold">{currentCamObj.lens}</strong>
           </span>
-          <span className="text-[11px] font-mono text-cyan-300 bg-slate-900 px-2 py-0.5 rounded border border-cyan-800/60">
-            {isMyanmar ? 'အလင်းဝင်ပေါက် (Aperture):' : 'Aperture:'} {currentCamObj.aperture}
+          <span className="text-[11px] font-mono text-emerald-400 bg-[#161c2a] px-2 py-0.5 rounded border border-zinc-800">
+            {isMyanmar ? 'အလင်းဝင်ပေါက်:' : 'Aperture:'} {currentCamObj.aperture}
           </span>
         </div>
       )}

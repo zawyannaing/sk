@@ -6,7 +6,15 @@ interface AjaxStudioSuiteViewProps {
   onSendToMatrix?: (promptText: string) => void;
   onSavePrompt?: (promptText: string, metadata: any) => void;
   engine?: string;
-  onNavigateView?: (view: any, photoUrl?: string) => void;
+  onSendToPhotoStudio?: (
+    promptText: string,
+    options?: {
+      ratio?: string;
+      referencePhoto?: string | null;
+      referencePhotos?: (string | { url: string; name?: string; id?: string })[];
+      chosenOptions?: { label: string; value: string; emoji?: string }[];
+    }
+  ) => void;
   initialRoomId?: StudioRoomId;
 }
 
@@ -120,6 +128,7 @@ export const AjaxStudioSuiteView: React.FC<AjaxStudioSuiteViewProps> = ({
   onSavePrompt,
   engine = 'midjourney-v6',
   onNavigateView,
+  onSendToPhotoStudio,
   initialRoomId = 'album-studio'
 }) => {
   const isMm = language === 'my';
@@ -1150,6 +1159,22 @@ export const AjaxStudioSuiteView: React.FC<AjaxStudioSuiteViewProps> = ({
                   <span>{isSynthesizingRoomAi ? 'AI Synthesizing...' : '✨ AI Synthesize'}</span>
                 </button>
 
+                {onSendToPhotoStudio && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onSendToPhotoStudio(activeRoomPrompt, {
+                        ratio: aspectRatio || '4:5',
+                        referencePhoto: activePhoto
+                      })
+                    }
+                    className="flex items-center gap-1.5 bg-gradient-to-r from-[#ffd02f] to-[#ffae00] hover:brightness-105 text-[#0a0d14] px-3.5 py-2 rounded-full font-extrabold text-xs cursor-pointer transition-all shadow-sm"
+                  >
+                    <span className="material-symbols-outlined text-[15px]">photo_camera</span>
+                    <span>{isMm ? 'Photo Studio တွင် ပုံထုတ်မည်' : 'Generate Image in Photo Studio'}</span>
+                  </button>
+                )}
+
                 {onSendToMatrix && (
                   <button
                     type="button"
@@ -1158,18 +1183,6 @@ export const AjaxStudioSuiteView: React.FC<AjaxStudioSuiteViewProps> = ({
                   >
                     <span className="material-symbols-outlined text-[15px] text-[#ffd02f]">send</span>
                     <span>Send to Matrix</span>
-                  </button>
-                )}
-
-                {onNavigateView && (
-                  <button
-                    type="button"
-                    onClick={() => onNavigateView('photo-to-text', activePhoto)}
-                    className="flex items-center gap-1.5 bg-[#161d2b] hover:bg-[#20293d] border border-[#273248] text-[#8a95ab] hover:text-white px-3 py-2 rounded-full font-bold text-xs cursor-pointer transition-colors"
-                    title="Reverse engineer this photo into prompts"
-                  >
-                    <span className="material-symbols-outlined text-[15px] text-[#4262ff]">auto_fix_normal</span>
-                    <span>Photo to Text</span>
                   </button>
                 )}
               </div>
