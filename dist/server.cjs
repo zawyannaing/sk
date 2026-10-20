@@ -790,7 +790,7 @@ function buildComprehensiveMasterPrompt(selection, mode) {
 var import_v2 = require("@higgsfield/client/v2");
 import_dotenv.default.config();
 var app = (0, import_express.default)();
-var PORT = Number(process.env.PORT) || 3e3;
+var PORT = Number(process.env.PORT) || 3001;
 app.use(import_express.default.json({ limit: "50mb" }));
 app.use(import_express.default.urlencoded({ limit: "50mb", extended: true }));
 var allowedOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(",").map((s) => s.trim()) : null;
@@ -3000,7 +3000,8 @@ async function startServer() {
   const publicPath = import_path.default.join(process.cwd(), "public");
   app.use(import_express.default.static(publicPath));
   const server = import_http.default.createServer(app);
-  if (process.env.NODE_ENV !== "production") {
+  const isDev = process.env.NODE_ENV === "development" || process.env.NODE_ENV !== "production" && !__filename.includes("dist");
+  if (isDev) {
     const vite = await (0, import_vite.createServer)({
       server: {
         middlewareMode: true,

@@ -11,7 +11,7 @@ import { config as hfConfig, higgsfield } from "@higgsfield/client/v2";
 dotenv.config();
 
 const app = express();
-const PORT = Number(process.env.PORT) || 3000;
+const PORT = Number(process.env.PORT) || 3001;
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
@@ -2563,7 +2563,9 @@ async function startServer() {
   app.use(express.static(publicPath));
   const server = http.createServer(app);
 
-  if (process.env.NODE_ENV !== "production") {
+  const isDev = process.env.NODE_ENV === "development" || (process.env.NODE_ENV !== "production" && !__filename.includes("dist"));
+
+  if (isDev) {
     const vite = await createViteServer({
       server: { 
         middlewareMode: true,
