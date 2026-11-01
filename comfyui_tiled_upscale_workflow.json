@@ -1,0 +1,104 @@
+{
+  "1": {
+    "inputs": {
+      "image": "input_lowres.png",
+      "upload": "image"
+    },
+    "class_type": "LoadImage",
+    "_meta": { "title": "Load Input Low-Res / Compressed Image" }
+  },
+  "2": {
+    "inputs": {
+      "model_name": "RealESRGAN_x4plus.pth"
+    },
+    "class_type": "UpscaleModelLoader",
+    "_meta": { "title": "Load Real-ESRGAN / 4x-UltraSharp Model" }
+  },
+  "3": {
+    "inputs": {
+      "upscale_model": ["2", 0],
+      "image": ["1", 0]
+    },
+    "class_type": "ImageUpscaleWithModel",
+    "_meta": { "title": "Base Model Super-Resolution 4x" }
+  },
+  "4": {
+    "inputs": {
+      "ckpt_name": "sd_xl_base_1.0.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": { "title": "Load Diffusion Model for Micro-Texture Injection" }
+  },
+  "5": {
+    "inputs": {
+      "control_net_name": "controlnet-sd-xl-1.0-tile.safetensors"
+    },
+    "class_type": "ControlNetLoader",
+    "_meta": { "title": "Load Tile ControlNet (Prevents Hallucinations)" }
+  },
+  "6": {
+    "inputs": {
+      "text": "master optical super-resolution upscale, natural skin micro-pores, individual eyelash clarity, crisp fabric weave, tack-sharp text edges, Hasselblad medium-format 100MP optical clarity, 8k UHD",
+      "clip": ["4", 1]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": { "title": "Positive Conditioning (Micro-Textures Only)" }
+  },
+  "7": {
+    "inputs": {
+      "text": "blur, jpeg artifacts, over-sharpened, oil painting effect, plastic skin, distorted text, chromatic aberration, grain noise, hallucinated objects, waxy smoothing",
+      "clip": ["4", 1]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": { "title": "Strict Negative Prompt Constraints" }
+  },
+  "8": {
+    "inputs": {
+      "image": ["3", 0],
+      "model": ["4", 0],
+      "positive": ["6", 0],
+      "negative": ["7", 0],
+      "vae": ["4", 2],
+      "control_net": ["5", 0],
+      "tile_width": 1024,
+      "tile_height": 1024,
+      "tile_padding": 64,
+      "seam_fix_mode": "Band Pass",
+      "seam_fix_denoise": 0.08,
+      "denoise": 0.22,
+      "steps": 25,
+      "cfg": 3.5,
+      "sampler_name": "dpmpp_2m_sde",
+      "scheduler": "karras"
+    },
+    "class_type": "UltimateSDUpscale",
+    "_meta": { "title": "Tiled Diffusion Upscaler (Denoise 0.22, Overlap 64px, Zero OOM)" }
+  },
+  "9": {
+    "inputs": {
+      "image": ["8", 0],
+      "codeformer_fidelity": 0.70,
+      "background_enhance": false,
+      "face_upsample": true
+    },
+    "class_type": "CodeFormerFaceRestore",
+    "_meta": { "title": "CodeFormer Face Restoration (Fidelity w=0.70 Lock)" }
+  },
+  "10": {
+    "inputs": {
+      "image_target": ["9", 0],
+      "image_reference": ["1", 0],
+      "method": "mkl_lab_color_transfer"
+    },
+    "class_type": "ColorMatch",
+    "_meta": { "title": "L*a*b* Color Preservation (Zero Color Shift)" }
+  },
+  "11": {
+    "inputs": {
+      "filename_prefix": "super_res_4k_master",
+      "images": ["10", 0]
+    },
+    "class_type": "SaveImage",
+    "_meta": { "title": "Export 4K Master Restored Image" }
+  }
+}

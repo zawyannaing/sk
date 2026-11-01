@@ -1,0 +1,458 @@
+// =============================================================================
+// Ethnic Nationalities Studio Data (တိုင်းရင်းသား ၁၃၅ မျိုး ရိုးရာ Studio)
+// Complete authentic dataset for Myanmar's 8 Major National Races & Sub-Groups
+// =============================================================================
+
+export interface EthnicNationality {
+  id: string;
+  nameEn: string;
+  nameMm: string;
+  group: 'Kachin' | 'Kayah' | 'Kayin' | 'Chin' | 'Bamar' | 'Mon' | 'Rakhine' | 'Shan' | 'Special Heritage';
+  stateEn: string;
+  stateMm: string;
+  attireEn: string;
+  attireMm: string;
+  headdressEn: string;
+  headdressMm: string;
+  jewelryEn: string;
+  jewelryMm: string;
+  festivalEn: string;
+  festivalMm: string;
+  backdropEn: string;
+  backdropMm: string;
+  culturalTraits: string[];
+  promptSnippet: string;
+}
+
+export const ETHNIC_CATEGORIES = [
+  'All',
+  'Kachin',
+  'Kayah',
+  'Kayin',
+  'Chin',
+  'Bamar',
+  'Mon',
+  'Rakhine',
+  'Shan',
+  'Special Heritage'
+] as const;
+
+export const ETHNIC_NATIONALITIES: EthnicNationality[] = [
+  // 1. KACHIN (ကချင်)
+  {
+    id: 'kachin-jinghpaw-manau',
+    nameEn: 'Kachin Jinghpaw (Manau Festival Gala)',
+    nameMm: 'ကချင် ဂျိန်းဖော (မနောပွဲတော် ရိုးရာဝတ်စုံ)',
+    group: 'Kachin',
+    stateEn: 'Kachin State (Myitkyina / Putao)',
+    stateMm: 'ကချင်ပြည်နယ် (မြစ်ကြီးနား / ပူတာအို)',
+    attireEn: 'Velvet black tunic adorned with polished silver embossed breastplate discs (ngwe-maung), handwoven thick red and black geometric wool longyi, fringed sash',
+    attireMm: 'ငွေမောင်းအပြည့်စီခြယ်ထားသော ကတ္တီပါအနက်အင်္ကျီ၊ အနီနှင့်အနက် ရိုးရာသိုးမွေးလုံချည်၊ ပန်းဖွားခါးစည်း',
+    headdressEn: 'Tall cylindrical woven rattan pillbox hat decorated with wild boar tusks, silver plumes and iridescent feathers',
+    headdressMm: 'တောဝက်စွယ်၊ ငွေကလနားနှင့် ငှက်မွေးစီ ကချင်ရိုးရာခေါင်းပေါင်း',
+    jewelryEn: 'Multi-strand turquoise and carnelian bead necklaces, heavy silver torc torque collar, embossed silver armlets',
+    jewelryMm: 'ကျောက်စိမ်းနီလာလည်ဆွဲ၊ ငွေခွေလည်ရစ်၊ ငွေလက်ကောက်ကြီးများ',
+    festivalEn: 'Kachin Manau Festival (မနောပွဲတော်)',
+    festivalMm: 'ရိုးရာ မနောတိုင် စုပေါင်းကပွဲ',
+    backdropEn: 'Ceremonial Manau poles carved with geometric totems, misty snow-capped Himalayan foothills of Putao in background',
+    backdropMm: 'ဂျီဩမေတြီ အနုပညာလက်ရာ မနောတိုင်များ၊ ပူတာအို ရေခဲတောင်နောက်ခံ',
+    culturalTraits: ['Courage', 'Manau Dance', 'Silver Regalia', 'Mountain Heritage'],
+    promptSnippet: 'portrait of a majestic Kachin Jinghpaw couple in ceremonial Manau attire, velvet black tunic dense with gleaming hammered silver breastplate discs and studs, rich crimson and black wool handwoven wrap, tall traditional headdress adorned with curved boar tusks and feathers, ornate silver torque necklaces, standing proudly before ceremonial Manau totem poles with misty Putao mountain ranges in background, crisp cinematic photography, Hasselblad X2D 100C'
+  },
+  {
+    id: 'kachin-rawang-himalayan',
+    nameEn: 'Kachin Rawang (Snowland Heritage)',
+    nameMm: 'ကချင် ရဝမ် (ရေခဲတောင်ဒေသ ရိုးရာ)',
+    group: 'Kachin',
+    stateEn: 'Northern Kachin State (Putao Foothills)',
+    stateMm: 'မြောက်ဖျား ပူတာအိုဒေသ',
+    attireEn: 'Handspun natural hemp and wool mantle with indigo dye patterns, cross-woven chest strap with hunting knife sheath',
+    attireMm: 'သဘာဝ လျှော်ချည်နှင့် သိုးမွေးထည်၊ ဓားလွယ်ကြိုးအဆင်တန်ဆာ',
+    headdressEn: 'Fitted handwoven cane and wild animal fur headpiece with pheasant tail feathers',
+    headdressMm: 'ကြိမ်နှင့် သားမွေး ရိုးရာခေါင်းဆောင်း',
+    jewelryEn: 'Bone and seed amulets, hammered brass torcs, amber earrings',
+    jewelryMm: 'အရိုးနှင့် သစ်စေ့ လက်ဝတ်ရတနာ၊ ပယင်းနားကပ်',
+    festivalEn: 'Rawang Khaung-hpa Harvesting Celebration',
+    festivalMm: 'ရဝမ် ကောက်သစ်စားပွဲတော်',
+    backdropEn: 'Alpine pine forest, snow-capped Mount Hkakabo Razi peak glowing at sunrise',
+    backdropMm: 'ခါကာဘိုရာဇီ ရေခဲတောင်နှင့် ထင်းရှူးတောနောက်ခံ',
+    culturalTraits: ['Highland Spirit', 'Bow & Arrow Hunter', 'Alpine Purity'],
+    promptSnippet: 'Burmese Kachin Rawang alpine portrait in authentic raw hemp and woven wool garments, intricate cross-body woven quiver strap, traditional fur-trimmed cap with pheasant feather, snow-covered pine slopes of Hkakabo Razi at dawn, morning golden rim light, authentic ethnographic realism'
+  },
+
+  // 2. KAYAH (ကယား)
+  {
+    id: 'kayah-traditional-regal',
+    nameEn: 'Kayah Royal Heritage (E-Du Silk Mantle)',
+    nameMm: 'ကယား ရိုးရာ (အီးဒူး ပုဝါနှင့် ပွဲတော်ဝတ်စုံ)',
+    group: 'Kayah',
+    stateEn: 'Kayah State (Loikaw)',
+    stateMm: 'ကယားပြည်နယ် (လွိုင်ကော်)',
+    attireEn: 'Vibrant scarlet woven sleeveless tunic belted with antique silver coins, black wrap skirt with hand-embroidered borders, woven red leggings',
+    attireMm: 'ငွေဒင်္ဂါးခါးပတ်တွဲ အနီရောင်ရင်ဖုံး၊ ပန်းထိုးအနက်ရောင်ထဘီတို၊ ရိုးရာခြေကျင်းဝတ်ပုဝါ',
+    headdressEn: 'Scarlet handloom turban wrapped with silver pins and blooming orchid sprays',
+    headdressMm: 'သခွတ်ပန်းနှင့် ငွေဆံထိုးထိုးထားသော အနီရောင်ရိုးရာခေါင်းပေါင်း',
+    jewelryEn: 'Layered heavy silver coin necklaces, raw amber beads, carved ivory and bone bracelets',
+    jewelryMm: 'ငွေဒင်္ဂါးလည်ဆွဲတန်းများ၊ ပယင်းလုံးကြီးများနှင့် ဆင်စွယ်လက်ကောက်',
+    festivalEn: 'Kayah Kayhto-bo Festival (ကေ့သျှိုးဘိုး တံခွန်တိုင်ပွဲတော်)',
+    festivalMm: 'ကေ့သျှိုးဘိုး တံခွန်တိုင်ပွဲတော်',
+    backdropEn: 'Grand sacred Kayhto-bo totem pole wrapped with white streamers, Taung Kwe Pagoda limestone crags of Loikaw',
+    backdropMm: 'ကေ့သျှိုးဘိုး တံခွန်တိုင်ကြီးနှင့် လွိုင်ကော် တောင်ကွဲစေတီနောက်ခံ',
+    culturalTraits: ['Kayhto-bo Totem', 'Silver Coin Wealth', 'Khaung-ye Rice Wine'],
+    promptSnippet: 'authentic Kayah couple in traditional scarlet handloom costume with heavy silver coin chain belts and antique amber bead necklaces, red woven turban with native orchids, standing before the majestic sacred Kayhto-bo festival pole with the iconic limestone crags of Loikaw Taung Kwe Pagoda in soft twilight, documentary 8k fine art portrait'
+  },
+  {
+    id: 'kayan-padaung-brass-rings',
+    nameEn: 'Kayan Lahwi / Padaung (Golden Brass Rings)',
+    nameMm: 'ကယန်း လဟွီ / ပဒေါင် (ရိုးရာ ကြေးကွင်းအလှ)',
+    group: 'Kayah',
+    stateEn: 'Kayah & Shan Border (Pekon / Demoso)',
+    stateMm: 'ကယားနှင့် ရှမ်းနယ်စပ် (ဒီမောဆို / ဖယ်ခုံ)',
+    attireEn: 'Pristine white handwoven V-neck smock with magenta selvedge, navy blue handloom skirt with geometric tribal borders',
+    attireMm: 'လက်ယက် အဖြူရောင်ဗီစလွယ်အင်္ကျီ၊ ရိုးရာဂျီဩမေတြီနက်ပြာထဘီ',
+    headdressEn: 'Vibrant pink and orange woven turban adorned with silver coins and wild tassels',
+    headdressMm: 'ငွေဒင်္ဂါးတွဲဖက် အနုရောင်ပုဝါခေါင်းပေါင်း',
+    jewelryEn: 'Iconic coiled brass neck rings polished to golden brilliance, matching brass leg coils and silver dangling ear pendants',
+    jewelryMm: 'ရွှေဝါရောင်တောက်နေသော ရိုးရာလည်ပင်းကြေးကွင်းများ၊ ခြေကျင်းကြေးကွင်းနှင့် ငွေနားဆွဲ',
+    festivalEn: 'Kayan National Day & Harvest Gala',
+    festivalMm: 'ကယန်း အမျိုးသားနေ့ ပွဲတော်',
+    backdropEn: 'Traditional bamboo stilt longhouse veranda, sunlit mist over the Shan-Kayah green highland valley',
+    backdropMm: 'ရိုးရာဝါးအိမ်ကွပ်ပျစ်နှင့် သဘာဝတောင်တန်းမြူနှင်းနောက်ခံ',
+    culturalTraits: ['Brass Coils', 'Graceful Dignity', 'Handloom Weaving'],
+    promptSnippet: 'dignified Kayan Lahwi woman wearing polished gleaming brass neck coils and traditional handwoven white and magenta tunic, colorful headscarf with silver coins, radiant serene expression, sitting on a wooden veranda weaving on a traditional backstrap loom, soft morning light illuminating mist-covered hills, National Geographic style editorial portrait'
+  },
+
+  // 3. KAYIN / KAREN (ကရင်)
+  {
+    id: 'kayin-sgaw-white-dress',
+    nameEn: 'Sgaw Kayin Maiden (Pristine Woven Tunic)',
+    nameMm: 'စကောကရင် (ရိုးရာ အဖြူရောင် ဝတ်စုံရှည်)',
+    group: 'Kayin',
+    stateEn: 'Kayin State (Hpa-An / Thandaung)',
+    stateMm: 'ကရင်ပြည်နယ် (ဘားအံ / သံတောင်ကြီး)',
+    attireEn: 'Floor-length handwoven white cotton tunic (Say-Ghee) adorned with red embroidery and job\'s tears seed beads, woven red fringed tassels',
+    attireMm: 'ကရင်အပျိုစင် ရိုးရာအဖြူရောင်ဝတ်ရုံရှည် (ဆေးဂီး)၊ ပန်းထိုးအနီနှင့် သစ်စေ့ပုတီးများ',
+    headdressEn: 'Neat center-part hair with silver floral pins and red woven headwrap',
+    headdressMm: 'ငွေဆံထိုးနှင့် ကရင်ရိုးရာ နီနီရဲရဲခေါင်းပေါင်းစ',
+    jewelryEn: 'Solid silver torc neck ring, red seed bangles, tiered silver bell earrings',
+    jewelryMm: 'ငွေခွေလည်ဆွဲ၊ ကရင်ရိုးရာပုတီးနှင့် ငွေနားကပ်',
+    festivalEn: 'Kayin New Year Gala (ကရင်နှစ်သစ်ကူးပွဲတော်)',
+    festivalMm: 'ကရင်နှစ်သစ်ကူး ဒုံးယိမ်းပွဲတော်',
+    backdropEn: 'Dramatic limestone karst peaks of Mount Zwekabin, morning mist reflecting on peaceful Kan Thar Yar lake',
+    backdropMm: 'ဇွဲကပင်တောင်ထွတ်ကြီးများနှင့် ကန်သာယာရေပြင်နောက်ခံ',
+    culturalTraits: ['Done Dance (ဒုံးယိမ်း)', 'Frog Drum (ဖားစည်)', 'Pure White Tunics'],
+    promptSnippet: 'serene Sgaw Kayin maiden wearing authentic handwoven white tunic with crimson embroidered patterns and native seed beads, gleaming silver neck torc, sitting gracefully beside an antique bronze frog drum (Pha-Si), backdrop of Mount Zwekabin dramatic limestone pinnacle bathed in golden sunrise mist, Kodak Portra 400 film grade'
+  },
+  {
+    id: 'kayin-pwo-ceremonial',
+    nameEn: 'Pwo Kayin Royal Warrior & Done Dancer',
+    nameMm: 'ပိုးကရင် (ဒုံးယိမ်းခေါင်းဆောင် ရိုးရာဝတ်စုံ)',
+    group: 'Kayin',
+    stateEn: 'Kayin State (Hlaingbwe / Kawkareik)',
+    stateMm: 'ကရင်ပြည်နယ် (လှိုင်းဘွဲ့ / ကော့ကရိတ်)',
+    attireEn: 'Vibrant woven red and black striped tunic with fringed hem, red silk longyi with chevron weave patterns',
+    attireMm: 'အနီနှင့်အနက် ရိုးရာစင်းအင်္ကျီ၊ ချိတ်စင်းနီနက်ကရင်လုံချည်',
+    headdressEn: 'Proud red and white headcloth tied in the signature Kayin warrior horn knot',
+    headdressMm: 'ကရင်ရိုးရာ အလံတော်အရောင် ဦးချိုပုံစံခေါင်းပေါင်း',
+    jewelryEn: 'Antique silver torque, beaded leather wrist guards, horn amulets',
+    jewelryMm: 'ငွေလည်ရစ်၊ သားရေလက်ပတ်နှင့် ကျွဲချိုလက်ဖွဲ့',
+    festivalEn: 'Kayin Done Dance Competition (ဒုံးအကပြိုင်ပွဲ)',
+    festivalMm: 'ရိုးရာ ဒုံးအကသဘင်',
+    backdropEn: 'Bamboo dance arena decorated with woven Kayin palm leaves and red-white-blue Kayin national flags',
+    backdropMm: 'ကရင်ရိုးရာ အလံနှင့် ဓနိမုခ်ဦးဝါးကွင်းပြင်နောက်ခံ',
+    culturalTraits: ['Martial Spirit', 'Done Yei Dance', 'Buffalo Horn Tradition'],
+    promptSnippet: 'dynamic Pwo Kayin male Done dancer in motion, wearing striking red and black chevron tunic with woven longyi, knotted warrior headscarf, holding traditional bamboo clappers, vibrant festive arena with bronze frog drums in background, dramatic low-angle cinematic lighting, high-speed shutter freezing motion'
+  },
+
+  // 4. CHIN (ချင်း)
+  {
+    id: 'chin-falam-royal-hornbill',
+    nameEn: 'Chin Falam / Hakha (Hornbill Plume Majesty)',
+    nameMm: 'ချင်း ဖလမ်း / ဟားခါး (အောက်ချင်းငှက်မွေး ရိုးရာဝတ်စုံ)',
+    group: 'Chin',
+    stateEn: 'Chin State (Hakha / Falam / Tedim)',
+    stateMm: 'ချင်းပြည်နယ် (ဟားခါး / ဖလမ်း / တီးတိန်)',
+    attireEn: 'Majestic handwoven blanket mantle (Khai-khe) with black, red, yellow and green geometric stripes, handspun cotton tunic with intricate embroidery',
+    attireMm: 'အနက်၊ အနီ၊ အဝါ၊ အစိမ်း ဂျီဩမေတြီစင်း အဖိုးတန်ချင်းပုဝါကြီး၊ ရိုးရာလက်ယက်အင်္ကျီ',
+    headdressEn: 'Magnificent feathered crown adorned with authentic black-and-white hornbill feathers and brass rosettes',
+    headdressMm: 'အောက်ချင်းငှက်မြီးရှည်နှင့် ကြေးပန်းပွင့်စီ ရိုးရာခေါင်းဆောင်းကြီး',
+    jewelryEn: 'Tiered antique carnelian and pumtek bead necklaces (worth many mithuns), heirloom brass bells, engraved brass hair skewers',
+    jewelryMm: 'ချင်းရိုးရာ ပွန်တခ် (Pumtek) ရှေးဟောင်းကျောက်လည်ဆွဲ၊ ကြေးခေါင်းလောင်းငယ်များနှင့် ဆံထိုး',
+    festivalEn: 'Chin National Day Gala & Khado Harvesting',
+    festivalMm: 'ချင်းအမျိုးသားနေ့နှင့် ခါဒိုပွဲတော်',
+    backdropEn: 'High-altitude Chin mountain ridge with rhododendron blossoms, pine trees overlooking misty Falam valley',
+    backdropMm: 'တောင်ဇလပ်ပန်းနီနီများနှင့် ချင်းတောင်တန်းချိုင့်ဝှမ်းနောက်ခံ',
+    culturalTraits: ['Hornbill Feather Crown', 'Pumtek Heirloom Beads', 'Rhododendron Bloom'],
+    promptSnippet: 'magnificent Chin Hakha chieftain in full ceremonial regalia, wearing prized handwoven blanket mantle dense with geometric tribal embroidery, crowned with striking black and white hornbill feathers, heavy priceless antique pumtek bead necklaces and brass armlets, standing on Mount Victoria summit surrounded by scarlet rhododendron flowers at sunset, cinematic lighting, 8k resolution'
+  },
+  {
+    id: 'chin-mindat-southern-tattoo',
+    nameEn: 'Southern Chin (Mindat Handloom & Heritage Flute)',
+    nameMm: 'တောင်ပိုင်းချင်း (မင်းတပ် နှာခေါင်းပလွေနှင့် လက်ယက်ထည်)',
+    group: 'Chin',
+    stateEn: 'Southern Chin State (Mindat / Kanpetlet)',
+    stateMm: 'ချင်းပြည်နယ်တောင်ပိုင်း (မင်းတပ် / ကန်ပက်လက်)',
+    attireEn: 'Dark indigo woven tunic with rainbow selvedge borders, heavy tribal blanket draped gracefully over one shoulder',
+    attireMm: 'သက်တံရောင်အနားကွပ်ပါ နက်ပြာရောင်အင်္ကျီ၊ ပခုံးတင်ချင်းစောင်',
+    headdressEn: 'Intricately wrapped indigo and red turban with porcupine quill ornaments',
+    headdressMm: 'ဖြူစူးဆံထိုးပါဝင်သော နက်ပြာရိုးရာခေါင်းပေါင်း',
+    jewelryEn: 'Massive coils of antique glass beads, silver ear plugs, brass neck ring',
+    jewelryMm: 'ရှေးဟောင်းပုတီးစေ့လည်ဆွဲခွေများ၊ ငွေနားတောင်းကြီး',
+    festivalEn: 'Chin Traditional Nose-Flute & Solitary Song Heritage',
+    festivalMm: 'နှာခေါင်းပလွေ ရိုးရာဖျော်ဖြေပွဲ',
+    backdropEn: 'Misty pine mountain slope of Nat Ma Taung (Mount Victoria) with wooden log cabins',
+    backdropMm: 'နတ်မတောင် (Mount Victoria) ထင်းရှူးတောနှင့် တောင်စောင်းရွာနောက်ခံ',
+    culturalTraits: ['Nose Flute', 'Geometric Blankets', 'Nat Ma Taung Pine'],
+    promptSnippet: 'elderly graceful southern Chin woman playing traditional bamboo nose flute, wearing authentic dark handwoven tribal shawl with fine rainbow stripes, massive strands of antique glass beads, soft contemplative gaze, backdrop of Nat Ma Taung pine hills in twilight fog, warm ambient lighting, fine art documentary photograph'
+  },
+
+  // 5. MON (မွန်)
+  {
+    id: 'mon-royal-swan-court',
+    nameEn: 'Mon Royal Court (Golden Hintha Heritage)',
+    nameMm: 'မွန် ရာဇာဓိရာဇ် နန်းတွင်း (ရွှေဟင်္သာ ရိုးရာဝတ်စုံ)',
+    group: 'Mon',
+    stateEn: 'Mon State (Mawlamyine / Thaton)',
+    stateMm: 'မွန်ပြည်နယ် (မော်လမြိုင် / သထုံ)',
+    attireEn: 'Luminous crimson silk htamein embroidered with golden Hintha (sacred swan) motifs, sheer ivory organdy lace blouse with pearl buttons, flowing red silk stole',
+    attireMm: 'ရွှေဟင်္သာရုပ် ပန်းထိုးထားသော အနီရောင်ပိုးထဘီ၊ ပုလဲကြယ်သီးတပ် ဇာအင်္ကျီဖြူ၊ ပိုးပုဝါနီ',
+    headdressEn: 'Regal high chignon wrapped with strings of fresh fragrant white jasmine and solid gold Hintha hair combs',
+    headdressMm: 'ရွှေဟင်္သာဆံထိုးနှင့် မာလာစပယ်ပန်းကုံး ဆင်ယင်ထားသော မွန်ဆံထုံး',
+    jewelryEn: 'Intricate 22k gold filigree necklace with ruby eyes, gold cuff bangles, dangling pearl drop earrings',
+    jewelryMm: 'မွန်ရိုးရာ ရွှေစစ်နန်းဆွဲလည်ဆွဲ၊ ရွှေလက်ကောက်နှင့် ပုလဲနားဆွဲ',
+    festivalEn: 'Mon National Day & Kyaikhto Pagoda Gala',
+    festivalMm: 'မွန်အမျိုးသားနေ့ ပွဲတော်',
+    backdropEn: 'Ancient Thaton royal pavilion with gilded Hintha pillars, Thanlwin river sunset in the distance',
+    backdropMm: 'သထုံမွန်နန်းစံအဆောင်နှင့် သံလွင်မြစ်ဆည်းဆာနောက်ခံ',
+    culturalTraits: ['Sacred Hintha (ဟင်္သာ)', 'Crocodile Zither', 'Refined Silk Weave'],
+    promptSnippet: 'portrait of an elegant Mon noblewoman in authentic crimson and gold silk costume embroidered with royal Hintha bird motifs, sheer ivory lace blouse, ornate gold filigree jewelry, graceful high bun with fragrant jasmine wreath and golden swan hairpin, sitting beside an antique carved crocodile zither (Mi-gyaung), warm golden hour light, cinematic 8k portrait'
+  },
+  {
+    id: 'mon-traditional-water-dance',
+    nameEn: 'Mon Traditional Water Dance Performance',
+    nameMm: 'မွန် ရိုးရာ ယဉ်ကျေးမှု အကဝတ်စုံ',
+    group: 'Mon',
+    stateEn: 'Mon State (Mudon / Kyaikmaraw)',
+    stateMm: 'မွန်ပြည်နယ် (ကျိုက်မရော / မုဒုံ)',
+    attireEn: 'Vibrant emerald green silk longyi paired with crimson trim, sleeveless dance bodice with silver sequins and chiffon scarf',
+    attireMm: 'မြစိမ်းရောင် မွန်ရိုးရာအကထဘီ၊ ငွေရောင်ပွင့်ထိုး ရင်စိအင်္ကျီနှင့် ပုဝါပါး',
+    headdressEn: 'Decorative silver coronet with hanging floral tassels and blooming champak flowers',
+    headdressMm: 'စကားဝါပန်းနှင့် ပန်းဆိုင်းငွေသရဖူခေါင်းဆောင်း',
+    jewelryEn: 'Silver bell anklets, layered silver chain necklaces, arm amulets',
+    jewelryMm: 'ငွေခြေချင်းဆည်းလည်း၊ ငွေဆွဲကြိုးနှင့် လက်ကြပ်',
+    festivalEn: 'Mon Traditional Ye-Kin Dance & Song',
+    festivalMm: 'မွန်ရိုးရာ ရေကင်းယိမ်းအက',
+    backdropEn: 'Ancient Kyaikmaraw temple colonnade with glazed terracotta tiles and candlelit lanterns',
+    backdropMm: 'ကျိုက်မရော ရှေးဟောင်းဘုရားစင်္ကြံနှင့် ဆီမီးရောင်နောက်ခံ',
+    culturalTraits: ['Graceful Dance', 'Crocodile Instrument', 'Terracotta Art'],
+    promptSnippet: 'Mon classical dancer in flowing emerald silk attire with red sash, poised in a graceful traditional dance posture with arched fingers, delicate silver coronet with yellow champak flowers, ancient Kyaikmaraw temple pavilion softly lit by clay oil lamps, ethereal atmospheric mist, shot on Leica SL3'
+  },
+
+  // 6. RAKHINE (ရခိုင်)
+  {
+    id: 'rakhine-mrauk-u-royal-court',
+    nameEn: 'Rakhine Mrauk-U Golden Court Majesty',
+    nameMm: 'ရခိုင် မြောက်ဦး နန်းတွင်း ရိုးရာဝတ်စုံ',
+    group: 'Rakhine',
+    stateEn: 'Rakhine State (Mrauk-U / Sittwe)',
+    stateMm: 'ရခိုင်ပြည်နယ် (မြောက်ဦး / စစ်တွေ)',
+    attireEn: 'Heavy midnight-blue silk htamein with woven silver Acheik patterns, royal high-neck velvet jacket with embossed gold brocade and pagodalike shoulder epaulets',
+    attireMm: 'မြောက်ဦးခေတ် နန်းတွင်းပိုးချိတ်ထဘီ၊ ရွှေပန်းထိုး ကတ္တီပါအင်္ကျီနှင့် ရာဇဝင်ပခုံးတင်တန်ဆာ',
+    headdressEn: 'Elaborate tiered silver and gold Mrauk-U royal crown (Tharaphu) set with red spinels and white jasmine',
+    headdressMm: 'မြောက်ဦးခေတ် ပတ္တမြားစီ ရွှေငွေသရဖူတော်ကြီး',
+    jewelryEn: 'Traditional Rakhine filigree chest chains (Sway-Lwe), heavy solid silver hollow anklets, antique Mogok ruby ring',
+    jewelryMm: 'ရခိုင်ရိုးရာ စလွယ်ရွှေကြိုး၊ ငွေခြေချင်းလုံးကြီးများနှင့် ပတ္တမြားလက်စွပ်',
+    festivalEn: 'Rakhine Boat Racing & Sand Stupa Gala',
+    festivalMm: 'ရခိုင်ရိုးရာ လှေပြိုင်ပွဲနှင့် သဲပုံစေတီပွဲတော်',
+    backdropEn: 'Mystical stone fortress temples of Mrauk-U (Shite-thaung and Dukkanthein) shrouded in morning river fog',
+    backdropMm: 'မြောက်ဦး ရှစ်သောင်းဘုရားနှင့် ဒုက္ခန်သိမ် ကျောက်တိုက်ကြီးများ မြူခိုးဝေဆာနောက်ခံ',
+    culturalTraits: ['Mrauk-U Stone Fortresses', 'Royal Crown (သရဖူ)', 'Silver Acheik Weave'],
+    promptSnippet: 'portrait of a Rakhine princess from the golden Mrauk-U era, wearing heavy midnight-blue and silver silk acheik htamein with gold-embroidered velvet court jacket, towering ornate Mrauk-U royal crown studded with rubies, intricate silver chest harness chains, standing on the stone terrace of Shite-thaung temple as morning mist rolls across ancient pagodas, dramatic Rembrandt lighting, Hasselblad medium format'
+  },
+  {
+    id: 'rakhine-traditional-wedding-water',
+    nameEn: 'Rakhine Coastal Festive & Thingyan Gala',
+    nameMm: 'ရခိုင် ရိုးရာ ရေလောင်းပွဲနှင့် သင်္ကြန်ဝတ်စုံ',
+    group: 'Rakhine',
+    stateEn: 'Rakhine State (Kyaukpyu / Sittwe Coast)',
+    stateMm: 'ရခိုင်ကမ်းရိုးတန်း (စစ်တွေ / ကျောက်ဖြူ)',
+    attireEn: 'Vibrant indigo and pink woven Rakhine silk htamein, fitted pastel silk blouse with pearl buttons and sheer matching shawl',
+    attireMm: 'ရခိုင်ပိုးစစ်စစ် ပန်းရောင်နှင့် မဲနယ်ရောင်စုံထဘီ၊ ရင်ဖုံးပိုးအင်္ကျီနှင့် ပုဝါပါး',
+    headdressEn: 'Side-swept traditional coiffure pinned with fresh white orchids and mother-of-pearl comb',
+    headdressMm: 'သစ်ခွဖြူပန်းနှင့် ခုံးခွံဘီးကုတ် ပန်ဆင်ထားသော ရခိုင်ဆံထုံး',
+    jewelryEn: 'Handmade silver mesh necklaces, delicate silver bangles, dangling teardrop earrings',
+    jewelryMm: 'ရခိုင်ရိုးရာ ငွေကွန်ရက်လည်ဆွဲနှင့် ငွေလက်ကောက်များ',
+    festivalEn: 'Rakhine Traditional Water-Throwing Festival (ရခိုင်ရိုးရာ ရေလောင်းပွဲ)',
+    festivalMm: 'ရခိုင်ရိုးရာ လောင်းလှေသင်္ကြန် ရေလောင်းပွဲ',
+    backdropEn: 'Decorated traditional long wooden boat on riverbank, ceremonial silver bowls filled with scented water and Padauk blossoms',
+    backdropMm: 'ပန်းဆင်ထားသော ရခိုင်ရိုးရာလောင်းလှေနှင့် နံ့သာရေဖလားနောက်ခံ',
+    culturalTraits: ['Rakhine Boat Thingyan', 'Silver Mesh Art', 'Bay of Bengal Heritage'],
+    promptSnippet: 'joyful Rakhine maiden in authentic pastel pink and indigo silk htamein holding a ceremonial silver water bowl filled with floating padauk blossoms, delicate silver mesh necklace, side-pinned white orchid in hair, coastal Sittwe riverfront background with traditional decorated dragon-head longboats during Rakhine Thingyan water festival, bright golden hour sunlight with water droplet splashes'
+  },
+
+  // 7. SHAN (ရှမ်း)
+  {
+    id: 'shan-saopha-royal-court',
+    nameEn: 'Shan Saopha Prince & Princess (Tai Royal Court)',
+    nameMm: 'ရှမ်း စော်ဘွားနှင့် မဟာဒေဝီ (ရှမ်းနန်းတွင်း ဝတ်စုံ)',
+    group: 'Shan',
+    stateEn: 'Southern Shan State (Nyaungshwe / Hsipaw)',
+    stateMm: 'ရှမ်းပြည်နယ် (ညောင်ရွှေ / သီပေါ / ကျိုင်းတုံ)',
+    attireEn: 'Prince in embroidered cream silk jacket with Mandarin frog closures and voluminous wide-legged silk Shan trousers (Baggy Baung-bi), Princess in emerald and gold brocade silk blouse with sweeping acheik skirt',
+    attireMm: 'စော်ဘွားဝတ် ဘောင်းဘီပွကြီးနှင့် ရွှေချည်ထိုးပိုးအင်္ကျီ၊ မဟာဒေဝီဝတ် ရွှေချည်ထိုး နန်းတွင်းပိုးထဘီ',
+    headdressEn: 'Groom in high-peaked pastel gold Shan turban (Khaung-baung), Bride in conical golden coronet decorated with rubies and jasmine',
+    headdressMm: 'ရှမ်းစော်ဘွား ရွှေရောင်ခေါင်းပေါင်းစနှင့် ရွှေသရဖူခေါင်းဆောင်း',
+    jewelryEn: 'Shan-style 24k gold repoussé collar necklace, Mogok sapphire rings, jade pendants, ceremonial silver-sheathed Shan dhao sword',
+    jewelryMm: 'ရှမ်းရွှေထည်လည်ရစ်ကြီး၊ ကျောက်မျက်ရတနာနှင့် ငွေရိုးတပ် ရှမ်းဓားမဟာ',
+    festivalEn: 'Inle Phaung Daw Oo Pagoda Royal Barge Festival',
+    festivalMm: 'အင်းလေး ဖောင်တော်ဦး ဘုရားပွဲတော်',
+    backdropEn: 'Nyaungshwe Haw royal palace carved teak halls, or the gilded Karaweik barge on calm Inle Lake with Shan hills',
+    backdropMm: 'ညောင်ရွှေစော်ဘွားဟော်နန်း သစ်သားခန်းမကြီး သို့မဟုတ် အင်းလေးကန် ရွှေဖောင်တော်နောက်ခံ',
+    culturalTraits: ['Saopha Royalty', 'Shan Dhao Sword', 'Karaweik Royal Barge', 'Inle Heritage'],
+    promptSnippet: 'Shan Saopha prince and Mahadevi princess in opulent authentic Tai royal court garments, groom in cream raw silk jacket with frog clasps and baggy silk trousers holding an ornate silver Shan sword, bride in emerald green and gold brocade with ruby-studded golden coronet, magnificent Nyaungshwe royal teak Haw palace hall in background, dramatic chiaroscuro window lighting, 8k medium format'
+  },
+  {
+    id: 'shan-pa-o-indigo-fire',
+    nameEn: 'Pa-O Dragon Heritage (Taunggyi Fire Gala)',
+    nameMm: 'ပအိုဝ်း ရိုးရာ (တောင်ကြီး မီးပုံးပျံပွဲတော် ဝတ်စုံ)',
+    group: 'Shan',
+    stateEn: 'Southern Shan State (Taunggyi / Hopong)',
+    stateMm: 'ရှမ်းပြည်နယ် (တောင်ကြီး / ဟိုပုံး)',
+    attireEn: 'Midnight black natural indigo-dyed cotton tunic and matching wide pants/skirt, bright scarlet and cyan embroidered borders and tassels',
+    attireMm: 'နက်ပြာ/အနက်ရောင် သဘာဝမဲနယ်ဆိုး အင်္ကျီနှင့် ဘောင်းဘီ၊ ရောင်စုံပန်းထိုးအနားကွပ်',
+    headdressEn: 'Iconic voluminous bright orange, red and green plaid turban wrapped in the shape of a dragon crest (Naga)',
+    headdressMm: 'နဂါးမောက်ပုံစံ ပအိုဝ်းရိုးရာ ရောင်စုံစစ်စစ်ခေါင်းပေါင်းကြီး',
+    jewelryEn: 'Solid silver torque, chunky carnelian beads, antique silver ear plugs',
+    jewelryMm: 'ငွေလည်ရစ်ကြီး၊ ချင်းပုတီးနှင့် ငွေနားကပ်လုံး',
+    festivalEn: 'Taunggyi Tazaungdaing Fire Balloon Festival (တောင်ကြီး မီးပုံးပျံပွဲတော်)',
+    festivalMm: 'တောင်ကြီး တန်ဆောင်တိုင် မီးပုံးပျံပွဲတော်',
+    backdropEn: 'Night sky illuminated by a massive glowing handmade fire balloon trailing sparkling fireworks over Taunggyi valley',
+    backdropMm: 'ညကောင်းကင်ယံတွင် မီးပုံးပျံကြီး မီးရှူးမီးပန်းများ ဝေဆာနေသော တောင်ကြီးညနောက်ခံ',
+    culturalTraits: ['Dragon Descendant Legend', 'Vibrant Plaid Turban', 'Fire Balloons'],
+    promptSnippet: 'authentic Pa-O woman wearing midnight-black indigo dyed tunic with bold scarlet borders, magnificent voluminous bright orange and red plaid dragon-crest turban, solid silver torque necklace, night backdrop of Taunggyi Tazaungdaing festival with a giant glowing hot-air paper balloon ascending into the dark sky trailing brilliant sparkling pyrotechnics, cinematic lighting, ultra-sharp detail'
+  },
+  {
+    id: 'shan-intha-lake-fisherman',
+    nameEn: 'Intha Lake Heritage (Leg-Rower & Lotus Silk)',
+    nameMm: 'အင်းသား ရိုးရာ (ခြေထောက်လှေလှော်နှင့် ကြာချည်ထည်)',
+    group: 'Shan',
+    stateEn: 'Inle Lake, Shan State (Nyaungshwe)',
+    stateMm: 'ရှမ်းပြည်နယ်၊ အင်းလေးကန် (ညောင်ရွှေ)',
+    attireEn: 'Handspun natural Inle lotus-fiber silk tunic in muted ecru, loose Shan indigo cotton pants, woven straw sun hat',
+    attireMm: 'ရှားပါး အင်းလေးကြာချည်စစ်စစ် အင်္ကျီ၊ ရှမ်းဘောင်းဘီပွနှင့် ဝါးခမောက်',
+    headdressEn: 'Light woven cotton headscarf tied neatly beneath wide bamboo hat (Khamauk)',
+    headdressMm: 'ဝါးခမောက်အောက်မှ ရှမ်းခေါင်းပေါင်းစ',
+    jewelryEn: 'Simple silver ring, woven cotton waist cord',
+    jewelryMm: 'ငွေလက်စွပ်နှင့် ရိုးရာခါးကြိုး',
+    festivalEn: 'Inle Phaung Daw Oo Pagoda Leg-Rowing Regatta',
+    festivalMm: 'အင်းလေး ခြေထောက်လှေလှော်ပြိုင်ပွဲ',
+    backdropEn: 'Glassy calm Inle Lake at sunrise, stilt houses on water, conical bamboo fishing cage balanced gracefully on one leg',
+    backdropMm: 'အင်းလေးကန် မနက်ခင်းရေပြင်၊ ရေပေါ်ရွာနှင့် ခြေထောက်လှေလှော်ကွန်ချာနောက်ခံ',
+    culturalTraits: ['Leg-Rowing Art', 'Lotus Fiber Silk', 'Floating Gardens'],
+    promptSnippet: 'iconic Intha fisherman on Inle Lake balanced gracefully on one leg on a wooden longtail boat holding a traditional conical bamboo fishing net, wearing authentic ecru lotus-fiber silk shirt and rolled indigo trousers with woven straw hat, golden sunrise reflections on the mirror-smooth lake, misty blue Shan mountains behind, National Geographic masterpiece'
+  },
+
+  // 8. BAMAR (ဗမာ)
+  {
+    id: 'bamar-konbaung-royal-acheik',
+    nameEn: 'Bamar Konbaung Royal Palace (Mandalay Luntaya)',
+    nameMm: 'ဗမာ ကုန်းဘောင်ခေတ် ရတနာပုံ (မန္တလေး လွန်းရာကျော်)',
+    group: 'Bamar',
+    stateEn: 'Mandalay Region (Mandalay / Amarapura)',
+    stateMm: 'မန္တလေးတိုင်း (မန္တလေး / အမရပူရ)',
+    attireEn: 'Heirloom Mandalay hundred-shuttle Luntaya Acheik silk htamein in wave pattern with 24k gold threading, fitted royal Yin-zi bodice, sheer gold-bordered organza shawl',
+    attireMm: 'ရွှေချည်ထိုး မန္တလေး လွန်းရာကျော် လှိုင်းချိတ်ထဘီ၊ ရင်စိအင်္ကျီနှင့် ရွှေကွပ်ပုဝါပါး',
+    headdressEn: 'Elaborate traditional Sadone high coiled bun adorned with diamond combs and cascading garland of fresh royal jasmine',
+    headdressMm: 'စိန်ဘီးကုတ်နှင့် စပယ်တင် စံဒုံးဆံထုံးတော်',
+    jewelryEn: 'Complete 22k Burmese royal gold jewelry suite: layered Salwe chest chain, ruby ear studs, solid gold hinged bangles, jade pendant',
+    jewelryMm: 'မိုးကုတ်ပတ္တမြား စလွယ်ရွှေကြိုး၊ ရွှေဆံထိုး၊ နန်းတွင်းကျောက်မျက်ရတနာ',
+    festivalEn: 'Royal Thadingyut Palace Illumination Gala',
+    festivalMm: 'နန်းတွင်း သီတင်းကျွတ် မီးထွန်းသဘင်',
+    backdropEn: 'Mandalay Royal Palace teak throne room with golden spire pillars and velvet drapery',
+    backdropMm: 'မန္တလေး ရတနာပုံ ရွှေနန်းတော် ပလ္လင်ခန်းမကြီးနောက်ခံ',
+    culturalTraits: ['100-Shuttle Luntaya Acheik', 'Sadone Coiffure', 'Konbaung Court Elegance'],
+    promptSnippet: 'stunning Burmese Bamar noblewoman in authentic Konbaung era royal palace court costume, wearing a breathtaking 100-shuttle Mandalay Luntaya Acheik wave-pattern silk htamein in emerald and ruby red with gold threads, sheer royal shawl, regal Sadone high bun with cascading fragrant jasmine, complete 22k gold heirloom jewelry, standing inside the teakwood throne room of Mandalay Palace, painterly lighting, 8k resolution'
+  },
+  {
+    id: 'bamar-bagan-ancient-terrace',
+    nameEn: 'Bamar Bagan Golden Era (11th Century Reverence)',
+    nameMm: 'ဗမာ ပုဂံခေတ် ရွှေရောင်လွှမ်းသော အမွေအနှစ်',
+    group: 'Bamar',
+    stateEn: 'Mandalay Region (Bagan Plain)',
+    stateMm: 'မန္တလေးတိုင်း (ပုဂံရှေးဟောင်းဒေသ)',
+    attireEn: 'Raw terracotta-toned and cream textured silk wrap skirt, gold-embroidered chest wrap (Yin-si), ancient flowing cotton mantle',
+    attireMm: 'ပုဂံခေတ် ရင်စည်း ပိုးထဘီနှင့် ချည်ထိုးပုဝါရှည်',
+    headdressEn: 'Classic Bagan-era coiled low bun with hammered gold hairpin and wild frangipani blossoms',
+    headdressMm: 'ပုဂံရိုးရာ ရွှေဆံထိုးနှင့် တရုတ်စံကားပန်း ပန်ဆင်ထားသော ဆံထုံး',
+    jewelryEn: 'Ancient Bagan-style hammered gold cuffs, carnelian bead necklace, tiered gold ear plugs',
+    jewelryMm: 'ပုဂံခေတ်လက်ရာ ရွှေလက်ကြပ်ကြီး၊ ကျောက်နီလည်ဆွဲနှင့် နားတောင်း',
+    festivalEn: 'Ananda Temple Pagoda Festival & Alms Gala',
+    festivalMm: 'အာနန္ဒာ ဘုရားပွဲတော်နှင့် ဆွမ်းလောင်းပွဲ',
+    backdropEn: 'Sun-drenched ancient brick temple terrace overlooking hundreds of temple spires across the dusty Bagan plain at sunset',
+    backdropMm: 'ဆည်းဆာနေရောင်အောက်ရှိ ပုဂံစေတီပုထိုးများ မြင်ကွင်းကျယ်နောက်ခံ',
+    culturalTraits: ['Bagan 11th Century', 'Ancient Temple Terraces', 'Raw Earth Silk'],
+    promptSnippet: 'ancient Bagan noblewoman in authentic 11th-century attire, earthy terracotta raw silk htamein with woven gold leaf patterns, hammered antique gold jewelry and carnelian beads, low coiled bun with gold skewer, standing on the brick terrace of an ancient temple looking out over hundreds of stupas on the sun-baked Bagan plains at golden hour, warm dust haze, cinematic Kodak film color grade'
+  },
+
+  // 9. SPECIAL HERITAGE GROUPS
+  {
+    id: 'special-naga-warrior-hornbill',
+    nameEn: 'Naga Highland Warrior (Hornbill & Spear)',
+    nameMm: 'နာဂ ရိုးရာ စစ်သည်တော် (အောက်ချင်းငှက်မွေးနှင့် လှံ)',
+    group: 'Special Heritage',
+    stateEn: 'Naga Self-Administered Zone (Lahe / Leshi)',
+    stateMm: 'နာဂကိုယ်ပိုင်အုပ်ချုပ်ခွင့်ရဒေသ (လဟယ် / လေရှီး)',
+    attireEn: 'Handwoven black, red and white thick cotton warrior blanket wrapped across the shoulder, cane belt with cowrie shells and bear fur trim',
+    attireMm: 'နာဂရိုးရာ အနီနက်ဖြူစောင်ကြီး၊ ကောက်ပဲခရုစေ့နှင့် ဝက်ဝံမွေးခါးပတ်',
+    headdressEn: 'Iconic conical woven cane helmet crowned with black-and-white hornbill feathers and wild boar tusks',
+    headdressMm: 'အောက်ချင်းငှက်မွေးနှင့် တောဝက်စွယ်တပ် နာဂခမောက်ကြီး',
+    jewelryEn: 'Multilayered carnelian and conch shell necklaces, massive brass arm coils, boar tusk neck collar',
+    jewelryMm: 'နာဂသန္တာကျောက်နီလည်ဆွဲ၊ ခရုသင်းလည်ဆွဲနှင့် ကြေးလက်ကောက်ကြီးများ',
+    festivalEn: 'Naga New Year Festival (နာဂနှစ်သစ်ကူးပွဲတော်)',
+    festivalMm: 'နာဂနှစ်သစ်ကူး မီးပုံပွဲတော်',
+    backdropEn: 'Bonfire lit ceremonial ground with carved wooden Naga totem poles, rugged Saramati mountain ranges',
+    backdropMm: 'နာဂရိုးရာ မီးပုံပွဲကွင်းပြင်နှင့် စာရာမေတိ တောင်တန်းကြီးများနောက်ခံ',
+    culturalTraits: ['Hornbill Headdress', 'Conch Shell Beads', 'Bonfire Dance', 'Highland Warrior'],
+    promptSnippet: 'fierce noble Naga warrior in full ceremonial regalia, wearing traditional handwoven red and black geometric tribal blanket, crowned with tall cane helmet decorated with hornbill feathers and curved boar tusks, holding an iron-tipped spear, heavy conch shell and carnelian necklaces, standing beside a blazing ceremonial bonfire on the misty ridges of Mount Saramati during Naga New Year festival, dramatic high-contrast portrait'
+  },
+  {
+    id: 'special-akha-silver-headdress',
+    nameEn: 'Akha Mountain Heritage (Intricate Silver Cap)',
+    nameMm: 'အာခါ ရိုးရာ (ငွေဒင်္ဂါးစီ ခေါင်းဆောင်းကြီး)',
+    group: 'Special Heritage',
+    stateEn: 'Eastern Shan State (Kengtung Highlands)',
+    stateMm: 'ရှမ်းပြည်နယ်အရှေ့ပိုင်း (ကျိုင်းတုံတောင်တန်း)',
+    attireEn: 'Handspun natural indigo tunic embroidered with vivid cross-stitch patterns, short pleated indigo skirt with woven leg wraps',
+    attireMm: 'မဲနယ်ဆိုးအင်္ကျီနှင့် ရောင်စုံကြက်ခြေခတ်ပန်းထိုး၊ အာခါရိုးရာထဘီတိုနှင့် ခြေစွပ်',
+    headdressEn: 'Elaborate, towering silver headdress decorated with hundreds of antique silver coins, embossed discs, beads and red yarn pompoms',
+    headdressMm: 'ငွေဒင်္ဂါးရာနှင့်ချီ၊ ငွေသီးနှင့် ပန်းဖွားများစီထားသော အာခါငွေခေါင်းဆောင်းကြီး',
+    jewelryEn: 'Massive silver neck rings, etched silver arm bands, dangling silver coin earrings',
+    jewelryMm: 'ငွေလည်ရစ်ခွေများ၊ ငွေလက်ကြပ်နှင့် ငွေဒင်္ဂါးနားဆွဲ',
+    festivalEn: 'Akha Giant Swing Festival (အာခါ ရိုးရာ ဒန်းစီးပွဲတော်)',
+    festivalMm: 'အာခါ ရိုးရာ ဒန်းစီးပွဲတော်',
+    backdropEn: 'High-altitude Kengtung village gate with giant wooden swing structure, green tea plantation hills in mist',
+    backdropMm: 'အာခါ ရိုးရာဒန်းကြီးနှင့် ကျိုင်းတုံလက်ဖက်ခင်းတောင်တန်းနောက်ခံ',
+    culturalTraits: ['Coin Headdress', 'Giant Swing', 'Indigo & Cross-stitch'],
+    promptSnippet: 'captivating portrait of an Akha woman in traditional indigo-dyed costume, wearing a towering museum-quality silver headdress shimmering with hundreds of antique silver coins, stamped discs, and colorful wool tassels, heavy silver neck torcs, standing beside a giant ceremonial wooden village swing overlooking the misty green tea mountains of Kengtung, morning dew and soft diffused light, Hasselblad X2D 100C'
+  },
+  {
+    id: 'special-danu-palaung-tea',
+    nameEn: 'Palaung / Ta-ang (Silver Belt & Tea Heritage)',
+    nameMm: 'ပလောင် / တအာင်း (ငွေခါးပတ်နှင့် လက်ဖက်ဒေသ ရိုးရာ)',
+    group: 'Special Heritage',
+    stateEn: 'Northern Shan State (Namhsan / Kalaw)',
+    stateMm: 'ရှမ်းပြည်နယ်မြောက်ပိုင်း (နမ့်ဆန် / ကလော)',
+    attireEn: 'Vibrant scarlet jacket with green and black borders, cylindrical navy striped skirt, multiple shiny coiled silver and rattan waist hoops',
+    attireMm: 'အနီရောင်ကတ္တီပါအင်္ကျီ၊ နက်ပြာစင်းထဘီနှင့် ငွေခါးပတ်ကွင်းများစွာ',
+    headdressEn: 'Brightly colored woven headscarf wrapped snugly with silver pins and beaded fringes',
+    headdressMm: 'ငွေဆံထိုးတပ် ရောင်စုံရိုးရာခေါင်းပေါင်းပုဝါ',
+    jewelryEn: 'Distinctive coiled silver waist rings (Ngwe-Khar-Patt), heavy silver torc, amber earrings',
+    jewelryMm: 'ထူးခြားသော ငွေခါးပတ်ကွင်းများ၊ ငွေလည်ရစ်နှင့် ပယင်းနားကပ်',
+    festivalEn: 'Palaung Tea Harvest & Water Festival Gala',
+    festivalMm: 'ပလောင် ရိုးရာ လက်ဖက်ခူးပွဲတော်',
+    backdropEn: 'Terraced green tea plantations on the steep slopes of Namhsan mountain wrapped in morning mist',
+    backdropMm: 'နမ့်ဆန်တောင်စောင်း လက်ဖက်စိမ်းခင်းကြီးများနှင့် တောင်တန်းမြူနှင်းနောက်ခံ',
+    culturalTraits: ['Coiled Silver Waist Rings', 'Tea Plantations', 'Namhsan Highlands'],
+    promptSnippet: 'cheerful young Palaung woman picking fresh green tea leaves into a woven basket on her back, wearing vibrant red tunic with black velvet trim, multiple gleaming silver and cane waist rings, colorful headscarf, terraced green tea slopes of Namhsan in Northern Shan State shrouded in early morning fog, warm sunlight filtering through leaves, authentic ethnographic photography'
+  }
+];

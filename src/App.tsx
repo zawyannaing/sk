@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Language, UserProfile, MatrixSelection } from './types';
 import type { NavView } from './components/Sidebar';
 import { BurmesePromptMatrix } from './components/BurmesePromptMatrix';
@@ -16,10 +17,15 @@ import { VideoPromptStudio } from './components/VideoPromptStudio';
 import { PhotoPromptStudio } from './components/PhotoPromptStudio';
 import { MainPortalHub, MainSectionType } from './components/MainPortalHub';
 import { DetailBurmeseHub, DetailBurmeseRoom } from './components/DetailBurmeseHub';
+import { CommunityShowcaseHub } from './components/CommunityShowcaseHub';
 import { StorageService } from './utils/storageService';
 import { SupabaseCloudHub } from './components/SupabaseCloudHub';
 import { SupabaseService } from './utils/supabaseClient';
 import { ScrollProgressBar } from './components/ScrollProgressBar';
+import { PWAInstallPrompt } from './components/PWAInstallPrompt';
+import { MasterLandingPage } from './components/MasterLandingPage';
+import { AuthPage } from './components/auth/AuthPage';
+import { AuthMode } from './components/auth/types';
 
 const DEFAULT_SELECTION: MatrixSelection = {
   subject: 'woman',
@@ -96,7 +102,13 @@ const CLEAN_RESET_SELECTION: MatrixSelection = {
 };
 
 export default function App() {
-  const [activeMainSection, setActiveMainSection] = useState<'portal' | 'video-prompt' | 'photo-prompt' | 'detail-burmese'>('portal');
+  const [isLandingPage, setIsLandingPage] = useState<boolean>(() => {
+    return !SupabaseService.getSession()?.user?.id;
+  });
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [authModalMode, setAuthModalMode] = useState<AuthMode>('signin');
+  const [authTargetSection, setAuthTargetSection] = useState<string | undefined>(undefined);
+  const [activeMainSection, setActiveMainSection] = useState<'portal' | 'video-prompt' | 'photo-prompt' | 'detail-burmese' | 'community'>('portal');
   const [detailBurmeseRoom, setDetailBurmeseRoom] = useState<DetailBurmeseRoom>('prompt-builder');
   const [activeView, setActiveView] = useState<NavView>('portal');
   const [engine, setEngine] = useState<string>('midjourney-v6');
@@ -115,6 +127,85 @@ export default function App() {
   const [photoStudioChosenOptions, setPhotoStudioChosenOptions] = useState<
     { label: string; value: string; emoji?: string }[]
   >([]);
+
+  useEffect(() => {
+    const handleOpenProfile = () => setIsUserDashboardOpen(true);
+    window.addEventListener('open-user-profile', handleOpenProfile);
+    return () => window.removeEventListener('open-user-profile', handleOpenProfile);
+  }, []);
+
+  // Listen for Supabase login/auth refresh to smoothly transition from landing page
+  useEffect(() => {
+    const handleAuthRefresh = () => {
+      const session = SupabaseService.getSession();
+      if (session?.user?.id) {
+        setIsLandingPage(false);
+      }
+    };
+    window.addEventListener('supabase-cloud-refresh', handleAuthRefresh);
+    return () => window.removeEventListener('supabase-cloud-refresh', handleAuthRefresh);
+  }, []);
+
+  // Listen for open-supabase-auth across app & landing page
+  useEffect(() => {
+    const handleOpenAuth = (e: Event) => {
+      const custom = e as CustomEvent<{ mode?: 'login' | 'signup' | 'signin' | 'magic' | 'forgot' | 'recovery'; targetSection?: string }>;
+      const requestedMode: AuthMode =
+        custom.detail?.mode === 'signup' ? 'signup'
+        : custom.detail?.mode === 'magic' ? 'magic'
+        : custom.detail?.mode === 'forgot' ? 'forgot'
+        : custom.detail?.mode === 'recovery' ? 'recovery'
+        : 'signin';
+      setAuthModalMode(requestedMode);
+      setAuthTargetSection(custom.detail?.targetSection);
+      setIsAuthModalOpen(true);
+    };
+    window.addEventListener('open-supabase-auth', handleOpenAuth);
+    return () => window.removeEventListener('open-supabase-auth', handleOpenAuth);
+  }, []);
+
+  const handleAuthSuccess = (session: any, targetSec?: string) => {
+    setIsLandingPage(false);
+    setIsAuthModalOpen(false);
+    setCurrentUser(StorageService.getCurrentUser());
+
+    if (targetSec) {
+      if (targetSec === 'photo-prompt') {
+        setActiveMainSection('photo-prompt');
+        setActiveView('photo-prompt-studio');
+      } else if (targetSec === 'video-prompt') {
+        setActiveMainSection('video-prompt');
+        setActiveView('video-prompt-studio');
+      } else if (targetSec === 'detail-burmese') {
+        setActiveMainSection('detail-burmese');
+        setDetailBurmeseRoom('prompt-builder');
+        setActiveView('prompt-builder');
+      } else if (targetSec === 'community') {
+        setActiveMainSection('community');
+        setActiveView('community');
+      } else if (targetSec === 'portal') {
+        setActiveMainSection('portal');
+        setActiveView('portal');
+      }
+    }
+  };
+
+  const handleLaunchFromLanding = () => {
+    const session = SupabaseService.getSession();
+    if (session?.user?.id) {
+      setIsLandingPage(false);
+    } else {
+      window.dispatchEvent(
+        new CustomEvent('open-supabase-auth', { detail: { mode: 'signup', targetSection: 'portal' } })
+      );
+    }
+  };
+
+  const handleSignInFromLanding = () => {
+    window.dispatchEvent(
+      new CustomEvent('open-supabase-auth', { detail: { mode: 'login', targetSection: 'portal' } })
+    );
+  };
 
   const handleSendToPhotoPromptStudio = (
     promptText: string,
@@ -149,7 +240,7 @@ export default function App() {
     setActiveView('photo-prompt-studio');
   };
 
-  const handleSelectMainSection = (sec: 'portal' | 'video-prompt' | 'photo-prompt' | 'detail-burmese') => {
+  const handleSelectMainSection = (sec: 'portal' | 'video-prompt' | 'photo-prompt' | 'detail-burmese' | 'community') => {
     if (sec !== 'portal') {
       const session = SupabaseService.getSession();
       if (!session) {
@@ -160,6 +251,7 @@ export default function App() {
     setActiveMainSection(sec);
     if (sec === 'video-prompt') setActiveView('video-prompt-studio');
     else if (sec === 'photo-prompt') setActiveView('photo-prompt-studio');
+    else if (sec === 'community') setActiveView('community' as any);
     else if (sec === 'detail-burmese') {
       setActiveView('prompt-builder');
       setDetailBurmeseRoom('prompt-builder');
@@ -333,43 +425,75 @@ export default function App() {
       currentUser={currentUser} 
       onUserChange={setCurrentUser}
       isPortal={activeMainSection === 'portal'}
-      onNavigateToSection={handleSelectMainSection}
+      onNavigateToSection={(sec) => {
+        setIsLandingPage(false);
+        handleSelectMainSection(sec);
+      }}
       onSignOut={() => {
+        setIsLandingPage(true);
         setActiveMainSection('portal');
         setActiveView('portal');
       }}
     >
       <div className="min-h-screen bg-[#090a0f] text-[#1c1c1e] font-sans antialiased selection:bg-[#ffd02f] selection:text-[#1c1c1e]">
-        <div>
-          <main className="relative min-h-screen w-full overflow-x-hidden">
-            <ScrollProgressBar />
-            
-            {/* VIEW: Myanmar Presentation Slides */}
-            {activeView === 'presentation-slides' && (
-              <div className="min-h-screen bg-[#fafbfc]">
-                <div className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-[#e0e2e8] px-3 sm:px-6 py-2.5">
-                  <button
-                    type="button"
-                    onClick={() => handleNavViewChange('portal')}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#f4f5f8] hover:bg-[#e9ebf0] text-zinc-800 text-xs font-semibold border border-zinc-300/80 cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-[15px]">arrow_back</span>
-                    <span>3 Sections</span>
-                  </button>
-                </div>
-                <MyanmarPresentationSlides
-                  onNavigateToSection={(targetView) => handleNavViewChange(targetView)}
-                />
-              </div>
-            )}
-
-            {/* SECTION 0: Portal Entry Hub (3 Animated Buttons) */}
-            {activeView !== 'presentation-slides' && activeMainSection === 'portal' && (
-              <MainPortalHub
-                onSelectSection={handleSelectMainSection}
-                onOpenSlides={() => setActiveView('presentation-slides')}
+        <AnimatePresence mode="wait">
+          {isLandingPage ? (
+            <motion.div
+              key="landing-page"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <MasterLandingPage
+                onLaunch={handleLaunchFromLanding}
+                onSignIn={handleSignInFromLanding}
+                language={language}
+                onLanguageChange={setLanguage}
+                isLoggedIn={!!SupabaseService.getSession()?.user?.id}
               />
-            )}
+            </motion.div>
+          ) : (
+            <motion.div
+              key="studio-app"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div>
+                <main className="relative min-h-screen w-full overflow-x-hidden">
+                  <ScrollProgressBar />
+                  
+                  {/* VIEW: Myanmar Presentation Slides */}
+                  {activeView === 'presentation-slides' && (
+                    <div className="min-h-screen bg-[#fafbfc]">
+                      <div className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-[#e0e2e8] px-3 sm:px-6 py-2.5">
+                        <button
+                          type="button"
+                          onClick={() => handleNavViewChange('portal')}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#f4f5f8] hover:bg-[#e9ebf0] text-zinc-800 text-xs font-semibold border border-zinc-300/80 cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-[15px]">arrow_back</span>
+                          <span>3 Sections</span>
+                        </button>
+                      </div>
+                      <MyanmarPresentationSlides
+                        onNavigateToSection={(targetView) => handleNavViewChange(targetView)}
+                      />
+                    </div>
+                  )}
+
+                  {/* SECTION 0: Portal Entry Hub (3 Animated Buttons) */}
+                  {activeView !== 'presentation-slides' && activeMainSection === 'portal' && (
+                    <MainPortalHub
+                      onSelectSection={handleSelectMainSection}
+                      onOpenSlides={() => setActiveView('presentation-slides')}
+                      currentUser={currentUser}
+                      onOpenProfile={() => setIsUserDashboardOpen(true)}
+                      onOpenLanding={() => setIsLandingPage(true)}
+                    />
+                  )}
 
             {/* SECTION 1: Video Prompt Studio */}
             {activeView !== 'presentation-slides' && activeMainSection === 'video-prompt' && (
@@ -407,6 +531,7 @@ export default function App() {
                   setActiveMainSection('portal');
                   setActiveView('portal');
                 }}
+                onOpenProfile={() => setIsUserDashboardOpen(true)}
               />
             )}
 
@@ -431,22 +556,62 @@ export default function App() {
                   setActiveMainSection('portal');
                   setActiveView('portal');
                 }}
+                onOpenProfile={() => setIsUserDashboardOpen(true)}
                 initialRoom={detailBurmeseRoom}
+              />
+            )}
+
+            {/* SECTION 4: Community Showcase & 1-Click Prompt Remix */}
+            {activeView !== 'presentation-slides' && activeMainSection === 'community' && (
+              <CommunityShowcaseHub
+                language={language}
+                onBackToPortal={() => {
+                  setActiveMainSection('portal');
+                  setActiveView('portal');
+                }}
+                onRemixToPhotoStudio={(prompt, ratio) => {
+                  handleSendToPhotoPromptStudio(prompt, { ratio: ratio || '4:5' });
+                }}
+                onRemixToMatrix={(prompt) => {
+                  handleLoadPromptToMatrix(prompt);
+                  setActiveMainSection('detail-burmese');
+                  setDetailBurmeseRoom('prompt-builder');
+                  setActiveView('prompt-builder');
+                }}
               />
             )}
 
           </main>
         </div>
+      </motion.div>
+    )}
+  </AnimatePresence>
 
         {/* User Dashboard Modal */}
-        <UserDashboardModal
-          isOpen={isUserDashboardOpen}
-          onClose={() => setIsUserDashboardOpen(false)}
-          currentUser={currentUser}
-          onUserUpdate={setCurrentUser}
+        {isUserDashboardOpen && (
+          <UserDashboardModal
+            isOpen={isUserDashboardOpen}
+            onClose={() => setIsUserDashboardOpen(false)}
+            currentUser={currentUser}
+            onUserUpdate={setCurrentUser}
+            language={language}
+            onSelectPromptToUse={handleLoadPromptToMatrix}
+          />
+        )}
+
+        {/* Production-Grade Dark Cyberpunk Auth Suite Modal */}
+        <AuthPage
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          initialMode={authModalMode}
+          targetSection={authTargetSection}
           language={language}
-          onSelectPromptToUse={handleLoadPromptToMatrix}
+          onLanguageChange={setLanguage}
+          onAuthSuccess={handleAuthSuccess}
         />
+
+        {/* PWA Mobile Native Installation Prompt */}
+        <PWAInstallPrompt />
 
       </div>
     </SupabaseCloudHub>

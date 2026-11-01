@@ -117,8 +117,7 @@ export const SupabaseCloudHub: React.FC<SupabaseCloudHubProps> = ({
   // Daily 250 Free Credits Claimer (Logged-in only)
   const handleClaimDaily = async () => {
     if (!isLoggedIn) {
-      setShowAuthModal(true);
-      setAuthMode('login');
+      window.dispatchEvent(new CustomEvent('open-supabase-auth', { detail: { mode: 'signin' } }));
       return;
     }
     setDailyClaimLoading(true);
@@ -142,8 +141,7 @@ export const SupabaseCloudHub: React.FC<SupabaseCloudHubProps> = ({
   // User Submit Top-up Order (Pending Admin Verification)
   const handleSubmitTopupOrder = async () => {
     if (!isLoggedIn) {
-      setShowAuthModal(true);
-      setAuthMode('login');
+      window.dispatchEvent(new CustomEvent('open-supabase-auth', { detail: { mode: 'signin' } }));
       return;
     }
     const pkg = TOPUP_PACKAGES.find(p => p.id === selectedTopupPkg);
@@ -317,23 +315,15 @@ export const SupabaseCloudHub: React.FC<SupabaseCloudHubProps> = ({
     return () => window.removeEventListener('supabase-cloud-refresh', handler);
   }, [isConfigured, session]);
 
-  // Listen for open login/auth modal event from any section or header button
+  // Listen for open cloud modal event
   useEffect(() => {
-    const openAuthHandler = (e: any) => {
-      if (e?.detail?.targetSection) {
-        setPendingSection(e.detail.targetSection);
-      }
-      setShowAuthModal(true);
-    };
     const openCloudHandler = (e: any) => {
       if (e?.detail?.tab) setActiveCloudTab(e.detail.tab);
       setCloudModalOpen(true);
       refreshCloudProfileAndData();
     };
-    window.addEventListener('open-supabase-auth', openAuthHandler);
     window.addEventListener('open-supabase-cloud', openCloudHandler);
     return () => {
-      window.removeEventListener('open-supabase-auth', openAuthHandler);
       window.removeEventListener('open-supabase-cloud', openCloudHandler);
     };
   }, []);
@@ -943,7 +933,7 @@ export const SupabaseCloudHub: React.FC<SupabaseCloudHubProps> = ({
                       <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
                         <button
                           type="button"
-                          onClick={() => { setShowAuthModal(true); setAuthMode('login'); }}
+                          onClick={() => { window.dispatchEvent(new CustomEvent('open-supabase-auth', { detail: { mode: 'signin' } })); }}
                           className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-500 hover:brightness-110 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 transition-all active:scale-95 inline-flex items-center justify-center gap-2 cursor-pointer"
                         >
                           <LogIn className="w-4 h-4 stroke-[2.5]" />
@@ -951,7 +941,7 @@ export const SupabaseCloudHub: React.FC<SupabaseCloudHubProps> = ({
                         </button>
                         <button
                           type="button"
-                          onClick={() => { setShowAuthModal(true); setAuthMode('signup'); }}
+                          onClick={() => { window.dispatchEvent(new CustomEvent('open-supabase-auth', { detail: { mode: 'signup' } })); }}
                           className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs border border-zinc-700 transition-all active:scale-95 inline-flex items-center justify-center gap-2 cursor-pointer"
                         >
                           <UserPlus className="w-4 h-4" />

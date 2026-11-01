@@ -26,6 +26,11 @@
   --color-steel: #6b6f7e;
   --color-stone: #8e91a0;
   --color-muted: #a5a8b5;
+  --color-obsidian: #07090e;
+  --color-obsidian-card: #0d121c;
+  --color-neon-emerald: #10b981;
+  --color-neon-cyan: #22d3ee;
+  --color-neon-amber: #f59e0b;
 
   --font-logo: "Tektur", "Google Sans", sans-serif;
   --font-headline: "Oswald", "Google Sans", sans-serif;
@@ -35,13 +40,39 @@
   --font-retro: "Press Start 2P", monospace;
 }
 
+html {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+  box-sizing: border-box;
+  -webkit-text-size-adjust: 100%;
+  touch-action: manipulation;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 body {
   background-color: #0a0d14;
   color: #f1f5f9;
   font-family: 'Google Sans', 'Roboto', 'Noto Sans Myanmar', -apple-system, BlinkMacSystemFont, sans-serif;
   overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
   margin: 0;
   padding: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+}
+
+img, video, canvas, svg {
+  max-width: 100%;
 }
 
 /* Custom Typography Utilities */

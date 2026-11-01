@@ -1,0 +1,64 @@
+{
+  "name": "SHOW AI Studio - Next-Gen Photography & Creative Studio",
+  "short_name": "SHOW AI",
+  "description": "Professional AI Photography, Burmese Cultural Matrix & Computer Vision Studio",
+  "start_url": "/",
+  "id": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "background_color": "#0c0d12",
+  "theme_color": "#0c0d12",
+  "orientation": "portrait-primary",
+  "lang": "my-MM",
+  "categories": ["photo", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Photo Studio / ဓာတ်ပုံ စတူဒီယို",
+      "short_name": "Photo Studio",
+      "description": "Open AI Photo Prompt Studio",
+      "url": "/?view=photo-studio",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Burmese Matrix / မြန်မာ့ယဉ်ကျေးမှု",
+      "short_name": "Burmese Matrix",
+      "description": "Burmese Cultural Attire & Wedding Matrix",
+      "url": "/?view=matrix",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Photo to Prompt / ဓာတ်ပုံမှ ပရော့ပ့်",
+      "short_name": "Photo to Prompt",
+      "description": "Vision AI Prompt Extraction Studio",
+      "url": "/?view=p2p",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-import { UserProfile, PromptHistoryItem, UserNoteEntry, AppMode } from '../types';
+import { UserProfile, PromptHistoryItem, UserNoteEntry, AppMode, UserPlanTier } from '../types';
 
 export interface SupabaseConfig {
   url: string;
@@ -163,9 +163,11 @@ export const SupabaseService = {
   saveSession(session: SupabaseSession | null) {
     if (!session) {
       localStorage.removeItem(SESSION_STORAGE_KEY);
+      window.dispatchEvent(new CustomEvent('supabase-auth-state-changed', { detail: { session: null } }));
       return;
     }
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+    window.dispatchEvent(new CustomEvent('supabase-auth-state-changed', { detail: { session } }));
   },
 
   getHeaders(includeJson = true, useAuthToken = true): Record<string, string> {
@@ -279,15 +281,50 @@ export const SupabaseService = {
     const cfg = this.getConfig();
     if (!cfg) return { session: null, error: 'Supabase URL & Anon Key not configured' };
 
-    const cleanEmail = email.trim();
+    const cleanEmail = email.trim().toLowerCase();
 
+    // 1. Attempt server-assisted login first (provides automatic auto-confirm & server network bridge)
+    try {
+      const serverRes = await fetch('/api/supabase/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, password })
+      });
+      const serverData = await serverRes.json().catch(() => ({}));
+      if (serverRes.ok && serverData?.session?.access_token) {
+        const session: SupabaseSession = {
+          access_token: serverData.session.access_token,
+          refresh_token: serverData.session.refresh_token,
+          expires_at: serverData.session.expires_at,
+          user: serverData.session.user
+        };
+        this.saveSession(session);
+        // Ensure profile in background so it never blocks login return
+        this.ensureProfileExists(
+          session.user.id,
+          session.user.email || cleanEmail,
+          session.user.user_metadata?.full_name || cleanEmail.split('@')[0]
+        ).catch(() => {});
+        return { session };
+      }
+      // If server returned 401 specifically for bad credentials, return localized message immediately
+      if (serverRes.status === 401) {
+        const rawErr = String(serverData?.error || '').toLowerCase();
+        if (rawErr.includes('invalid') || rawErr.includes('grant') || rawErr.includes('credential')) {
+          return { session: null, error: 'Invalid email or password / အီးမေးလ် သို့မဟုတ် စကားဝှက် မှားယွင်းနေပါသည်။' };
+        }
+        return { session: null, error: serverData?.error || 'Invalid login credentials' };
+      }
+    } catch {}
+
+    // 2. Fallback to direct Supabase GoTrue REST call if server endpoint was unreachable
     try {
       let res = await fetch(`${cfg.url}/auth/v1/token?grant_type=password`, {
         method: 'POST',
         headers: this.getHeaders(true, false),
         body: JSON.stringify({ email: cleanEmail, password })
       });
-      let data = await res.json();
+      let data = await res.json().catch(() => ({}));
 
       // If login did not succeed (e.g. unconfirmed email), attempt confirm-email endpoint and retry once
       if (!res.ok) {
@@ -305,12 +342,19 @@ export const SupabaseService = {
               headers: this.getHeaders(true, false),
               body: JSON.stringify({ email: cleanEmail, password })
             });
-            data = await res.json();
+            data = await res.json().catch(() => ({}));
           } catch {}
         }
       }
 
       if (!res.ok) {
+        const rawErr = String(data?.error_description || data?.msg || data?.message || '').toLowerCase();
+        if (rawErr.includes('invalid') || rawErr.includes('grant') || rawErr.includes('credential')) {
+          return { session: null, error: 'Invalid email or password / အီးမေးလ် သို့မဟုတ် စကားဝှက် မှားယွင်းနေပါသည်။' };
+        }
+        if (rawErr.includes('confirm') || rawErr.includes('verification')) {
+          return { session: null, error: 'Email not verified. Please check your inbox / အီးမေးလ် အတည်ပြုရန် လိုအပ်ပါသည်။' };
+        }
         return { session: null, error: data?.error_description || data?.msg || data?.message || 'Invalid login credentials' };
       }
       const session: SupabaseSession = {
@@ -320,14 +364,14 @@ export const SupabaseService = {
         user: data.user
       };
       this.saveSession(session);
-      await this.ensureProfileExists(
+      this.ensureProfileExists(
         session.user.id,
         session.user.email || cleanEmail,
         session.user.user_metadata?.full_name || cleanEmail.split('@')[0]
-      );
+      ).catch(() => {});
       return { session };
     } catch (e: any) {
-      return { session: null, error: e?.message || 'Network error during sign in' };
+      return { session: null, error: 'Connection failed. Please check your network / အင်တာနက်လိုင်း စစ်ဆေးပြီး ထပ်မံကြိုးစားပါ။' };
     }
   },
 
@@ -343,6 +387,166 @@ export const SupabaseService = {
       } catch {}
     }
     this.saveSession(null);
+  },
+
+  // ---- 3.1 Extended Auth: Magic Link, Password Recovery, OAuth & Hash Listener ----
+  async signInWithOtp(email: string, redirectTo?: string): Promise<{ success: boolean; error?: string }> {
+    const cfg = this.getConfig();
+    if (!cfg) return { success: false, error: 'Supabase URL & Anon Key not configured' };
+    const cleanEmail = email.trim();
+    const targetUrl = new URL(`${cfg.url}/auth/v1/otp`);
+    const redirect = redirectTo || (typeof window !== 'undefined' ? window.location.origin : '');
+    if (redirect) {
+      targetUrl.searchParams.set('redirect_to', redirect);
+    }
+
+    try {
+      const res = await fetch(targetUrl.toString(), {
+        method: 'POST',
+        headers: this.getHeaders(true, false),
+        body: JSON.stringify({
+          email: cleanEmail,
+          create_user: true
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return { success: false, error: data?.msg || data?.error_description || data?.message || 'Failed to send magic link' };
+      }
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e?.message || 'Network error while requesting magic link' };
+    }
+  },
+
+  async resetPasswordForEmail(email: string, redirectTo?: string): Promise<{ success: boolean; error?: string }> {
+    const cfg = this.getConfig();
+    if (!cfg) return { success: false, error: 'Supabase URL & Anon Key not configured' };
+    const cleanEmail = email.trim();
+    const targetUrl = new URL(`${cfg.url}/auth/v1/recover`);
+    const redirect = redirectTo || (typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}` : '');
+    if (redirect) {
+      targetUrl.searchParams.set('redirect_to', redirect);
+    }
+
+    try {
+      const res = await fetch(targetUrl.toString(), {
+        method: 'POST',
+        headers: this.getHeaders(true, false),
+        body: JSON.stringify({ email: cleanEmail })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return { success: false, error: data?.msg || data?.error_description || data?.message || 'Failed to send password reset email' };
+      }
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e?.message || 'Network error while requesting password reset' };
+    }
+  },
+
+  async updateUserPassword(newPassword: string, tokenOverride?: string): Promise<{ success: boolean; error?: string }> {
+    const cfg = this.getConfig();
+    if (!cfg) return { success: false, error: 'Supabase URL & Anon Key not configured' };
+
+    const session = this.getSession();
+    const authToken = tokenOverride || session?.access_token;
+    if (!authToken) {
+      return { success: false, error: 'User is not authenticated or recovery token expired' };
+    }
+
+    try {
+      const headers: Record<string, string> = {
+        apikey: cfg.anonKey,
+        Authorization: `Bearer ${authToken}`,
+        'Content-Type': 'application/json'
+      };
+
+      const res = await fetch(`${cfg.url}/auth/v1/user`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ password: newPassword })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return { success: false, error: data?.msg || data?.error_description || data?.message || 'Failed to update password' };
+      }
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e?.message || 'Network error while updating password' };
+    }
+  },
+
+  getOAuthUrl(provider: 'google' | 'github', redirectTo?: string): string | null {
+    const cfg = this.getConfig();
+    if (!cfg) return null;
+    const redirect = redirectTo || (typeof window !== 'undefined' ? window.location.origin : '');
+    const url = new URL(`${cfg.url}/auth/v1/authorize`);
+    url.searchParams.set('provider', provider);
+    if (redirect) {
+      url.searchParams.set('redirect_to', redirect);
+    }
+    return url.toString();
+  },
+
+  parseAuthHash(): { session: SupabaseSession | null; type: string | null; error?: string } {
+    if (typeof window === 'undefined' || !window.location.hash) {
+      return { session: null, type: null };
+    }
+
+    const hash = window.location.hash.substring(1);
+    const params = new URLSearchParams(hash);
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+    const type = params.get('type');
+    const errorCode = params.get('error_code');
+    const errorDescription = params.get('error_description');
+
+    if (errorCode || errorDescription) {
+      return { session: null, type, error: errorDescription || errorCode || 'Auth error' };
+    }
+
+    if (accessToken) {
+      // Decode JWT payload to get user id & email
+      let user: any = { id: 'auth_user' };
+      try {
+        const payloadBase64 = accessToken.split('.')[1];
+        if (payloadBase64) {
+          const payloadJson = atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/'));
+          const payload = JSON.parse(payloadJson);
+          user = {
+            id: payload.sub || payload.id,
+            email: payload.email,
+            user_metadata: payload.user_metadata || {}
+          };
+        }
+      } catch {}
+
+      const session: SupabaseSession = {
+        access_token: accessToken,
+        refresh_token: refreshToken || undefined,
+        expires_at: params.get('expires_at') ? Number(params.get('expires_at')) : undefined,
+        user
+      };
+
+      return { session, type };
+    }
+
+    return { session: null, type: null };
+  },
+
+  onAuthStateChange(callback: (event: 'SIGNED_IN' | 'SIGNED_OUT' | 'PASSWORD_RECOVERY' | 'TOKEN_REFRESHED', session: SupabaseSession | null) => void): () => void {
+    const handler = (e: Event) => {
+      const customEvent = e as CustomEvent<{ session: SupabaseSession | null; eventType?: string }>;
+      const session = customEvent.detail?.session ?? this.getSession();
+      const eventType = (customEvent.detail?.eventType as any) || (session ? 'SIGNED_IN' : 'SIGNED_OUT');
+      callback(eventType, session);
+    };
+
+    window.addEventListener('supabase-auth-state-changed', handler);
+    return () => {
+      window.removeEventListener('supabase-auth-state-changed', handler);
+    };
   },
 
   // ---- 4. User Profile & Balance Management ----
@@ -387,15 +591,19 @@ export const SupabaseService = {
         : typeof row.credit_balance === 'number'
         ? row.credit_balance
         : 250;
+    const nameStr = row.name || row.full_name || emailStr.split('@')[0] || 'Creator';
     return {
       id: row.id,
-      name: row.name || row.full_name || emailStr.split('@')[0] || 'Creator',
+      name: nameStr,
+      username: row.username || nameStr.toLowerCase().replace(/[^a-z0-9_]/g, '_') || 'creator',
       email: emailStr,
       avatar: row.avatar_url || '',
       role: row.role === 'admin' ? 'admin' : 'user',
       createdAt: row.created_at ? new Date(row.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-      bio: row.bio || '',
-      credits: rawCredits
+      bio: row.bio || 'AI Creator & Burmese Cultural Heritage Prompt Artist',
+      credits: rawCredits,
+      plan: (row.plan as UserPlanTier) || 'creator_pro',
+      location: row.location || 'Yangon, Myanmar'
     };
   },
 
@@ -409,15 +617,19 @@ export const SupabaseService = {
       if (!session?.user) return null;
       const emailStr = String(session.user.email || '');
       const role = session.user.user_metadata?.role === 'admin' ? 'admin' : 'user';
+      const nameStr = session.user.user_metadata?.full_name || emailStr.split('@')[0] || 'Creator';
       return {
         id: session.user.id,
-        name: session.user.user_metadata?.full_name || emailStr.split('@')[0] || 'Creator',
+        name: nameStr,
+        username: session.user.user_metadata?.username || nameStr.toLowerCase().replace(/[^a-z0-9_]/g, '_') || 'creator',
         email: emailStr,
         avatar: '',
         role,
         createdAt: new Date().toISOString().split('T')[0],
-        bio: role === 'admin' ? 'Master Studio Administrator' : 'AI Photo Studio Creator',
-        credits: 250
+        bio: role === 'admin' ? 'Master Studio Administrator' : 'AI Photo Studio Creator & Cultural Artist',
+        credits: 250,
+        plan: (session.user.user_metadata?.plan as UserPlanTier) || 'creator_pro',
+        location: session.user.user_metadata?.location || 'Yangon, Myanmar'
       };
     };
 
@@ -522,8 +734,15 @@ export const SupabaseService = {
       if ((profile.credits || 0) < cost) {
         return { success: false, credits: profile.credits, error: 'Insufficient credit balance' };
       }
-      const nextCredits = (profile.credits || 0) - cost;
-      await this.updateUserProfile({ credits: nextCredits });
+      const nextCredits = Math.max(0, (profile.credits || 0) - cost);
+      await fetch(`${cfg.url}/rest/v1/profiles?id=eq.${session.user.id}`, {
+        method: 'PATCH',
+        headers: this.getHeaders(),
+        body: JSON.stringify({
+          credit_balance: nextCredits,
+          updated_at: new Date().toISOString()
+        })
+      });
       await fetch(`${cfg.url}/rest/v1/credit_transactions`, {
         method: 'POST',
         headers: this.getHeaders(),

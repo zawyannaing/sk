@@ -1,6 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { Language } from '../types';
 import { WEDDING_TEMPLATES, WEDDING_CATEGORIES, WeddingTemplate } from '../data/weddingStudioData';
+import {
+  WeddingDetailOptions,
+  DEFAULT_WEDDING_DETAIL_OPTIONS,
+  buildWeddingDetailPrompt
+} from '../data/weddingDetailPromptBuilder';
+import { WeddingDetailPromptPanel } from './WeddingDetailPromptPanel';
 import { 
   Heart, 
   ShieldCheck, 
@@ -11,7 +17,8 @@ import {
   ExternalLink, 
   Download, 
   X, 
-  RefreshCw 
+  RefreshCw,
+  Wand2
 } from 'lucide-react';
 
 interface BurmeseWeddingStudioViewProps {
@@ -57,6 +64,10 @@ export const BurmeseWeddingStudioView: React.FC<BurmeseWeddingStudioViewProps> =
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [generatedProvider, setGeneratedProvider] = useState<string | null>(null);
 
+  // Detail Prompt Studio (shared options applied to every template)
+  const [detailOptions, setDetailOptions] = useState<WeddingDetailOptions>(DEFAULT_WEDDING_DETAIL_OPTIONS);
+  const [detailTemplate, setDetailTemplate] = useState<WeddingTemplate | null>(null);
+
   // Filtered templates
   const filteredTemplates = useMemo(() => {
     return WEDDING_TEMPLATES.filter(tpl => {
@@ -72,24 +83,14 @@ export const BurmeseWeddingStudioView: React.FC<BurmeseWeddingStudioViewProps> =
     });
   }, [selectedCategory, searchQuery]);
 
-  // Build generation prompt with strict 100% Face Lock directive
+  // Build detailed professional prompt (prose format works best for direct generation)
   const buildFinalPrompt = (template: WeddingTemplate) => {
-    let finalPrompt = template.promptSnippet;
+    return buildWeddingDetailPrompt(template, { ...detailOptions, faceLock: faceLockEnabled }).flux;
+  };
 
-    if (faceLockEnabled) {
-      const faceLockDirective = 
-        `CRITICAL 100% ZERO-DISTORTION FACE LOCK DIRECTIVE: ` +
-        `Preserve 100% exact facial identity, biological bone structure, irises, eyelids, nose geometry, lip shape, and natural skin micro-texture. ` +
-        `Do NOT alter, stylize, blend, or distort the person's real human facial features. ` +
-        `The subject must remain 100% recognizable as their true biological self. ` +
-        `Setting: ${template.setting}. ` +
-        `Attire: ${template.attire}. ` +
-        `Lighting: ${template.lighting}. `;
-
-      finalPrompt = `${faceLockDirective} ${finalPrompt}`;
-    }
-
-    return finalPrompt;
+  // Structured master detail prompt for preview
+  const buildMasterPreview = (template: WeddingTemplate) => {
+    return buildWeddingDetailPrompt(template, { ...detailOptions, faceLock: faceLockEnabled }).master;
   };
 
   // Copy prompt
@@ -101,12 +102,12 @@ export const BurmeseWeddingStudioView: React.FC<BurmeseWeddingStudioViewProps> =
   };
 
   // Send to Photo Prompt Studio
-  const handleTransferToStudio = (template: WeddingTemplate) => {
-    const full = buildFinalPrompt(template);
+  const handleTransferToStudio = (template: WeddingTemplate, promptOverride?: string, ratio?: string) => {
+    const full = promptOverride || buildFinalPrompt(template);
 
     if (onSendToPhotoStudio) {
       onSendToPhotoStudio(full, {
-        ratio: '4:5'
+        ratio: ratio || detailOptions.aspectRatio
       });
     } else if (onSendToMatrix) {
       onSendToMatrix(full);
@@ -114,13 +115,13 @@ export const BurmeseWeddingStudioView: React.FC<BurmeseWeddingStudioViewProps> =
   };
 
   // Direct Live Image Generation
-  const handleDirectGenerate = async (template: WeddingTemplate) => {
+  const handleDirectGenerate = async (template: WeddingTemplate, promptOverride?: string, ratio?: string) => {
     setActiveTemplate(template);
     setIsGenerating(true);
     setGenerationError(null);
     setGeneratedImageUrl(null);
 
-    const fullPrompt = buildFinalPrompt(template);
+    const fullPrompt = promptOverride || buildFinalPrompt(template);
 
     try {
       const res = await fetch('/api/photo-studio/generate-image', {
@@ -129,7 +130,7 @@ export const BurmeseWeddingStudioView: React.FC<BurmeseWeddingStudioViewProps> =
         body: JSON.stringify({
           prompt: fullPrompt,
           model: 'nano-banana-2',
-          aspectRatio: '4:5',
+          aspectRatio: ratio || detailOptions.aspectRatio,
           count: 1
         })
       });
@@ -327,10 +328,20 @@ export const BurmeseWeddingStudioView: React.FC<BurmeseWeddingStudioViewProps> =
                   </div>
 
                   {isExpanded && (
-                    <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800 text-[11px] font-mono text-zinc-300 leading-relaxed break-words">
-                      {buildFinalPrompt(template)}
-                    </div>
+                    <pre className="p-3 rounded-xl bg-zinc-950 border border-zinc-800 text-[11px] font-mono text-zinc-300 leading-relaxed whitespace-pre-wrap break-words max-h-72 overflow-y-auto">
+                      {buildMasterPreview(template)}
+                    </pre>
                   )}
+
+                  {/* Detail Prompt Studio */}
+                  <button
+                    type="button"
+                    onClick={() => setDetailTemplate(template)}
+                    className="w-full mt-1 py-2.5 px-3 rounded-xl bg-pink-500/10 hover:bg-pink-500/20 text-pink-200 font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer border border-pink-500/30"
+                  >
+                    <Wand2 className="w-3.5 h-3.5" />
+                    <span>{isMm ? 'Detail Prompt စိတ်ကြိုက်ပြင်မည်' : 'Customize Detail Prompt'}</span>
+                  </button>
 
                   {/* Actions: Generate or Send to Studio */}
                   <div className="grid grid-cols-2 gap-2 pt-2">
@@ -360,7 +371,33 @@ export const BurmeseWeddingStudioView: React.FC<BurmeseWeddingStudioViewProps> =
       </div>
 
       {/* ========================================================================= */}
-      {/* 5. LIVE DIRECT GENERATION MODAL */}
+      {/* 5. DETAIL PROMPT STUDIO PANEL */}
+      {/* ========================================================================= */}
+      {detailTemplate && (
+        <WeddingDetailPromptPanel
+          template={detailTemplate}
+          isMm={isMm}
+          initialOptions={{ ...detailOptions, faceLock: faceLockEnabled }}
+          onOptionsChange={next => {
+            setDetailOptions(next);
+            setFaceLockEnabled(next.faceLock);
+          }}
+          onClose={() => setDetailTemplate(null)}
+          onGenerate={(prompt, opts) => {
+            const tpl = detailTemplate;
+            setDetailTemplate(null);
+            handleDirectGenerate(tpl, prompt, opts.aspectRatio);
+          }}
+          onSendToStudio={(prompt, opts) => {
+            const tpl = detailTemplate;
+            setDetailTemplate(null);
+            handleTransferToStudio(tpl, prompt, opts.aspectRatio);
+          }}
+        />
+      )}
+
+      {/* ========================================================================= */}
+      {/* 6. LIVE DIRECT GENERATION MODAL */}
       {/* ========================================================================= */}
       {activeTemplate && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">

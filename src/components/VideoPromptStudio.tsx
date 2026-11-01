@@ -37,6 +37,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { CHARACTER_REFERENCE_STYLES } from '../data/characterReferenceStyles';
 import { SupabaseService } from '../utils/supabaseClient';
+import { StoryboardSequenceStudio } from './StoryboardSequenceStudio';
 
 export type VideoModel = 'Veo' | 'Sora' | 'Kling' | 'Hailuo' | 'Wan' | 'Seedance' | 'Runway-Gen3' | 'Luma-Dream';
 export type PromptFormat = 'json' | 'normal';
@@ -211,6 +212,7 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
   onBackToMatrix,
   onBackToPortal
 }) => {
+  const [studioMode, setStudioMode] = useState<'single-shot' | 'storyboard'>('single-shot');
   const [inputText, setInputText] = useState('');
   const [format, setFormat] = useState<PromptFormat>('json');
   const [selectedModel, setSelectedModel] = useState<VideoModel>('Veo');
@@ -652,12 +654,48 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
           </span>
         </motion.h1>
 
-        <p className="text-xs sm:text-sm text-zinc-400 text-center max-w-xl mb-7">
-          Full cinematic camera physics, anime cel timing, 3D Pixar rendering, and motion dynamics for any AI video model.
+        <p className="text-xs sm:text-sm text-zinc-400 text-center max-w-xl mb-6">
+          Full cinematic camera physics, multi-shot storyboard sequences, and motion dynamics for any AI video model.
         </p>
 
-        {/* STUDIO WORKSPACE GRID */}
-        <div className={`w-full transition-all duration-300 grid gap-6 ${showResult ? 'lg:grid-cols-2' : 'max-w-2xl'}`}>
+        {/* STUDIO MODE SWITCHER: SINGLE SHOT vs MULTI-SHOT STORYBOARD */}
+        <div className="flex items-center justify-center gap-2 mb-7">
+          <button
+            type="button"
+            onClick={() => setStudioMode('single-shot')}
+            className={`px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer ${
+              studioMode === 'single-shot'
+                ? 'bg-[#05b187] text-zinc-950 shadow-[0_0_20px_rgba(5,177,135,0.35)]'
+                : 'bg-zinc-900/90 text-zinc-400 hover:text-white border border-zinc-800'
+            }`}
+          >
+            <Film className="w-4 h-4" />
+            <span>Single Shot Prompt</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setStudioMode('storyboard')}
+            className={`px-4 sm:px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer relative ${
+              studioMode === 'storyboard'
+                ? 'bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 text-white shadow-[0_0_25px_rgba(236,72,153,0.4)]'
+                : 'bg-zinc-900/90 text-zinc-400 hover:text-white border border-zinc-800'
+            }`}
+          >
+            <Layers className="w-4 h-4" />
+            <span>Multi-Shot Storyboard</span>
+            <span className="text-[9px] font-mono bg-pink-500/25 text-pink-200 px-1.5 py-0.5 rounded-full border border-pink-500/40 font-black">
+              NEW
+            </span>
+          </button>
+        </div>
+
+        {studioMode === 'storyboard' ? (
+          <div className="w-full max-w-4xl">
+            <StoryboardSequenceStudio />
+          </div>
+        ) : (
+          /* STUDIO WORKSPACE GRID */
+          <div className={`w-full transition-all duration-300 grid gap-6 ${showResult ? 'lg:grid-cols-2' : 'max-w-2xl'}`}>
 
           {/* LEFT: Input Brief & Animation Controls Card */}
           <motion.div 
@@ -1366,6 +1404,7 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
           </AnimatePresence>
 
         </div>
+        )}
 
         {/* ANIMATED POPUP SCREEN MODAL (Full Cinema View with Tabs & Motion HUD) */}
         <AnimatePresence>

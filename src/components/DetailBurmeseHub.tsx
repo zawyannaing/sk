@@ -7,6 +7,11 @@ import { PresetLibraryView } from './PresetLibraryView';
 import { SavedPromptsView, SavedPromptItem } from './SavedPromptsView';
 import { ProfessionalStudioWorkstation } from './ProfessionalStudioWorkstation';
 import { BurmeseWeddingStudioView } from './BurmeseWeddingStudioView';
+import { BurmeseHairStudioView } from './BurmeseHairStudioView';
+import { EthnicStudioView } from './EthnicStudioView';
+import { FestivalsStudioView } from './FestivalsStudioView';
+import { CulturalAccuracyInspectorView } from './CulturalAccuracyInspectorView';
+import { FabricJewelrySwatchesView } from './FabricJewelrySwatchesView';
 import { buildComprehensiveMasterPrompt } from '../utils/promptBuilder';
 import { 
   ArrowLeft, 
@@ -23,17 +28,24 @@ import {
   HelpCircle,
   ExternalLink,
   ChevronRight,
+  Bookmark,
   Menu,
   PanelLeft,
   Compass,
   ChevronDown,
-  LogIn
+  LogIn,
+  Crown
 } from 'lucide-react';
 import { SupabaseService } from '../utils/supabaseClient';
 
 export type DetailBurmeseRoom = 
   | 'prompt-builder'
   | 'wedding-studio'
+  | 'hair-studio'
+  | 'ethnic-studio'
+  | 'festivals-studio'
+  | 'accuracy-inspector'
+  | 'fabric-swatches'
   | 'pro-workstation'
   | 'baby-studio'
   | 'prompt-utility'
@@ -72,7 +84,17 @@ const DEPARTMENTS: DepartmentMeta[] = [
     icon: 'auto_fix_high',
     descriptionEn: 'Core Burmese cultural prompt builder, royal presets & archives',
     descriptionMm: 'နန်းတွင်း၊ သနပ်ခါး၊ ရိုးရာပိုးချိတ်ထည် Master Prompt',
-    rooms: ['prompt-builder', 'wedding-studio', 'preset-library', 'saved-prompts']
+    rooms: [
+      'prompt-builder',
+      'wedding-studio',
+      'hair-studio',
+      'ethnic-studio',
+      'festivals-studio',
+      'accuracy-inspector',
+      'fabric-swatches',
+      'preset-library',
+      'saved-prompts'
+    ]
   },
   {
     id: 'production',
@@ -115,6 +137,61 @@ const ROOM_METAS: Record<DetailBurmeseRoom, RoomMeta> = {
     taglineMm: 'နန်းတွင်း၊ ခန်းမကြီး၊ ပုဂံနှင့် သဘာဝအလှ မင်္ဂလာဆောင် Template ၆၂ ခု (မူရင်းရုပ် ၁၀၀% မပြောင်းလဲစေရန်)',
     icon: 'favorite',
     badge: '62 Templates',
+    recommended: true
+  },
+  'hair-studio': {
+    id: 'hair-studio',
+    department: 'heritage',
+    titleEn: 'Hairstyle Studio',
+    titleMm: 'ဆံပင်ပုံစံ စတူဒီယို',
+    taglineEn: '33+ Traditional Burmese & Modern Hairstyles with 100% Face Lock',
+    taglineMm: 'မူရင်းမျက်နှာ ၁၀၀% မပြောင်းဘဲ ဆံပင်ပုံစံသာ အသစ်ပြောင်းလဲနိုင်သော Template ၃၃ ခု',
+    icon: 'content_cut',
+    badge: 'Hair Swap',
+    recommended: true
+  },
+  'ethnic-studio': {
+    id: 'ethnic-studio',
+    department: 'heritage',
+    titleEn: '135 Ethnic Nationalities',
+    titleMm: 'တိုင်းရင်းသား ၁၃၅ မျိုး Studio',
+    taglineEn: 'Kachin, Kayah, Kayin, Chin, Mon, Bamar, Rakhine, Shan & Heritage Attires',
+    taglineMm: 'တိုင်းရင်းသားလူမျိုးစုများ၏ မူရင်းဝတ်စုံ၊ ခေါင်းပေါင်း၊ ငွေမောင်းနှင့် ပွဲတော်များ',
+    icon: 'groups',
+    badge: '135 Nationalities',
+    recommended: true
+  },
+  'festivals-studio': {
+    id: 'festivals-studio',
+    department: 'heritage',
+    titleEn: '12-Season Festivals',
+    titleMm: '၁၂ လရာသီ ပွဲတော် Studio',
+    taglineEn: 'Thingyan, Thadingyut, Tazaungdaing, Waso Shinbyu & 12 Lunar Festivals',
+    taglineMm: 'သင်္ကြန်၊ သီတင်းကျွတ်၊ တန်ဆောင်တိုင်၊ ဝါဆိုရှင်ပြုနှင့် ၁၂ လရာသီ ရိုးရာပွဲတော်များ',
+    icon: 'celebration',
+    badge: '12 Months',
+    recommended: true
+  },
+  'accuracy-inspector': {
+    id: 'accuracy-inspector',
+    department: 'heritage',
+    titleEn: 'Cultural & Era Inspector',
+    titleMm: 'သမိုင်းခေတ် ညီညွတ်မှု AI Inspector',
+    taglineEn: 'Deep AI Era Verification, Anachronism Detector & 1-Click Sanitizer',
+    taglineMm: 'သမိုင်းခေတ်နှင့် ရိုးရာဝတ်စုံ မှန်ကန်မှု စစ်ဆေးပြီး ခေတ်လွန်ပစ္စည်းများ အလိုအလျောက် ပြုပြင်ခြင်း',
+    icon: 'verified',
+    badge: 'AI Guard',
+    recommended: true
+  },
+  'fabric-swatches': {
+    id: 'fabric-swatches',
+    department: 'heritage',
+    titleEn: 'Fabric & Gem Swatches',
+    titleMm: 'ပိုးချိတ် & မိုးကုတ်ကျောက်မျက်',
+    taglineEn: 'Amarapura 100-Shuttle Acheik, Lotus Silk, Mogok Rubies & 24K Gold',
+    taglineMm: 'အမရပူရ လွန်းရာချိတ်၊ အင်းလေးကြာပိုး၊ မိုးကုတ်ပတ္တမြားနှင့် မြန်မာ့ရွှေပန်းထိမ် Swatches',
+    icon: 'palette',
+    badge: 'Swatches',
     recommended: true
   },
   'preset-library': {
@@ -194,6 +271,7 @@ interface DetailBurmeseHubProps {
     }
   ) => void;
   initialRoom?: DetailBurmeseRoom;
+  onOpenProfile?: () => void;
 }
 
 export const DetailBurmeseHub: React.FC<DetailBurmeseHubProps> = ({
@@ -203,6 +281,7 @@ export const DetailBurmeseHub: React.FC<DetailBurmeseHubProps> = ({
   selection,
   onUpdateSelection,
   onResetAll,
+  onOpenProfile,
   onGeneratePrompt,
   isGenerating,
   onSavePrompt,
@@ -353,44 +432,46 @@ export const DetailBurmeseHub: React.FC<DetailBurmeseHubProps> = ({
       <header className="sticky top-0 z-40 bg-[#0a0b0e]/95 backdrop-blur-md border-b border-zinc-800/80 shadow-2xs">
         
         {/* ROW 1: Branding, Back Navigation, Engine & Right Menu Bar */}
-        <div className="px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2.5 sm:gap-3 border-b border-zinc-800/60">
+        <div className="px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 border-b border-zinc-800/60">
           
-          {/* Left Corner: SHOW AI Logo and Brand Text */}
-          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center shrink-0">
-              <img src="/logo.png" alt="SHOW AI Logo" className="w-full h-full object-contain drop-shadow-[0_2px_8px_rgba(5,177,135,0.45)]" />
-            </div>
-            <div className="flex flex-col min-w-0">
-              <div className="flex items-center gap-1.5 leading-tight">
-                <span className="font-sans font-black text-sm sm:text-base text-white tracking-tight shrink-0">
-                  SHOW AI
-                </span>
-                <span className="text-[10px] sm:text-[11px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider truncate">
-                  Detail Burmese
+          {/* Left Corner: Back Navigation + SHOW AI Logo and Brand Text */}
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            {/* Back to Menu / 3 Sections Button */}
+            {onBackToPortal && (
+              <button
+                type="button"
+                onClick={onBackToPortal}
+                className="flex items-center justify-center w-8 h-8 sm:w-auto sm:px-3 sm:py-1.5 rounded-full bg-zinc-900/90 hover:bg-zinc-800 text-zinc-200 text-xs font-bold transition-all cursor-pointer border border-zinc-800 shadow-2xs active:scale-95 shrink-0"
+                title="Back to 3 Main Sections Menu"
+              >
+                <ArrowLeft className="w-3.5 h-3.5 text-zinc-200" />
+                <span className="hidden sm:inline ml-1.5">{isMm ? 'ပင်မမနူး' : 'Back to Menu'}</span>
+              </button>
+            )}
+
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center shrink-0">
+                <img src="/logo.png" alt="SHOW AI Logo" className="w-full h-full object-contain drop-shadow-[0_2px_8px_rgba(5,177,135,0.45)]" />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <div className="flex items-center gap-1.5 leading-tight">
+                  <span className="font-sans font-black text-sm sm:text-base text-white tracking-tight shrink-0">
+                    SHOW AI
+                  </span>
+                  <span className="text-[10px] sm:text-[11px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider truncate">
+                    {activeRoom === 'prompt-builder' ? 'Prompt Suite' : 'Detail Burmese'}
+                  </span>
+                </div>
+                <span className="text-[10px] sm:text-[11px] text-zinc-400 font-medium hidden sm:block truncate max-w-[260px]">
+                  {isMm ? 'Prompt Matrix & Cultural Studio' : 'Cultural Story & Prompt Studio'}
                 </span>
               </div>
-              <span className="text-[10px] sm:text-[11px] text-zinc-400 font-medium hidden sm:block truncate max-w-[260px]">
-                {isMm ? 'Prompt Matrix & Cultural Studio' : 'Cultural Story & Prompt Studio'}
-              </span>
             </div>
           </div>
 
           {/* Right Corner: Quick Actions & Menu Bar */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             
-            {/* Back to Menu / 3 Sections Button */}
-            {onBackToPortal && (
-              <button
-                type="button"
-                onClick={onBackToPortal}
-                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-zinc-900/90 hover:bg-zinc-800 text-zinc-200 text-xs font-bold transition-all cursor-pointer border border-zinc-800 shadow-2xs active:scale-95 shrink-0"
-                title="Back to 3 Main Sections Menu"
-              >
-                <ArrowLeft className="w-3.5 h-3.5 text-zinc-200" />
-                <span className="hidden xs:inline">{isMm ? 'ပင်မမနူး' : 'Back to Menu'}</span>
-              </button>
-            )}
-
             {/* AI Engine Selector Pill (Desktop) */}
             <div className="hidden xl:flex items-center bg-zinc-900/80 rounded-full p-0.5 border border-zinc-800 text-xs">
               {[
@@ -452,6 +533,40 @@ export const DetailBurmeseHub: React.FC<DetailBurmeseHubProps> = ({
               </button>
             )}
 
+            {/* Vault (Saved Prompts) */}
+            <button
+              type="button"
+              onClick={() => setActiveRoom(activeRoom === 'saved-prompts' ? 'prompt-builder' : 'saved-prompts')}
+              className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-xs border cursor-pointer active:scale-95 shrink-0 ${
+                activeRoom === 'saved-prompts'
+                  ? 'bg-emerald-500 text-black border-emerald-400 shadow-emerald-500/20'
+                  : 'bg-zinc-900 hover:bg-zinc-800 text-white border-zinc-800'
+              }`}
+              title="Saved Prompts Vault"
+            >
+              <Bookmark className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{isMm ? 'သိမ်းဆည်းချက်' : 'Vault'}</span>
+              {savedPrompts.length > 0 && (
+                <span className="text-[10px] px-1.5 rounded-full bg-emerald-500/20 text-emerald-400 font-mono font-bold">
+                  {savedPrompts.length}
+                </span>
+              )}
+            </button>
+
+            {/* User Profile Button (Desktop / Tablet) */}
+            <button
+              type="button"
+              onClick={() => {
+                if (onOpenProfile) onOpenProfile();
+                window.dispatchEvent(new CustomEvent('open-user-profile'));
+              }}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold transition-all shadow-xs border border-zinc-800 hover:border-amber-500/40 cursor-pointer active:scale-95 shrink-0"
+              title="View User Profile, Plan, Credits, Creations & Photos"
+            >
+              <span className="material-symbols-outlined text-[16px] text-amber-400">account_circle</span>
+              <span>{isMm ? 'ပရိုဖိုင်' : 'Profile'}</span>
+            </button>
+
             {/* Right Corner Menu Bar Button */}
             <button
               type="button"
@@ -465,114 +580,6 @@ export const DetailBurmeseHub: React.FC<DetailBurmeseHubProps> = ({
 
           </div>
         </div>
-
-        {/* MOBILE SUB-BAR: Swipeable Department Pill Strip */}
-        <div className="flex md:hidden px-3 py-1.5 bg-[#0e1017] border-b border-zinc-800/80 items-center gap-1.5 overflow-x-auto scrollbar-none">
-          {DEPARTMENTS.map(dept => {
-            const isSelected = activeDepartmentId === dept.id;
-            return (
-              <button
-                key={dept.id}
-                type="button"
-                onClick={() => handleSelectDepartment(dept.id)}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer ${
-                  isSelected
-                    ? 'bg-emerald-500 text-black font-extrabold shadow-2xs'
-                    : 'bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 border border-zinc-800'
-                }`}
-              >
-                <span className={`material-symbols-outlined text-[13px] ${isSelected ? 'text-black' : 'text-emerald-400'}`}>
-                  {dept.icon}
-                </span>
-                <span>{isMm ? dept.labelMm : dept.labelEn}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* ROW 2: Primary Studio Departments (Hidden on small mobile to prevent meshing; handled by Left Side Menu Bar) */}
-        <div className="hidden md:flex px-3 sm:px-6 pt-2 pb-1.5 overflow-x-auto scrollbar-none items-center gap-2 border-b border-zinc-800/60 bg-[#0a0b0e]">
-          {DEPARTMENTS.map(dept => {
-            const isSelected = activeDepartmentId === dept.id;
-            return (
-              <button
-                key={dept.id}
-                type="button"
-                onClick={() => handleSelectDepartment(dept.id)}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
-                  isSelected
-                    ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 shadow-xs scale-[1.01]'
-                    : 'bg-zinc-900/60 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-800/80'
-                }`}
-              >
-                <span className={`material-symbols-outlined text-[17px] ${
-                  isSelected ? 'text-emerald-400' : 'text-zinc-400'
-                }`}>
-                  {dept.icon}
-                </span>
-                <div className="flex flex-col text-left">
-                  <span className="leading-tight">
-                    {isMm ? dept.labelMm : dept.labelEn}
-                  </span>
-                  <span className={`text-[10px] font-normal hidden lg:inline leading-tight ${
-                    isSelected ? 'text-emerald-400/90' : 'text-zinc-500'
-                  }`}>
-                    {dept.rooms.length} Studios
-                  </span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* ROW 3: Secondary Sub-Rooms (Hidden on small mobile to prevent meshing; handled by Left Side Menu Bar) */}
-        <div className="hidden md:flex px-3 sm:px-6 py-2 bg-[#0e1017] items-center justify-between gap-2 overflow-x-auto scrollbar-none border-b border-zinc-800/60">
-          <div className="flex items-center gap-1.5 shrink-0">
-            <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider hidden sm:inline mr-1">
-              {currentDepartment.labelEn}:
-            </span>
-            {currentDepartment.rooms.map(roomId => {
-              const meta = ROOM_METAS[roomId];
-              const isActive = activeRoom === roomId;
-              return (
-                <button
-                  key={roomId}
-                  type="button"
-                  onClick={() => setActiveRoom(roomId)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                    isActive
-                      ? 'bg-emerald-500 text-black font-extrabold shadow-2xs border border-emerald-400'
-                      : 'bg-zinc-900/70 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800'
-                  }`}
-                >
-                  <span className={`material-symbols-outlined text-[15px] ${isActive ? 'text-black' : 'text-emerald-400'}`}>
-                    {meta.icon}
-                  </span>
-                  <span>{isMm ? meta.titleMm : meta.titleEn}</span>
-                  {meta.badge && (
-                    <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold ${
-                      isActive ? 'bg-black text-emerald-300' : 'bg-zinc-800 text-zinc-400'
-                    }`}>
-                      {meta.badge}
-                    </span>
-                  )}
-                  {roomId === 'saved-prompts' && savedPrompts.length > 0 && (
-                    <span className="text-[10px] px-1.5 rounded-full bg-emerald-500 text-black font-mono font-bold">
-                      {savedPrompts.length}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Current Studio Quick Status Pill */}
-          <div className="hidden xl:flex items-center gap-2 text-xs text-zinc-400">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span className="truncate max-w-xs">{isMm ? currentRoomMeta.taglineMm : currentRoomMeta.taglineEn}</span>
-          </div>
-        </div>
-
       </header>
 
       {/* 🌟 FROSTED GLASS MENU BAR / DRAWER (Slide in from Right) */}
@@ -855,6 +862,48 @@ export const DetailBurmeseHub: React.FC<DetailBurmeseHubProps> = ({
             onSavePrompt={onSavePrompt}
             onSendToPhotoStudio={onSendToPhotoStudio}
             engine={engine}
+          />
+        )}
+
+        {activeRoom === 'hair-studio' && (
+          <BurmeseHairStudioView
+            language={language}
+            onSendToMatrix={onLoadPromptToMatrix}
+            onSavePrompt={onSavePrompt}
+            onSendToPhotoStudio={onSendToPhotoStudio}
+            engine={engine}
+          />
+        )}
+
+        {activeRoom === 'ethnic-studio' && (
+          <EthnicStudioView
+            language={language}
+            onSendToMatrix={onLoadPromptToMatrix}
+            onSendToPhotoStudio={onSendToPhotoStudio}
+          />
+        )}
+
+        {activeRoom === 'festivals-studio' && (
+          <FestivalsStudioView
+            language={language}
+            onSendToMatrix={onLoadPromptToMatrix}
+            onSendToPhotoStudio={onSendToPhotoStudio}
+          />
+        )}
+
+        {activeRoom === 'accuracy-inspector' && (
+          <CulturalAccuracyInspectorView
+            language={language}
+            onSendToMatrix={onLoadPromptToMatrix}
+            onSendToPhotoStudio={onSendToPhotoStudio ? (prompt) => onSendToPhotoStudio(prompt, { ratio: '4:5' }) : undefined}
+          />
+        )}
+
+        {activeRoom === 'fabric-swatches' && (
+          <FabricJewelrySwatchesView
+            language={language}
+            onSendToMatrix={onLoadPromptToMatrix}
+            onSendToPhotoStudio={onSendToPhotoStudio}
           />
         )}
 

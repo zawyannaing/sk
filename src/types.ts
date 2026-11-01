@@ -282,15 +282,21 @@ export interface ChatStep {
 
 export type UserRole = 'user' | 'admin';
 
+export type UserPlanTier = 'free' | 'starter' | 'creator_pro' | 'master' | 'vip';
+
 export interface UserProfile {
   id: string;
   name: string;
+  username?: string;
   email: string;
   avatar?: string;
   role: UserRole;
   createdAt: string;
   bio?: string;
   credits?: number;
+  plan?: UserPlanTier;
+  website?: string;
+  location?: string;
 }
 
 export interface PromptHistoryItem {

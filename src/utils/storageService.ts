@@ -29,22 +29,28 @@ const DEFAULT_USERS: UserProfile[] = [
   {
     id: 'usr_admin_01',
     name: 'Admin Master (စီမံခန့်ခွဲသူ)',
+    username: 'admin_master',
     email: 'admin@aistudio.mm',
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
     role: 'admin',
     createdAt: '2026-01-01',
-    bio: 'System Administrator & Prompt Engineer Lead',
-    credits: 9999
+    bio: 'System Administrator & Lead Prompt Engineer at SHOW AI Studio Myanmar',
+    credits: 9999,
+    plan: 'master',
+    location: 'Yangon, Myanmar'
   },
   {
     id: 'usr_member_02',
     name: 'Guest User',
+    username: 'ai_creator_mm',
     email: 'guest@aistudio.mm',
-    avatar: '',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
     role: 'user',
     createdAt: '2026-02-15',
-    bio: 'AI Creator from Myanmar',
-    credits: 250
+    bio: 'Passionate AI photographer exploring Burmese royal heritage, Bagan temples & modern studio lighting.',
+    credits: 2500,
+    plan: 'creator_pro',
+    location: 'Mandalay, Myanmar'
   }
 ];
 
@@ -102,9 +108,18 @@ export const StorageService = {
           parsed.name = 'Guest User';
           parsed.email = 'guest@aistudio.mm';
           parsed.avatar = '';
-          localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(parsed));
         }
-        return parsed;
+        const merged: UserProfile = {
+          ...DEFAULT_USERS[1],
+          ...parsed,
+          name: parsed.name || DEFAULT_USERS[1].name,
+          username: parsed.username || (parsed.name ? parsed.name.toLowerCase().replace(/[^a-z0-9_]/g, '_') : 'guest_creator'),
+          plan: parsed.plan || 'creator_pro',
+          bio: parsed.bio || 'AI Creator & Burmese Cultural Heritage Prompt Artist',
+          credits: parsed.credits !== undefined ? parsed.credits : 2500,
+          location: parsed.location || 'Yangon, Myanmar'
+        };
+        return merged;
       }
     } catch (e) {
       console.warn('Failed to read current user from storage', e);

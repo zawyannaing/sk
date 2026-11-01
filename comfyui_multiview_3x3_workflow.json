@@ -1,0 +1,127 @@
+{
+  "1": {
+    "inputs": {
+      "image": "input_subject.png",
+      "upload": "image"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Single Input Subject Image"
+    }
+  },
+  "2": {
+    "inputs": {
+      "images": ["1", 0],
+      "model": "BiRefNet-general"
+    },
+    "class_type": "BiRefNetRemoval",
+    "_meta": {
+      "title": "BiRefNet Salient Segmentation & Masking"
+    }
+  },
+  "3": {
+    "inputs": {
+      "image": ["2", 0],
+      "mask": ["2", 1],
+      "target_width": 1024,
+      "target_height": 1024,
+      "padding_fraction": 0.15,
+      "background_color": "#14151b"
+    },
+    "class_type": "ImagePadAndCenter",
+    "_meta": {
+      "title": "Aspect Ratio Normalization & 15% Edge Safety Margin"
+    }
+  },
+  "4": {
+    "inputs": {
+      "ckpt_name": "sv3d_u.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Load Stable Video 3D (SV3D) / Zero123++ Model"
+    }
+  },
+  "5": {
+    "inputs": {
+      "azimuths": "[-45.0, 0.0, 45.0, -90.0, 0.0, 90.0, 180.0, 0.0, 135.0]",
+      "elevations": "[30.0, 75.0, 30.0, 0.0, 0.0, 0.0, 0.0, -30.0, -15.0]",
+      "distances": "[1.0, 1.1, 1.0, 1.0, 1.0, 1.0, 1.0, 1.05, 0.95]",
+      "num_frames": 9
+    },
+    "class_type": "SV3D_CameraPoseSchedule",
+    "_meta": {
+      "title": "Canonical 3x3 Camera Trajectory Matrix"
+    }
+  },
+  "6": {
+    "inputs": {
+      "pixels": ["3", 0],
+      "vae": ["4", 2]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "VAE Encode Canonical Image"
+    }
+  },
+  "7": {
+    "inputs": {
+      "model": ["4", 0],
+      "latent_image": ["6", 0],
+      "camera_poses": ["5", 0],
+      "seed": 42,
+      "steps": 30,
+      "cfg": 3.0,
+      "sampler_name": "euler_ancestral",
+      "scheduler": "karras",
+      "denoise": 1.0
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "Novel View Latent Diffusion Sampling (9 Angles)"
+    }
+  },
+  "8": {
+    "inputs": {
+      "samples": ["7", 0],
+      "vae": ["4", 2]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode 9 Multi-View Images"
+    }
+  },
+  "9": {
+    "inputs": {
+      "images": ["8", 0],
+      "columns": 3,
+      "rows": 3,
+      "margin": 4,
+      "background_color": "#1e202a"
+    },
+    "class_type": "ImageGridTiler",
+    "_meta": {
+      "title": "3x3 Contact Sheet Canvas Stitcher"
+    }
+  },
+  "10": {
+    "inputs": {
+      "filename_prefix": "multiview_3x3_sheet",
+      "images": ["9", 0]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Export 3x3 Master Visual Sheet"
+    }
+  },
+  "11": {
+    "inputs": {
+      "filename_prefix": "multiview_individual_angles",
+      "images": ["8", 0]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Export 9 Synchronized Perspective Views"
+    }
+  }
+}
