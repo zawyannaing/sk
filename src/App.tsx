@@ -26,6 +26,7 @@ import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import { MasterLandingPage } from './components/MasterLandingPage';
 import { AuthPage } from './components/auth/AuthPage';
 import { AuthMode } from './components/auth/types';
+import { AdminPanelHub } from './components/admin/AdminPanelHub';
 
 const DEFAULT_SELECTION: MatrixSelection = {
   subject: 'woman',
@@ -108,7 +109,7 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [authModalMode, setAuthModalMode] = useState<AuthMode>('signin');
   const [authTargetSection, setAuthTargetSection] = useState<string | undefined>(undefined);
-  const [activeMainSection, setActiveMainSection] = useState<'portal' | 'video-prompt' | 'photo-prompt' | 'detail-burmese' | 'community'>('portal');
+  const [activeMainSection, setActiveMainSection] = useState<'portal' | 'video-prompt' | 'photo-prompt' | 'detail-burmese' | 'community' | 'admin'>('portal');
   const [detailBurmeseRoom, setDetailBurmeseRoom] = useState<DetailBurmeseRoom>('prompt-builder');
   const [activeView, setActiveView] = useState<NavView>('portal');
   const [engine, setEngine] = useState<string>('midjourney-v6');
@@ -128,10 +129,29 @@ export default function App() {
     { label: string; value: string; emoji?: string }[]
   >([]);
 
+  // Listen for open-user-profile event
   useEffect(() => {
     const handleOpenProfile = () => setIsUserDashboardOpen(true);
     window.addEventListener('open-user-profile', handleOpenProfile);
     return () => window.removeEventListener('open-user-profile', handleOpenProfile);
+  }, []);
+
+  // Listen for admin panel open event & URL hash routing
+  useEffect(() => {
+    const handleOpenAdmin = () => {
+      setActiveMainSection('admin');
+      setIsLandingPage(false);
+    };
+    window.addEventListener('open-admin-panel', handleOpenAdmin);
+
+    if (typeof window !== 'undefined') {
+      if (window.location.hash === '#admin' || window.location.pathname.startsWith('/admin')) {
+        setActiveMainSection('admin');
+        setIsLandingPage(false);
+      }
+    }
+
+    return () => window.removeEventListener('open-admin-panel', handleOpenAdmin);
   }, []);
 
   // Listen for Supabase login/auth refresh to smoothly transition from landing page
@@ -578,6 +598,22 @@ export default function App() {
                   setDetailBurmeseRoom('prompt-builder');
                   setActiveView('prompt-builder');
                 }}
+              />
+            )}
+
+            {/* SECTION 5: Secure Guarded Admin Console Hub */}
+            {activeMainSection === 'admin' && (
+              <AdminPanelHub
+                language={language}
+                onLanguageChange={setLanguage}
+                onBackToApp={() => {
+                  setActiveMainSection('portal');
+                  setActiveView('portal');
+                  if (typeof window !== 'undefined' && window.location.hash === '#admin') {
+                    window.history.replaceState(null, '', window.location.pathname);
+                  }
+                }}
+                currentUser={currentUser}
               />
             )}
 

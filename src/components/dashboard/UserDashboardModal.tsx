@@ -559,6 +559,20 @@ export const UserDashboardModal: React.FC<UserDashboardModalProps> = ({
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-zinc-900 text-white border border-zinc-700 uppercase tracking-wider">
                     {currentUser?.plan || 'Creator Pro'}
                   </span>
+
+                  {currentUser?.role === 'admin' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        window.dispatchEvent(new CustomEvent('open-admin-panel'));
+                      }}
+                      className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/15 text-amber-300 border border-amber-500/40 uppercase tracking-wider flex items-center gap-1 hover:bg-amber-500/25 transition-colors cursor-pointer shadow-sm shadow-amber-500/10"
+                    >
+                      <Shield className="w-3 h-3 text-amber-400" />
+                      <span>Admin Console ↗</span>
+                    </button>
+                  )}
                 </div>
 
                 <p className="text-xs text-zinc-400 max-w-lg leading-relaxed line-clamp-1">

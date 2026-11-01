@@ -708,8 +708,29 @@ export const SupabaseService = {
     }
 
     try {
-      // Try atomic RPC first
-      const rpcRes = await fetch(`${cfg.url}/rest/v1/rpc/deduct_user_credits`, {
+      // 1. Try atomic spend_credits RPC (enforces RLS and append-only ledger)
+      const rpcRes = await fetch(`${cfg.url}/rest/v1/rpc/spend_credits`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({
+          p_amount: cost,
+          p_reason: 'generation',
+          p_ref_id: type,
+          p_note: description
+        })
+      });
+
+      if (rpcRes.ok) {
+        const result = await rpcRes.json();
+        return {
+          success: !!result?.success,
+          credits: result?.balance ?? result?.credits,
+          error: result?.error
+        };
+      }
+
+      // Legacy fallback RPC
+      const legacyRpcRes = await fetch(`${cfg.url}/rest/v1/rpc/deduct_user_credits`, {
         method: 'POST',
         headers: this.getHeaders(),
         body: JSON.stringify({
@@ -719,8 +740,8 @@ export const SupabaseService = {
         })
       });
 
-      if (rpcRes.ok) {
-        const result = await rpcRes.json();
+      if (legacyRpcRes.ok) {
+        const result = await legacyRpcRes.json();
         return {
           success: !!result?.success,
           credits: result?.credits,
@@ -763,14 +784,36 @@ export const SupabaseService = {
   async adminAdjustUserCredits(
     targetUserId: string,
     amount: number,
-    description = 'Admin credit top-up'
+    description = 'Admin credit adjustment',
+    note?: string
   ): Promise<{ success: boolean; credits?: number; error?: string }> {
     const cfg = this.getConfig();
     const session = this.getSession();
     if (!cfg || !session?.user?.id) return { success: false, error: 'Not authenticated' };
 
     try {
-      const rpcRes = await fetch(`${cfg.url}/rest/v1/rpc/admin_adjust_user_credits`, {
+      // 1. Try secure admin_adjust_credits RPC (writes to append-only ledger + audit log)
+      const rpcRes = await fetch(`${cfg.url}/rest/v1/rpc/admin_adjust_credits`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({
+          p_user_id: targetUserId,
+          p_amount: amount,
+          p_reason: 'admin_adjust',
+          p_note: note || description
+        })
+      });
+
+      if (rpcRes.ok) {
+        const result = await rpcRes.json();
+        if (result?.success) {
+          return { success: true, credits: result?.new_balance ?? result?.credits };
+        }
+        return { success: false, error: result?.error || 'Adjustment failed' };
+      }
+
+      // 2. Legacy fallback RPC
+      const legacyRpcRes = await fetch(`${cfg.url}/rest/v1/rpc/admin_adjust_user_credits`, {
         method: 'POST',
         headers: this.getHeaders(),
         body: JSON.stringify({
@@ -780,8 +823,8 @@ export const SupabaseService = {
         })
       });
 
-      if (rpcRes.ok) {
-        const result = await rpcRes.json();
+      if (legacyRpcRes.ok) {
+        const result = await legacyRpcRes.json();
         return { success: !!result?.success, credits: result?.credits };
       }
 
@@ -805,7 +848,7 @@ export const SupabaseService = {
           amount,
           balance_after: nextCredits,
           type: 'admin_topup',
-          description,
+          description: note || description,
           admin_id: session.user.id
         })
       });
@@ -813,6 +856,145 @@ export const SupabaseService = {
       return { success: true, credits: nextCredits };
     } catch (e: any) {
       return { success: false, error: e?.message || 'Error adjusting credits' };
+    }
+  },
+
+  // ---- Server-Enforced Admin Authorization & Management ----
+  async checkIsAdmin(): Promise<boolean> {
+    const cfg = this.getConfig();
+    const session = this.getSession();
+    if (!cfg || !session?.user?.id) return false;
+
+    try {
+      // 1. Check server-side is_admin() function
+      const rpcRes = await fetch(`${cfg.url}/rest/v1/rpc/is_admin`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({})
+      });
+      if (rpcRes.ok) {
+        const isAdm = await rpcRes.json();
+        if (typeof isAdm === 'boolean') return isAdm;
+      }
+
+      // 2. Query own profile record directly
+      const res = await fetch(
+        `${cfg.url}/rest/v1/profiles?id=eq.${encodeURIComponent(session.user.id)}&select=role,status`,
+        { headers: this.getHeaders() }
+      );
+      if (res.ok) {
+        const rows = await res.json();
+        if (rows?.[0]) {
+          return rows[0].role === 'admin' && rows[0].status === 'active';
+        }
+      }
+    } catch {}
+
+    return session.user.user_metadata?.role === 'admin';
+  },
+
+  async fetchAdminUsersList(options?: {
+    search?: string;
+    role?: string;
+    status?: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<{ users: any[]; total: number; error?: string }> {
+    const cfg = this.getConfig();
+    if (!cfg) return { users: [], total: 0, error: 'Database not configured' };
+
+    try {
+      const page = options?.page || 1;
+      const pageSize = options?.pageSize || 20;
+      const offset = (page - 1) * pageSize;
+
+      let queryParams = `order=created_at.desc&limit=${pageSize}&offset=${offset}`;
+
+      if (options?.role && options.role !== 'all') {
+        queryParams += `&role=eq.${encodeURIComponent(options.role)}`;
+      }
+      if (options?.status && options.status !== 'all') {
+        queryParams += `&status=eq.${encodeURIComponent(options.status)}`;
+      }
+      if (options?.search && options.search.trim()) {
+        const q = encodeURIComponent(`%${options.search.trim()}%`);
+        queryParams += `&or=(email.ilike.${q},display_name.ilike.${q},username.ilike.${q})`;
+      }
+
+      const res = await fetch(
+        `${cfg.url}/rest/v1/profiles?select=*,user_credit_balances(balance,total_transactions)&${queryParams}`,
+        {
+          headers: {
+            ...this.getHeaders(),
+            Prefer: 'count=exact'
+          }
+        }
+      );
+
+      if (!res.ok) {
+        const fallbackRes = await fetch(`${cfg.url}/rest/v1/profiles?select=*&${queryParams}`, {
+          headers: {
+            ...this.getHeaders(),
+            Prefer: 'count=exact'
+          }
+        });
+        if (!fallbackRes.ok) {
+          return { users: [], total: 0, error: 'Failed to fetch users' };
+        }
+        const data = await fallbackRes.json();
+        const contentRange = fallbackRes.headers.get('content-range');
+        const total = contentRange ? Number(contentRange.split('/')[1]) || data.length : data.length;
+        return { users: data, total };
+      }
+
+      const data = await res.json();
+      const contentRange = res.headers.get('content-range');
+      const total = contentRange ? Number(contentRange.split('/')[1]) || data.length : data.length;
+      return { users: data, total };
+    } catch (e: any) {
+      return { users: [], total: 0, error: e?.message || 'Network error' };
+    }
+  },
+
+  async fetchUserLedger(userId: string, limit = 50): Promise<{ ledger: any[]; error?: string }> {
+    const cfg = this.getConfig();
+    if (!cfg) return { ledger: [], error: 'Database not configured' };
+
+    try {
+      const res = await fetch(
+        `${cfg.url}/rest/v1/credit_transactions?user_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&limit=${limit}`,
+        { headers: this.getHeaders() }
+      );
+      if (!res.ok) {
+        return { ledger: [], error: 'Could not fetch ledger transactions' };
+      }
+      const data = await res.json();
+      return { ledger: Array.isArray(data) ? data : [] };
+    } catch (e: any) {
+      return { ledger: [], error: e?.message || 'Network error' };
+    }
+  },
+
+  async updateUserStatus(userId: string, status: 'active' | 'suspended' | 'banned'): Promise<{ success: boolean; error?: string }> {
+    const cfg = this.getConfig();
+    if (!cfg) return { success: false, error: 'Database not configured' };
+
+    try {
+      const res = await fetch(`${cfg.url}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}`, {
+        method: 'PATCH',
+        headers: this.getHeaders(),
+        body: JSON.stringify({
+          status,
+          updated_at: new Date().toISOString()
+        })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        return { success: false, error: err?.message || 'Failed to update user status' };
+      }
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e?.message || 'Network error' };
     }
   },
 
@@ -887,12 +1069,32 @@ export const SupabaseService = {
 
     const todayStr = new Date().toISOString().slice(0, 10);
     const storageKey = `showai_daily_claim_${session.user.id}_${todayStr}`;
-    if (localStorage.getItem(storageKey)) {
-      return { success: false, alreadyClaimed: true, error: 'You have already claimed your 250 free credits for today. Come back tomorrow!' };
-    }
 
     try {
-      // Check transactions to prevent duplicate claim on different devices/browsers
+      // 1. Try secure grant_daily_credits RPC (atomic, idempotent per day UTC)
+      const rpcRes = await fetch(`${cfg.url}/rest/v1/rpc/grant_daily_credits`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ p_amount: 250 })
+      });
+
+      if (rpcRes.ok) {
+        const result = await rpcRes.json();
+        if (result?.success) {
+          localStorage.setItem(storageKey, 'true');
+          return { success: true, credits: result?.balance };
+        }
+        if (result?.already_claimed) {
+          localStorage.setItem(storageKey, 'true');
+          return { success: false, alreadyClaimed: true, error: result?.error };
+        }
+      }
+
+      // 2. Direct fallback
+      if (localStorage.getItem(storageKey)) {
+        return { success: false, alreadyClaimed: true, error: 'You have already claimed your 250 free credits for today. Come back tomorrow!' };
+      }
+
       const checkRes = await fetch(
         `${cfg.url}/rest/v1/credit_transactions?user_id=eq.${encodeURIComponent(session.user.id)}&type=eq.daily_reward&created_at=gte.${todayStr}T00:00:00.000Z&select=id`,
         { headers: this.getHeaders() }
@@ -909,7 +1111,6 @@ export const SupabaseService = {
       const currentCredits = profile?.credits || 0;
       const nextCredits = currentCredits + 250;
 
-      // Update user credits
       await fetch(`${cfg.url}/rest/v1/profiles?id=eq.${encodeURIComponent(session.user.id)}`, {
         method: 'PATCH',
         headers: this.getHeaders(),
@@ -919,7 +1120,6 @@ export const SupabaseService = {
         })
       });
 
-      // Insert credit ledger transaction
       await fetch(`${cfg.url}/rest/v1/credit_transactions`, {
         method: 'POST',
         headers: this.getHeaders(),
