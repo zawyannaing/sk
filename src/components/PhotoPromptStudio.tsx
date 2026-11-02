@@ -7,7 +7,8 @@ import {
   LogIn, Menu, Home, Video, Layers, ChevronRight, Coins, ArrowLeftRight, Share2,
   User, HelpCircle, Maximize2, Scan, Grid, List, Scissors, ZoomIn, ZoomOut,
   History, Palette, Brush, Pin, Key,
-  RotateCcw, RotateCw, Eraser, Square, MoveUpRight, MapPin
+  RotateCcw, RotateCw, Eraser, Square, MoveUpRight, MapPin,
+  MoreHorizontal, Cpu
 } from 'lucide-react';
 import type { NavView } from './Sidebar';
 import { SupabaseService } from '../utils/supabaseClient';
@@ -15,6 +16,65 @@ import { StorageService } from '../utils/storageService';
 import { BeforeAfterSliderModal } from './BeforeAfterSliderModal';
 import { SocialExportModal } from './SocialExportModal';
 import { useAreaEdit } from '../hooks/useAreaEdit';
+import { LOCATION_REFERENCE_MAP } from '../data/presetData';
+import { SCENES_550_COLLECTION } from '../data/scenes550Data';
+
+// Helper to find curated location reference background plate from presetData or scenes550Data
+function findBackgroundPlateForPrompt(
+  promptText: string,
+  chosenOptions?: { label: string; value: string; emoji?: string }[]
+): { url: string; name: string } | null {
+  const pLower = (promptText || '').toLowerCase();
+
+  // 1. Check chosenOptions for location or scene
+  if (chosenOptions && chosenOptions.length > 0) {
+    for (const opt of chosenOptions) {
+      const val = (opt.value || '').toLowerCase().replace(/[\s-]+/g, '_');
+      if (LOCATION_REFERENCE_MAP[val]) {
+        return LOCATION_REFERENCE_MAP[val];
+      }
+      const sceneMatch = SCENES_550_COLLECTION.find(s => s.id === val || s.id === opt.value);
+      if (sceneMatch && sceneMatch.previewImage) {
+        return { url: sceneMatch.previewImage, name: sceneMatch.titleEn || sceneMatch.titleMm };
+      }
+    }
+  }
+
+  // 2. Check preset keys in LOCATION_REFERENCE_MAP against prompt text
+  for (const [key, plate] of Object.entries(LOCATION_REFERENCE_MAP)) {
+    const keyWords = key.replace(/_/g, ' ');
+    if (pLower.includes(key) || pLower.includes(keyWords)) {
+      return plate;
+    }
+  }
+
+  // 3. Check popular location names in prompt
+  if (pLower.includes('shwedagon')) return LOCATION_REFERENCE_MAP.shwedagon_pagoda;
+  if (pLower.includes('bagan') || pLower.includes('ananda')) return LOCATION_REFERENCE_MAP.bagan_temples;
+  if (pLower.includes('inle') || pLower.includes('phaung daw oo')) return LOCATION_REFERENCE_MAP.inle_lake;
+  if (pLower.includes('mandalay moat') || pLower.includes('palace moat')) return LOCATION_REFERENCE_MAP.mandalay_moat;
+  if (pLower.includes('mandalay palace') || pLower.includes('konbaung')) return LOCATION_REFERENCE_MAP.konbaung_palace_interior;
+  if (pLower.includes('sagaing')) return LOCATION_REFERENCE_MAP.sagaing_hill;
+  if (pLower.includes('u bein') || pLower.includes('amarapura')) return LOCATION_REFERENCE_MAP.ubein_bridge;
+  if (pLower.includes('kyaiktiyo') || pLower.includes('golden rock')) return LOCATION_REFERENCE_MAP.kyaiktiyo_golden_rock;
+  if (pLower.includes('mrauk-u') || pLower.includes('mrauk u') || pLower.includes('shittaung')) return LOCATION_REFERENCE_MAP.mrauk_u_temples;
+  if (pLower.includes('pindaya')) return LOCATION_REFERENCE_MAP.kalaw_pindaya;
+  if (pLower.includes('ngapali')) return LOCATION_REFERENCE_MAP.ngapali_beach;
+  if (pLower.includes('pyin oo lwin') || pLower.includes('kandawgyi')) return LOCATION_REFERENCE_MAP.pyinoolwin_garden;
+  if (pLower.includes('myeik') || pLower.includes('mergui')) return LOCATION_REFERENCE_MAP.myeik_islands;
+  if (pLower.includes('paris') || pLower.includes('eiffel')) return LOCATION_REFERENCE_MAP.paris_eiffel_tower;
+  if (pLower.includes('santorini')) return LOCATION_REFERENCE_MAP.santorini_greece;
+  if (pLower.includes('kyoto') || pLower.includes('torii') || pLower.includes('arashiyama')) return LOCATION_REFERENCE_MAP.kyoto_bamboo_torii;
+  if (pLower.includes('swiss') || pLower.includes('alps')) return LOCATION_REFERENCE_MAP.swiss_alps_snow;
+  if (pLower.includes('venice') || pLower.includes('gondola')) return LOCATION_REFERENCE_MAP.venice_gondola_canal;
+  if (pLower.includes('taj mahal')) return LOCATION_REFERENCE_MAP.taj_mahal_palace;
+  if (pLower.includes('bali')) return LOCATION_REFERENCE_MAP.bali_jungle_swing;
+  if (pLower.includes('maldives')) return LOCATION_REFERENCE_MAP.maldives_overwater;
+  if (pLower.includes('cappadocia')) return LOCATION_REFERENCE_MAP.cappadocia_balloons;
+  if (pLower.includes('central park')) return LOCATION_REFERENCE_MAP.ny_central_park;
+
+  return null;
+}
 
 interface PhotoPromptStudioProps {
   onNavigateView?: (view: NavView, photoUrl?: string) => void;
@@ -25,7 +85,7 @@ interface PhotoPromptStudioProps {
   initialPrompt?: string;
   initialRatio?: string;
   initialRefPhoto?: string | null;
-  initialRefPhotos?: (string | { url: string; name?: string; id?: string })[];
+  initialRefPhotos?: (string | { url: string; name?: string; id?: string; role?: PhotoRole })[];
   initialChosenOptions?: { label: string; value: string; emoji?: string }[];
   onOpenProfile?: () => void;
 }
@@ -49,7 +109,10 @@ export type StudioToolId =
   | 'image-upscale'
   | 'change-background'
   | 'multi-view'
-  | 'face-swap';
+  | 'face-swap'
+  | 'skin-retouch'
+  | 'virtual-makeup'
+  | 'hair-transform';
 
 export interface StudioToolMeta {
   id: StudioToolId;
@@ -111,6 +174,27 @@ export const STUDIO_TOOLS: StudioToolMeta[] = [
     desc: 'Swap faces with 100% likeness & identity',
     creditCost: 60,
     avatarType: 'faceswap'
+  },
+  {
+    id: 'skin-retouch',
+    name: 'Skin Retouch',
+    desc: 'Blemish removal, skin glow & micro-pore preservation',
+    creditCost: 15,
+    avatarType: 'retouch'
+  },
+  {
+    id: 'virtual-makeup',
+    name: 'Virtual Makeup',
+    desc: 'Lipstick, blush, eyeliner & glam finish',
+    creditCost: 20,
+    avatarType: 'makeup'
+  },
+  {
+    id: 'hair-transform',
+    name: 'Hair Transformation',
+    desc: 'Change hairstyles & vibrant hair colors',
+    creditCost: 25,
+    avatarType: 'hair'
   }
 ];
 
@@ -158,6 +242,27 @@ export const ToolAvatar: React.FC<{ type: string; className?: string }> = ({ typ
     return (
       <div className={`${className} rounded-xl bg-gradient-to-br from-amber-700 to-stone-900 flex items-center justify-center p-1.5 text-white shadow-md overflow-hidden shrink-0`}>
         <Grid className="w-5 h-5 text-amber-200" />
+      </div>
+    );
+  }
+  if (type === 'retouch') {
+    return (
+      <div className={`${className} rounded-xl bg-gradient-to-br from-pink-500 to-rose-700 flex items-center justify-center p-1 text-white shadow-md overflow-hidden relative shrink-0`}>
+        <span className="text-xl select-none">✨</span>
+      </div>
+    );
+  }
+  if (type === 'makeup') {
+    return (
+      <div className={`${className} rounded-xl bg-gradient-to-br from-fuchsia-600 to-purple-800 flex items-center justify-center p-1 text-white shadow-md overflow-hidden relative shrink-0`}>
+        <span className="text-xl select-none">💄</span>
+      </div>
+    );
+  }
+  if (type === 'hair') {
+    return (
+      <div className={`${className} rounded-xl bg-gradient-to-br from-violet-600 to-indigo-900 flex items-center justify-center p-1 text-white shadow-md overflow-hidden relative shrink-0`}>
+        <span className="text-xl select-none">💇‍♀️</span>
       </div>
     );
   }
@@ -785,11 +890,37 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
   const [multiViewAnglesCount, setMultiViewAnglesCount] = useState<number>(9);
   const multiViewInputRef = useRef<HTMLInputElement | null>(null);
 
+  // 7. Skin Retouch (Fal.ai FLUX.2 & OpenRouter Beauty Retouching)
+  const [retouchTargetImage, setRetouchTargetImage] = useState<string | null>(null);
+  const [retouchIntensity, setRetouchIntensity] = useState<'subtle' | 'moderate' | 'high'>('moderate');
+  const [retouchPreserveTexture, setRetouchPreserveTexture] = useState<boolean>(true);
+  const [retouchAntiBlemish, setRetouchAntiBlemish] = useState<boolean>(true);
+  const [retouchSkinTone, setRetouchSkinTone] = useState<string>('natural warm olive');
+  const [retouchCustomPrompt, setRetouchCustomPrompt] = useState<string>('');
+  const retouchInputRef = useRef<HTMLInputElement | null>(null);
+
+  // 8. Virtual Makeup (Fal.ai FLUX.2 & OpenRouter Cosmetic Studio)
+  const [makeupTargetImage, setMakeupTargetImage] = useState<string | null>(null);
+  const [makeupStyle, setMakeupStyle] = useState<string>('natural');
+  const [makeupLipstick, setMakeupLipstick] = useState<string>('ruby_red');
+  const [makeupFoundation, setMakeupFoundation] = useState<'dewy' | 'matte' | 'satin'>('satin');
+  const [makeupCustomPrompt, setMakeupCustomPrompt] = useState<string>('');
+  const makeupInputRef = useRef<HTMLInputElement | null>(null);
+
+  // 9. Hair Transformation (Fal.ai FLUX.2 & OpenRouter Hairstyle & Color Studio)
+  const [hairTargetImage, setHairTargetImage] = useState<string | null>(null);
+  const [hairStyle, setHairStyle] = useState<string>('traditional_burmese_sadon');
+  const [hairColor, setHairColor] = useState<string>('jet_black');
+  const [hairLength, setHairLength] = useState<'short' | 'medium' | 'long' | 'extra_long'>('long');
+  const [hairCustomPrompt, setHairCustomPrompt] = useState<string>('');
+  const hairInputRef = useRef<HTMLInputElement | null>(null);
+
   // Folder & Library System
   const [folders, setFolders] = useState<string[]>(safeLoadFolders);
   const [targetFolder, setTargetFolder] = useState<string>('General');
   const [libraryItems, setLibraryItems] = useState<LibraryPhotoItem[]>(safeLoadLibrary);
   const [activeMainTab, setActiveMainTab] = useState<'current' | 'library'>('current');
+  const [galleryViewMode, setGalleryViewMode] = useState<'grid' | 'compact'>('grid');
   const [mobileTab, setMobileTab] = useState<'studio' | 'outputs' | 'library'>('studio');
   const [activeFolderFilter, setActiveFolderFilter] = useState<string>('all');
   const [librarySearch, setLibrarySearch] = useState<string>('');
@@ -925,10 +1056,27 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
     if (initialRefPhoto && initialRefPhoto.trim()) {
       setUploadedRefImages(prev => {
         if (prev.some(p => p.url === initialRefPhoto)) return prev;
+        const lowerPrompt = (initialPrompt || '').toLowerCase();
+        const isBgScene =
+          lowerPrompt.includes('environment') ||
+          lowerPrompt.includes('interior') ||
+          lowerPrompt.includes('terrace') ||
+          lowerPrompt.includes('corridor') ||
+          lowerPrompt.includes('lake') ||
+          lowerPrompt.includes('platform') ||
+          lowerPrompt.includes('architecture') ||
+          lowerPrompt.includes('palace') ||
+          lowerPrompt.includes('temple') ||
+          lowerPrompt.includes('stupa') ||
+          lowerPrompt.includes('studio') ||
+          lowerPrompt.includes('garden') ||
+          lowerPrompt.includes('backdrop') ||
+          lowerPrompt.includes('scene');
         const newRef: UploadedRefPhoto = {
           id: `burmese-ref-${Date.now()}`,
           url: initialRefPhoto,
-          name: 'Detail Burmese Reference'
+          name: isBgScene ? 'Scene Reference Plate' : 'Detail Burmese Reference',
+          role: isBgScene ? 'background' : (prev.length === 0 ? 'background' : 'character')
         };
         setActiveRefId(newRef.id);
         return [newRef, ...prev];
@@ -946,8 +1094,15 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
           const url = typeof item === 'string' ? item : item.url;
           const name = typeof item === 'string' ? `Burmese Reference #${idx + 1}` : (item.name || `Burmese Reference #${idx + 1}`);
           const id = typeof item === 'object' && item.id ? item.id : `burmese-ref-${Date.now()}-${idx}`;
+          let role = typeof item === 'object' ? item.role : undefined;
+          if (!role) {
+            const lowerName = name.toLowerCase();
+            if (lowerName.includes('scene') || lowerName.includes('plate') || lowerName.includes('location') || lowerName.includes('background') || lowerName.includes('backdrop')) {
+              role = 'background';
+            }
+          }
           if (url && url.trim() && !next.some(p => p.url === url)) {
-            next.unshift({ id, url, name });
+            next.unshift({ id, url, name, role });
             hasNew = true;
           }
         });
@@ -1218,12 +1373,11 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
       setUploadedRefImages(prev => {
         const next = [...prev];
         loaded.forEach((item, idx) => {
-          const totalIdx = prev.length + idx;
-          const defaultRole: PhotoRole =
-            totalIdx === 0 ? 'character' :
-            totalIdx === 1 ? 'background' :
-            totalIdx === 2 ? 'style' :
-            totalIdx === 3 ? 'outfit' : 'general';
+          const lowerName = (item.name || '').toLowerCase();
+          const isExplicitBg = lowerName.includes('scene') || lowerName.includes('plate') || lowerName.includes('background') || lowerName.includes('backdrop') || lowerName.includes('location');
+          const isExplicitGarment = lowerName.includes('dress') || lowerName.includes('suit') || lowerName.includes('longyi') || lowerName.includes('outfit');
+          const isExplicitStyle = lowerName.includes('style') || lowerName.includes('lighting') || lowerName.includes('mood');
+          const defaultRole: PhotoRole = isExplicitBg ? 'background' : isExplicitGarment ? 'outfit' : isExplicitStyle ? 'style' : 'character';
           next.push({ ...item, role: item.role || defaultRole });
         });
         return next;
@@ -1443,16 +1597,40 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
 
   // ---- Generate photos with Auto-Save into Supabase Cloud & Section Library ----
   const handleGenerate = async () => {
-    if ((!prompt.trim() && uploadedRefImages.length === 0) || isGenerating) return;
+    if (isGenerating) return;
+
+    if (!prompt.trim() && uploadedRefImages.length === 0) {
+      flash('warn', 'Please enter a prompt description or choose a reference photo before generating! / ကျေးဇူးပြု၍ prompt စာသား ရေးပါ သို့မဟုတ် ပုံတင်ပါ');
+      return;
+    }
 
     const session = SupabaseService.getSession();
-    if (!session) {
-      window.dispatchEvent(new CustomEvent('open-supabase-auth', { detail: { targetSection: 'photo-prompt' } }));
-      setNotice({
-        type: 'error',
-        text: 'Please sign in to generate photos and use your credits / ဓာတ်ပုံထုတ်ယူရန်နှင့် ကရက်ဒစ်အသုံးပြုရန် ကျေးဇူးပြု၍ အကောင့်ဝင်ပါ'
-      });
-      return;
+    const creditCost = (TIER_CREDIT_RATES[resolutionTier] || 5) * count;
+
+    if (session && SupabaseService.isConfigured()) {
+      const creditRes = await SupabaseService.deductCredits(
+        creditCost,
+        'photo_generation',
+        `Generated ${count} ${resolutionTier.toUpperCase()} photo(s) via ${selected.name}`
+      );
+      if (!creditRes.success) {
+        flash('error', creditRes.error || `Insufficient credits (Requires ${creditCost} Credits)`);
+        return;
+      }
+      window.dispatchEvent(new CustomEvent('supabase-cloud-refresh'));
+    } else {
+      // Guest mode: deduct from local storage credits so user can test immediately
+      const currentUser = StorageService.getCurrentUser();
+      const available = currentUser.credits !== undefined ? currentUser.credits : 250;
+      if (available < creditCost) {
+        window.dispatchEvent(new CustomEvent('open-supabase-auth', { detail: { targetSection: 'photo-prompt' } }));
+        flash('warn', `Insufficient credits (${available} available). Please sign in to claim 250 free daily credits!`);
+        return;
+      }
+      currentUser.credits = available - creditCost;
+      StorageService.setCurrentUser(currentUser);
+      setUserCredits(currentUser.credits);
+      window.dispatchEvent(new CustomEvent('supabase-cloud-refresh'));
     }
 
     setIsGenerating(true);
@@ -1465,36 +1643,89 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
       }, 100);
     }
     try {
-      const creditCost = (TIER_CREDIT_RATES[resolutionTier] || 5) * count;
-      if (SupabaseService.isConfigured()) {
-        const creditRes = await SupabaseService.deductCredits(
-          creditCost,
-          'photo_generation',
-          `Generated ${count} ${resolutionTier.toUpperCase()} photo(s) via ${selected.name}`
-        );
-        if (!creditRes.success) {
-          throw new Error(creditRes.error || `Insufficient credits (Requires ${creditCost} Credits)`);
-        }
-        window.dispatchEvent(new CustomEvent('supabase-cloud-refresh'));
-      }
 
       let finalPrompt = cleanForImage(prompt.trim() || 'Ultra-detailed photorealistic studio portrait preserving exact subject identity, lighting, and aesthetics from the reference image');
       if (polish && finalPrompt.length < 160) {
         finalPrompt += ', professional photography, highly detailed, sharp focus, natural lighting, 8k';
       }
       finalPrompt = `${finalPrompt.replace(/--ar\s+[0-9:]+/gi, '').trim()} --ar ${ratio}`;
-      const activeRefObjects = useAllRefImages
+      const rawRefObjects = useAllRefImages
         ? uploadedRefImages
         : activeRefPhoto
         ? [activeRefPhoto]
         : [];
+
+      // Pre-optimize reference images to max 800px to prevent network payload bloat, timeout, and E2BIG limits
+      const activeRefObjects = await Promise.all(
+        rawRefObjects.map(async (x) => ({
+          ...x,
+          url: x.url ? await downscaleDataUrl(x.url, 800, 0.82) : x.url
+        }))
+      );
       const refUrls = activeRefObjects.map(x => x.url);
 
       // Lock 100% facial likeness if preserveFace100 is active and character photo is attached
       const hasCharPhoto = activeRefObjects.some(x => x.role === 'character') || (activeRefObjects.length > 0 && !activeRefObjects.every(x => x.role === 'background'));
+      const isFamilyPrompt = /\b(family|parents|father|mother|daughter|son|children|kids|baby|toddler|grandparents|family\s*portrait|group\s*photo|group\s*portrait|multiple\s*people|three\s*people|four\s*people|five\s*people|six\s*people|မိသားစု|သားသမီး|မိဘ|မိဘသားသမီး|မိသားစုလိုက်)\b/i.test(finalPrompt);
+      const isCouplePrompt = (/\b(couple|two\s*people|two\s*persons|bride\s*and\s*groom|groom\s*and\s*bride|husband\s*and\s*wife|man\s*and\s*woman|two\s*subjects|စုံတွဲ|ဇနီးမောင်နှံ|မောင်နှံ)\b/i.test(finalPrompt)) && !isFamilyPrompt;
       if (hasCharPhoto && preserveFace100 && !finalPrompt.includes('facial likeness') && !finalPrompt.includes('zero face alteration')) {
-        finalPrompt = `100% exact facial likeness, identical eyes nose lips, preserved facial identity, zero face alteration, same person, identical facial bone geometry, natural epidermal skin micro-pores, ${finalPrompt}`;
+        if (isFamilyPrompt) {
+          finalPrompt = `entire family together, preserving distinct individual facial likeness, bone geometry, and natural features for every family member (father, mother, children, all individuals from reference photo), natural family grouping and warm interaction, all individuals in sharp focus, zero face merging or distortion, natural epidermal skin micro-pores, ${finalPrompt}`;
+        } else if (isCouplePrompt) {
+          finalPrompt = `two distinct individuals side-by-side, preserving distinct facial identities and likeness for both people, groom on the left and bride on the right, zero face merging, natural epidermal skin micro-pores, ${finalPrompt}`;
+        } else {
+          finalPrompt = `100% exact facial likeness, identical eyes nose lips, preserved facial identity for all subjects in reference photo, zero face alteration, same subject(s) (whether individual, couple, or family), identical facial bone geometry, natural epidermal skin micro-pores, ${finalPrompt}`;
+        }
       }
+
+      // Check if a background reference image is already attached
+      const hasBgImage = activeRefObjects.some(x => x.role === 'background');
+      const finalRolesList = activeRefObjects.map((x) => {
+        let assignedRole = x.role;
+        if (!assignedRole) {
+          const lowerName = (x.name || '').toLowerCase();
+          if (
+            lowerName.includes('scene') ||
+            lowerName.includes('plate') ||
+            lowerName.includes('background') ||
+            lowerName.includes('backdrop') ||
+            lowerName.includes('location')
+          ) {
+            assignedRole = 'background';
+          } else {
+            assignedRole = 'character';
+          }
+        }
+        return {
+          url: x.url,
+          name: x.name,
+          role: assignedRole
+        };
+      });
+
+      // Auto-Attach Background Reference Plate when available and no background is attached
+      if (!finalRolesList.some(r => r.role === 'background')) {
+        const activeOpts = (chosenBurmeseOptions && chosenBurmeseOptions.length > 0) ? chosenBurmeseOptions : initialChosenOptions;
+        const plate = findBackgroundPlateForPrompt(finalPrompt, activeOpts);
+        if (plate && plate.url && !finalRolesList.some(r => r.url === plate.url)) {
+          console.log(`[PhotoPromptStudio] Auto-attaching Background Reference Plate: ${plate.name} (${plate.url})`);
+          finalRolesList.push({
+            url: plate.url,
+            name: `${plate.name} (Location Reference Plate)`,
+            role: 'background'
+          });
+          if (!refUrls.includes(plate.url)) {
+            refUrls.push(plate.url);
+          }
+        }
+      }
+
+      const activeOpts = (chosenBurmeseOptions && chosenBurmeseOptions.length > 0) ? chosenBurmeseOptions : (initialChosenOptions || []);
+      const detectedLocation = activeOpts.find(o => o.label?.toLowerCase().includes('location') || o.label?.includes('နေရာ'))?.value || null;
+      const detectedTime = activeOpts.find(o => o.label?.toLowerCase().includes('time') || o.label?.includes('အချိန်'))?.value || null;
+      const detectedLighting = activeOpts.find(o => o.label?.toLowerCase().includes('light') || o.label?.includes('အလင်း'))?.value || null;
+      const detectedMood = activeOpts.find(o => o.label?.toLowerCase().includes('mood') || o.label?.includes('ခံစားမှု') || o.label?.toLowerCase().includes('atmosphere'))?.value || null;
+      const detectedWeather = activeOpts.find(o => o.label?.toLowerCase().includes('weather') || o.label?.includes('ရာသီဥတု'))?.value || null;
 
       const res = await fetch('/api/photo-studio/generate-image', {
         method: 'POST',
@@ -1508,11 +1739,12 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
           count,
           referenceImage: activeRefPhoto?.url || refUrls[0] || null,
           referenceImages: refUrls,
-          referenceImagesWithRoles: activeRefObjects.map((x, idx) => ({
-            url: x.url,
-            name: x.name,
-            role: x.role || (idx === 0 ? 'character' : idx === 1 ? 'background' : 'general')
-          }))
+          referenceImagesWithRoles: finalRolesList,
+          location: detectedLocation,
+          timeOfDay: detectedTime,
+          lighting: detectedLighting,
+          mood: detectedMood,
+          weather: detectedWeather,
         })
       });
       const data = await res.json();
@@ -1585,6 +1817,19 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
       window.dispatchEvent(new Event('supabase-cloud-refresh'));
       flash('info', `Generated & saved ${count} photo(s) to Supabase Cloud folder "${assignedFolder}" (-${creditCost} Credits)!`, 4000);
     } catch (e: any) {
+      // Auto-refund credits if generation encountered an error
+      try {
+        if (session && SupabaseService.isConfigured()) {
+          await SupabaseService.refundCredits(creditCost, 'Refund: Photo generation failure');
+          window.dispatchEvent(new CustomEvent('supabase-cloud-refresh'));
+        } else {
+          const currentUser = StorageService.getCurrentUser();
+          currentUser.credits = (currentUser.credits || 0) + creditCost;
+          StorageService.setCurrentUser(currentUser);
+          setUserCredits(currentUser.credits);
+          window.dispatchEvent(new CustomEvent('supabase-cloud-refresh'));
+        }
+      } catch {}
       flash('error', e?.message || 'Generation failed. Try again.');
     } finally {
       setIsGenerating(false);
@@ -1593,7 +1838,7 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
 
   // ---- Computer Vision AI Agent Tool Pipeline Execution (/api/v1/process-image) ----
   const executeStudioToolAction = async (
-    action: 'edit_image' | 'upscale' | 'change_background' | 'multi_view' | 'face_swap' | 'image_variations',
+    action: 'edit_image' | 'upscale' | 'change_background' | 'multi_view' | 'face_swap' | 'image_variations' | 'skin_retouch' | 'virtual_makeup' | 'hair_transform',
     payload: Record<string, any>,
     creditCost: number,
     label: string
@@ -1637,14 +1882,35 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
         window.dispatchEvent(new CustomEvent('supabase-cloud-refresh'));
       }
 
-      const res = await fetch('/api/v1/process-image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, ...payload })
-      });
+      let res: Response;
+      if (action === 'skin_retouch') {
+        res = await fetch('/api/ai/skin-retouch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } else if (action === 'virtual_makeup') {
+        res = await fetch('/api/ai/virtual-makeup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } else if (action === 'hair_transform') {
+        res = await fetch('/api/ai/hair-transform', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } else {
+        res = await fetch('/api/v1/process-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action, ...payload })
+        });
+      }
       const data = await res.json();
-      if (!res.ok || data.status === 'error') {
-        throw new Error(data?.message || data?.error_message || 'Processing failed');
+      if (!res.ok || data.status === 'error' || data.success === false) {
+        throw new Error(data?.message || data?.error_message || data?.error || 'Processing failed');
       }
 
       const batchTime = Date.now();
@@ -1720,12 +1986,12 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
           });
         });
       } else {
-        const outImg = data.result_image_url || data.output_image_url;
+        const outImg = data.processed_image_url || data.result_image_url || data.output_image_url;
         if (outImg) {
           newBatch.push({
             id: `${action}-${batchTime}`,
             url: outImg,
-            prompt: `${label}: ${payload.edit_prompt || payload.new_background_prompt || label}`,
+            prompt: `${label}: ${payload.prompt || payload.edit_prompt || payload.new_background_prompt || label}`,
             provider: providerName,
             ratio: action === 'upscale' ? ratio : '1:1',
             resolutionTier: action === 'upscale' ? upscaleTargetTier : resolutionTier,
@@ -1798,6 +2064,20 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
       flash('info', `✨ ${label} completed successfully! (-${creditCost} Credits)`, 4000);
     } catch (err: any) {
       console.error(`Studio Tool ${action} failed:`, err);
+      // Auto-refund credits if studio tool action encountered an error
+      try {
+        const session = SupabaseService.getSession();
+        if (session && SupabaseService.isConfigured()) {
+          await SupabaseService.refundCredits(creditCost, `Refund: ${label} failure`);
+          window.dispatchEvent(new CustomEvent('supabase-cloud-refresh'));
+        } else {
+          const currentUser = StorageService.getCurrentUser();
+          currentUser.credits = (currentUser.credits || 0) + creditCost;
+          StorageService.setCurrentUser(currentUser);
+          setUserCredits(currentUser.credits);
+          window.dispatchEvent(new CustomEvent('supabase-cloud-refresh'));
+        }
+      } catch {}
       flash('error', err?.message || 'Processing failed. Check inputs and try again.');
     } finally {
       setIsGenerating(false);
@@ -1980,9 +2260,13 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
       else lightingText = 'cool cinematic neon ambient lighting, specular color bounce, shallow depth of field, atmospheric bokeh';
     }
 
+    const relightingDirective = isProd
+      ? 'Preserve product geometry and materials, but dynamically relight, color-grade, and blend edges with ambient light wrap to harmonize with the environment.'
+      : 'Preserve facial identity and outfit design, but dynamically relight, color-grade, and blend subject edges with ambient light wrap to harmonize with the environment.';
+
     const inpaintingPrompt = isProd
-      ? `A realistic studio product photograph of [Subject], placed firmly on ${bgDesc}, ${lightingText}`
-      : `Photorealistic portrait of [Subject], seamlessly placed in ${bgDesc}, ${lightingText}`;
+      ? `${relightingDirective} Studio product photograph of [Subject], placed firmly in ${bgDesc}, ${lightingText}`
+      : `${relightingDirective} Photorealistic portrait of [Subject], seamlessly placed in ${bgDesc}, ${lightingText}`;
 
     const negativePrompt = isProd
       ? 'altering original product, bad cutouts, green screen fringe, floating object, distorted edges, low resolution, unnatural hard borders, halo effect'
@@ -2602,7 +2886,7 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
     drawH: number,
     canvasW = 1024,
     canvasH = 1024,
-    dilatePx = 5
+    dilatePx = 2.5 // 2px-3px subtle feathering/erosion on mask boundary for natural rim lighting
   ): string => {
     try {
       const maskCanvas = document.createElement('canvas');
@@ -2771,7 +3055,7 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
               subCtx.drawImage(subImg, drawX, drawY, drawW, drawH);
               ctx.save();
               ctx.shadowColor = 'rgba(0,0,0,0.2)';
-              ctx.shadowBlur = 2;
+              ctx.shadowBlur = 2.5; // 2px-3px subtle edge feathering for rim lighting bleed
               if (lightingOption === 'cozy-cafe') {
                 ctx.filter = 'contrast(1.02) saturate(1.05)';
               } else if (lightingOption === 'golden-sunset') {
@@ -2803,8 +3087,8 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
             ctx.fillRect(0, 0, 1024, 1024);
             ctx.restore();
 
-            // Calculate Dilated Silhouette Boundary Mask for Latent Inpainting Transition
-            const edgeMaskUrl = generateDilatedEdgeMask(subImg, drawX, drawY, drawW, drawH, 1024, 1024, 5);
+            // Calculate Dilated Silhouette Boundary Mask for Latent Inpainting Transition (2.5px feathering/erosion)
+            const edgeMaskUrl = generateDilatedEdgeMask(subImg, drawX, drawY, drawW, drawH, 1024, 1024, 2.5);
 
             clearTimeout(safetyTimer);
             done(canvas.toDataURL('image/jpeg', 0.94), edgeMaskUrl);
@@ -2897,6 +3181,55 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
       aspect_ratio: multiViewRatio || '1:1',
       elevation_angle: 0.0
     }, 35, 'Multi View (9 Angles)');
+  };
+
+  const handleSkinRetouchGenerate = async () => {
+    if (!retouchTargetImage) {
+      flash('warn', '⚠️ Please upload a portrait photo for Skin Retouch!');
+      retouchInputRef.current?.click();
+      return;
+    }
+
+    executeStudioToolAction('skin_retouch', {
+      image_url: retouchTargetImage,
+      retouch_intensity: retouchIntensity,
+      preserve_texture: retouchPreserveTexture,
+      anti_blemish: retouchAntiBlemish,
+      skin_tone: retouchSkinTone,
+      prompt: retouchCustomPrompt
+    }, 15, 'Skin Retouch');
+  };
+
+  const handleVirtualMakeupGenerate = async () => {
+    if (!makeupTargetImage) {
+      flash('warn', '⚠️ Please upload a portrait photo for Virtual Makeup!');
+      makeupInputRef.current?.click();
+      return;
+    }
+
+    executeStudioToolAction('virtual_makeup', {
+      image_url: makeupTargetImage,
+      makeup_style: makeupStyle,
+      lipstick_color: makeupLipstick,
+      foundation_finish: makeupFoundation,
+      prompt: makeupCustomPrompt
+    }, 20, 'Virtual Makeup');
+  };
+
+  const handleHairTransformGenerate = async () => {
+    if (!hairTargetImage) {
+      flash('warn', '⚠️ Please upload a portrait photo for Hair Transformation!');
+      hairInputRef.current?.click();
+      return;
+    }
+
+    executeStudioToolAction('hair_transform', {
+      image_url: hairTargetImage,
+      hair_style: hairStyle,
+      hair_color: hairColor,
+      hair_length: hairLength,
+      prompt: hairCustomPrompt
+    }, 25, 'Hair Transformation');
   };
 
   const handleAnalyzeReferenceImage = async (srcUrl?: string) => {
@@ -3242,75 +3575,54 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
 
   return (
     <div className="min-h-screen w-full bg-[#0a0b0e] text-zinc-100 font-sans overflow-x-hidden selection:bg-pink-500/30">
-      {/* ========== HEADER ========== */}
-      <header className="sticky top-0 z-30 bg-[#0a0b0e]/95 backdrop-blur-md border-b border-zinc-800/80">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 h-15 flex items-center justify-between gap-2.5">
-          {/* Left Corner: Clean Logo (No white border) & Brand Text */}
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center shrink-0">
-              <img
-                src="/logo.png"
-                alt="SHOW AI Logo"
-                className="w-full h-full object-contain drop-shadow-[0_2px_8px_rgba(5,177,135,0.45)]"
-              />
+      {/* ========== HEADER (Clean UI Matching Reference) ========== */}
+      <header className="sticky top-0 z-30 bg-[#090c10]/95 backdrop-blur-md border-b border-zinc-800/80">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-15 flex items-center justify-between gap-3">
+          {/* Left Corner: Clean Logo & Brand Text */}
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 via-teal-500 to-emerald-600 flex items-center justify-center text-black font-black text-xs shadow-md shadow-emerald-500/20 shrink-0">
+              <Sparkles className="w-4 h-4 text-black fill-black" />
             </div>
 
-            <div className="flex flex-col min-w-0">
-              <div className="flex items-center gap-1.5 leading-tight">
-                <span className="text-sm sm:text-base font-extrabold text-white tracking-tight truncate">
-                  SHOW AI
-                </span>
-                <span className="text-pink-400 text-xs font-semibold shrink-0">·</span>
-                <span className="text-xs sm:text-sm font-semibold text-zinc-300 truncate">
-                  Photo Studio
-                </span>
-              </div>
-              <span className="text-[10px] text-zinc-500 font-mono tracking-wider uppercase mt-0.5 leading-none hidden xs:inline">
-                PROMPT SUITE v2.5
+            <div className="flex items-center gap-2 leading-none">
+              <span className="text-sm sm:text-base font-extrabold text-white tracking-tight">
+                SHOW AI
+              </span>
+              <span className="text-zinc-500 text-xs font-semibold">·</span>
+              <span className="text-xs sm:text-sm font-semibold text-zinc-300">
+                Photo Studio
               </span>
             </div>
           </div>
 
-          {/* Right Corner: Quick Action Buttons & Navigation Menu Bar */}
-          <div className="flex items-center gap-2 shrink-0">
+          {/* Right Corner: Quick Action Buttons Matching Reference Screenshot */}
+          <div className="flex items-center gap-2.5 shrink-0">
             {/* Desktop Back to Menu Button */}
             {onBackToPortal && (
               <button
                 type="button"
                 onClick={onBackToPortal}
-                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs font-semibold text-zinc-300 hover:text-white transition-colors cursor-pointer"
-                title="Back to Main Menu"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-800 text-xs font-semibold text-zinc-300 hover:text-white transition-colors cursor-pointer shadow-xs active:scale-95"
+                title="Back to Menu"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Back to Menu</span>
               </button>
             )}
 
-            {/* Direct Sign In / Login Button for Guests */}
-            {!SupabaseService.getSession() ? (
-              <button
-                type="button"
-                onClick={() => window.dispatchEvent(new CustomEvent('open-supabase-auth'))}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-emerald-400 to-teal-300 text-slate-950 font-black text-xs cursor-pointer shadow-sm hover:brightness-105 transition-all"
-                title="Sign in / Register"
-              >
-                <LogIn className="w-3.5 h-3.5 stroke-[2.5]" />
-                <span>Sign In</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => window.dispatchEvent(new CustomEvent('open-supabase-cloud', { detail: { tab: 'topup' } }))}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-amber-300 font-bold text-xs cursor-pointer transition-all shadow-xs active:scale-95"
-                title="Credit Store: Buy Credits & Claim Daily 250 Free Credits"
-              >
-                <Coins className="w-3.5 h-3.5 text-amber-400" />
-                <span className="font-mono">{userCredits.toLocaleString()} Credits</span>
-                <span className="text-[10px] bg-gradient-to-r from-amber-400 to-yellow-400 text-black font-extrabold px-1.5 py-0.5 rounded-full shadow leading-none">
-                  +Top-Up
-                </span>
-              </button>
-            )}
+            {/* Credit Display with Green Top-Up Badge */}
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent('open-topup-pricing'))}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-800 text-xs font-medium cursor-pointer transition-all shadow-xs active:scale-95"
+              title="Credit Balance: Click to Top-Up or Claim Free Credits"
+            >
+              <Coins className="w-3.5 h-3.5 text-zinc-400" />
+              <span className="font-mono text-zinc-200 font-bold">{userCredits.toLocaleString()} Credits</span>
+              <span className="text-[10px] bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold px-2 py-0.5 rounded-full shadow-xs leading-none transition-colors">
+                Top-Up
+              </span>
+            </button>
 
             {/* User Profile Button */}
             <button
@@ -3319,22 +3631,22 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
                 if (onOpenProfile) onOpenProfile();
                 window.dispatchEvent(new CustomEvent('open-user-profile'));
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-900/95 hover:bg-zinc-850 border border-zinc-700/80 hover:border-amber-500/50 text-white text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95 shrink-0"
-              title="View User Profile, Plan, Credits, Creations & Photos"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white text-xs font-semibold transition-all shadow-xs cursor-pointer active:scale-95 shrink-0"
+              title="View Profile"
             >
-              <User className="w-3.5 h-3.5 text-amber-400" />
+              <User className="w-3.5 h-3.5 text-zinc-400" />
               <span>Profile</span>
             </button>
 
-            {/* 📱 Mobile Menu Bar Button (Go to any session and output) */}
+            {/* Menu Button */}
             <button
               type="button"
               onClick={() => setMobileMenuOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-900/95 hover:bg-zinc-800 border border-zinc-700/80 hover:border-zinc-600 text-zinc-200 hover:text-white text-xs font-semibold shadow-xs transition-all cursor-pointer active:scale-95"
-              title="Open Navigation Menu"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white text-xs font-semibold transition-all shadow-xs cursor-pointer active:scale-95 shrink-0"
+              title="Open Menu"
             >
-              <Menu className="w-4 h-4 text-emerald-400" />
-              <span className="font-semibold text-xs">Menu</span>
+              <Menu className="w-4 h-4 text-zinc-400" />
+              <span>Menu</span>
             </button>
           </div>
         </div>
@@ -3638,31 +3950,25 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
       </div>
 
       {/* ========== BODY ========== */}
-      <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 pb-28 lg:pb-8 grid grid-cols-1 lg:grid-cols-[410px_minmax(0,1fr)] xl:grid-cols-[450px_minmax(0,1fr)] gap-4 lg:gap-6 items-start">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 pb-28 lg:pb-8 grid grid-cols-1 lg:grid-cols-[380px_minmax(0,1fr)] xl:grid-cols-[400px_minmax(0,1fr)] gap-5 lg:gap-6 items-start">
 
-                {/* ---------- LEFT: CONTROLS (NEW MODERN UI / UX MATCHING SCREENSHOTS) ---------- */}
-        <section className={`space-y-3.5 lg:sticky lg:top-20 ${mobileTab !== 'studio' ? 'hidden lg:block' : ''}`}>
+        {/* ---------- LEFT: CONTROLS (EXACT MODERN UI/UX MATCHING REFERENCE SCREENSHOT) ---------- */}
+        <section className={`space-y-3 lg:sticky lg:top-20 ${mobileTab !== 'studio' ? 'hidden lg:block' : ''}`}>
 
-          {/* 1. TOP HEADER TOOL CARD (Create Image / Edit Image / Face Swap / etc.) */}
+          {/* 1. TOP HEADER TOOL CARD (Create Image) */}
           <div
             onClick={() => setToolsModalOpen(true)}
-            className="rounded-2xl bg-[#14151b] hover:bg-[#181a22] border border-zinc-800/80 hover:border-zinc-700/80 p-3 sm:p-3.5 flex items-center justify-between transition-all cursor-pointer group shadow-sm active:scale-[0.99]"
+            className="rounded-2xl bg-[#10141d] hover:bg-[#131924] border border-zinc-800/80 hover:border-zinc-700/80 p-3.5 flex items-center justify-between transition-all cursor-pointer group shadow-sm active:scale-[0.99]"
           >
             <div className="flex items-center gap-3 min-w-0">
-              <ToolAvatar type={currentToolMeta.avatarType} className="w-10 h-10 sm:w-11 sm:h-11" />
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 via-teal-500 to-emerald-600 flex items-center justify-center text-black shadow-md shadow-emerald-500/20 shrink-0">
+                <Wand2 className="w-5 h-5 text-black stroke-[2.5]" />
+              </div>
               <div className="flex flex-col min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm sm:text-base font-extrabold text-white tracking-tight truncate">
-                    {currentToolMeta.name}
-                  </span>
-                  <HelpCircle className="w-3.5 h-3.5 text-zinc-500 hover:text-zinc-300 transition-colors" />
-                  {currentToolMeta.badge && (
-                    <span className="px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 text-[9px] font-bold">
-                      {currentToolMeta.badge}
-                    </span>
-                  )}
-                </div>
-                <span className="text-[11px] text-zinc-400 truncate">
+                <span className="text-sm font-extrabold text-white tracking-tight truncate">
+                  {currentToolMeta.name}
+                </span>
+                <span className="text-[11px] text-zinc-400 truncate mt-0.5">
                   {currentToolMeta.desc}
                 </span>
               </div>
@@ -3670,13 +3976,15 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
             <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-zinc-200 transition-colors shrink-0" />
           </div>
 
-          {/* 2. MODEL SELECTOR CARD (Opens Model Selection Sheet) */}
+          {/* 2. MODEL SELECTOR CARD */}
           <div
             onClick={() => setModelPickerOpen(true)}
-            className="rounded-2xl bg-[#14151b] hover:bg-[#181a22] border border-zinc-800/80 hover:border-zinc-700/80 p-3 sm:p-3.5 flex items-center justify-between transition-all cursor-pointer group shadow-sm active:scale-[0.99]"
+            className="rounded-2xl bg-[#10141d] hover:bg-[#131924] border border-zinc-800/80 hover:border-zinc-700/80 p-3.5 flex items-center justify-between transition-all cursor-pointer group shadow-sm active:scale-[0.99]"
           >
             <div className="flex items-center gap-3 min-w-0">
-              <ModelLogo modelId={modelId} className="w-9 h-9 sm:w-10 sm:h-10" />
+              <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 shrink-0">
+                <Cpu className="w-5 h-5 text-zinc-300" />
+              </div>
               <div className="flex flex-col min-w-0">
                 <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider leading-none">
                   Model
@@ -3706,17 +4014,17 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
 
           {/* 3. DYNAMIC TOOL WORKSPACE */}
           {activeTool === 'create-image' && (
-            <div className="space-y-3.5">
-              {/* Describe your image Container */}
+            <div className="space-y-3">
+              {/* Describe your image Container (Matches Reference Screenshot) */}
               <div
                 onDragOver={e => e.preventDefault()}
                 onDrop={e => {
                   e.preventDefault();
                   if (e.dataTransfer.files?.length) handlePromptImageUpload(e.dataTransfer.files);
                 }}
-                className="rounded-2xl border border-zinc-800/80 bg-[#14151b] p-3 sm:p-3.5 space-y-3 shadow-sm focus-within:border-pink-500/50 transition-colors"
+                className="rounded-2xl border border-zinc-800/80 bg-[#10141d] p-3.5 sm:p-4 space-y-3.5 shadow-sm focus-within:border-emerald-500/50 transition-colors"
               >
-                {/* Header with expand icon */}
+                {/* Header */}
                 <div className="flex items-center justify-between">
                   <label className="text-xs sm:text-sm font-bold text-white tracking-tight">
                     Describe your image
@@ -3725,62 +4033,46 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
                     type="button"
                     onClick={() => setP2pOpen(true)}
                     title="Open Photo to Prompt Vision Studio"
-                    className="text-zinc-500 hover:text-pink-400 transition-colors p-1 cursor-pointer"
+                    className="text-zinc-500 hover:text-emerald-400 transition-colors p-1 cursor-pointer"
                   >
                     <Maximize2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
 
-                {/* Visual References Banner (Glowing Pink Border matching Screenshot 1) */}
-                <div
-                  onClick={() => promptImageInputRef.current?.click()}
-                  className="rounded-xl p-2.5 sm:p-3 border border-pink-500/70 bg-gradient-to-r from-pink-950/30 via-purple-950/20 to-zinc-900/60 flex items-center justify-between cursor-pointer hover:border-pink-400 transition-all shadow-[0_0_15px_rgba(236,72,153,0.12)] group"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="flex items-center -space-x-2 shrink-0">
-                      {uploadedRefImages.length > 0 ? (
-                        uploadedRefImages.slice(0, 3).map(img => (
-                          <img
-                            key={img.id}
-                            src={img.url}
-                            alt=""
-                            className="w-7 h-7 rounded-lg object-cover border border-pink-400/80 shadow"
-                          />
-                        ))
-                      ) : (
-                        <div className="flex -space-x-2">
-                          <div className="w-6 h-6 rounded-md bg-amber-600/80 border border-pink-400/50 flex items-center justify-center text-[9px]">🌅</div>
-                          <div className="w-6 h-6 rounded-md bg-pink-600/80 border border-pink-400/50 flex items-center justify-center text-[9px]">👤</div>
-                          <div className="w-6 h-6 rounded-md bg-purple-600/80 border border-pink-400/50 flex items-center justify-center text-[9px]">🎨</div>
-                        </div>
-                      )}
+                {/* Sub-card: Visual References with Dropzone (Matches Reference Screenshot) */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5 text-zinc-300">
+                      <ImageIcon className="w-3.5 h-3.5 text-zinc-400" />
+                      <span className="font-bold">Add visual references</span>
+                      <span className="text-[10px] text-zinc-500">(Optional)</span>
                     </div>
-
-                    <div className="flex flex-col min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-white group-hover:text-pink-200 transition-colors truncate">
-                          Add visual references
-                        </span>
-                        <span className="px-1.5 py-0.2 rounded-full bg-zinc-800 border border-zinc-700/60 text-[9px] text-zinc-400">
-                          Optional
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-zinc-400 truncate">
-                        JPEG/PNG/WEBP, 50 MB max, 50 MB total
-                      </span>
-                    </div>
+                    <span className="text-[11px] font-mono text-zinc-400">
+                      {uploadedRefImages.length}/16
+                    </span>
                   </div>
+                  <p className="text-[10px] text-zinc-500 -mt-1">
+                    JPEG/PNG/WEBP, up to 50MB each
+                  </p>
 
-                  <span className="text-xs font-mono font-bold text-pink-300 shrink-0">
-                    {uploadedRefImages.length}/16
-                  </span>
+                  <div
+                    onClick={() => promptImageInputRef.current?.click()}
+                    className="border-2 border-dashed border-zinc-800 hover:border-emerald-500/50 rounded-xl bg-black/25 p-4 sm:p-5 text-center flex flex-col items-center justify-center cursor-pointer transition-colors group"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 group-hover:text-emerald-400 group-hover:border-emerald-500/40 transition-all mb-1.5">
+                      <ImageIcon className="w-4 h-4" />
+                    </div>
+                    <span className="text-xs text-zinc-400 group-hover:text-zinc-200 transition-colors">
+                      Drag & drop images here or click to browse
+                    </span>
+                  </div>
                 </div>
 
                 {/* Attached References Tray (if any) */}
                 {uploadedRefImages.length > 0 && (
-                  <div className="space-y-2 pt-1 border-t border-zinc-800/60">
+                  <div className="space-y-1.5 pt-1 border-t border-zinc-800/60">
                     <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-pink-300 font-semibold">Attached ({uploadedRefImages.length})</span>
+                      <span className="text-emerald-400 font-semibold">Attached ({uploadedRefImages.length})</span>
                       <button
                         type="button"
                         onClick={() => setPreserveFace100(!preserveFace100)}
@@ -3811,125 +4103,126 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
                   </div>
                 )}
 
-                {/* Textarea */}
-                <textarea
-                  value={prompt}
-                  onChange={e => setPrompt(e.target.value)}
-                  placeholder="Describe what you want to see"
-                  rows={3}
-                  className="w-full bg-transparent text-sm sm:text-base text-zinc-100 placeholder-zinc-500 focus:outline-none resize-none leading-relaxed"
-                />
+                {/* Textarea Box with Inner Bottom Toolbar */}
+                <div className="rounded-xl border border-zinc-800/80 bg-black/30 p-3 space-y-2 focus-within:border-emerald-500/50 transition-colors">
+                  <textarea
+                    value={prompt}
+                    onChange={e => setPrompt(e.target.value)}
+                    placeholder="Describe what you want to see..."
+                    rows={3}
+                    className="w-full bg-transparent text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none resize-none leading-relaxed"
+                  />
 
-                {/* Bottom toolbar inside prompt card */}
-                <div className="flex items-center justify-between pt-2 border-t border-zinc-800/60">
-                  <div className="flex items-center gap-1.5">
-                    {/* Hidden file input for Photo to Prompt */}
-                    <input
-                      ref={directP2pInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleDirectPhotoToPrompt}
-                    />
-
-                    {/* Photo-to-Prompt Button (Beside Enhance Button) - Opens Photo to Prompt Modal */}
-                    <button
-                      type="button"
-                      onClick={() => setP2pOpen(true)}
-                      title="Photo to Prompt (Vision AI Reverse Engineering Studio)"
-                      className="w-8 h-8 rounded-xl bg-pink-500/10 hover:bg-pink-500/20 border border-pink-500/30 text-pink-300 flex items-center justify-center transition-all cursor-pointer group relative shadow-sm"
-                    >
-                      <ImageIcon className="w-4 h-4 text-pink-400 group-hover:scale-110 transition-transform" />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleEnhance}
-                      disabled={isEnhancing}
-                      title="Enhance Prompt with Gemini AI"
-                      className="w-8 h-8 rounded-xl bg-zinc-800/80 hover:bg-pink-500/20 text-zinc-400 hover:text-pink-300 flex items-center justify-center transition-colors cursor-pointer"
-                    >
-                      {isEnhancing ? <Loader2 className="w-4 h-4 animate-spin text-pink-400" /> : <Wand2 className="w-4 h-4" />}
-                    </button>
-
-                    {prompt && (
+                  {/* Bottom toolbar inside prompt card */}
+                  <div className="flex items-center justify-between pt-1 border-t border-zinc-800/40">
+                    <div className="flex items-center gap-1.5">
+                      {/* Photo-to-Prompt Button */}
                       <button
                         type="button"
-                        onClick={() => setPrompt('')}
-                        title="Clear Prompt"
-                        className="w-8 h-8 rounded-xl bg-zinc-800/80 hover:bg-rose-950 text-zinc-400 hover:text-rose-400 flex items-center justify-center transition-colors cursor-pointer"
+                        onClick={() => setP2pOpen(true)}
+                        title="Photo to Prompt (Vision AI Reverse Engineering Studio)"
+                        className="w-7 h-7 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition-all cursor-pointer shadow-xs"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <ImageIcon className="w-3.5 h-3.5" />
                       </button>
-                    )}
-                  </div>
 
-                  {/* Auto Polish Switch */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-zinc-400 font-medium">Auto Polish</span>
-                    <button
-                      type="button"
-                      onClick={() => setPolish(!polish)}
-                      className={`w-9 h-5 rounded-full transition-colors relative cursor-pointer ${
-                        polish ? 'bg-pink-500' : 'bg-zinc-700'
-                      }`}
-                    >
-                      <span
-                        className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
-                          polish ? 'translate-x-4' : 'translate-x-0'
+                      <button
+                        type="button"
+                        onClick={handleEnhance}
+                        disabled={isEnhancing}
+                        title="Enhance Prompt with Gemini AI"
+                        className="w-7 h-7 rounded-lg bg-zinc-900 hover:bg-emerald-500/20 border border-zinc-800 hover:border-emerald-500/30 text-zinc-400 hover:text-emerald-300 flex items-center justify-center transition-colors cursor-pointer shadow-xs"
+                      >
+                        {isEnhancing ? <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" /> : <Wand2 className="w-3.5 h-3.5" />}
+                      </button>
+
+                      {prompt && (
+                        <button
+                          type="button"
+                          onClick={() => setPrompt('')}
+                          title="Clear Prompt"
+                          className="w-7 h-7 rounded-lg bg-zinc-900 hover:bg-rose-950/40 border border-zinc-800 text-zinc-400 hover:text-rose-400 flex items-center justify-center transition-colors cursor-pointer shadow-xs"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Auto Polish Switch (Matches Reference Screenshot: Emerald green) */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-zinc-400 font-medium">Auto Polish</span>
+                      <button
+                        type="button"
+                        onClick={() => setPolish(!polish)}
+                        className={`w-9 h-5 rounded-full transition-colors relative cursor-pointer ${
+                          polish ? 'bg-emerald-500 shadow-sm shadow-emerald-500/30' : 'bg-zinc-700'
                         }`}
-                      />
-                    </button>
+                      >
+                        <span
+                          className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform shadow-xs ${
+                            polish ? 'translate-x-4' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Output & Quality Parameters Row (2 Columns) */}
-              <div className="grid grid-cols-2 gap-2.5">
-                <div
-                  onClick={() => setOutputPickerOpen(true)}
-                  className="rounded-2xl bg-[#14151b] hover:bg-[#181a22] border border-zinc-800/80 hover:border-zinc-700/80 p-3 flex items-center justify-between cursor-pointer transition-all shadow-sm active:scale-[0.99]"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-xl bg-zinc-800 border border-zinc-700/80 flex items-center justify-center text-zinc-300 shrink-0">
-                      <SlidersHorizontal className="w-4 h-4" />
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider leading-none">
-                        Output
-                      </span>
-                      <span className="text-xs sm:text-sm font-bold text-white truncate mt-1">
-                        {ratio} • {resolutionTier}
-                      </span>
-                    </div>
+              {/* 4. Output Parameters Card (Stacked full-width matching reference) */}
+              <div
+                onClick={() => setOutputPickerOpen(true)}
+                className="rounded-2xl bg-[#10141d] hover:bg-[#131924] border border-zinc-800/80 hover:border-zinc-700/80 p-3.5 flex items-center justify-between cursor-pointer transition-all shadow-sm active:scale-[0.99]"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-300 shrink-0">
+                    <Grid className="w-4 h-4" />
                   </div>
-                  <ChevronRight className="w-4 h-4 text-zinc-500 shrink-0" />
-                </div>
-
-                <div
-                  onClick={() => setQualityPickerOpen(true)}
-                  className="rounded-2xl bg-[#14151b] hover:bg-[#181a22] border border-zinc-800/80 hover:border-zinc-700/80 p-3 flex items-center justify-between cursor-pointer transition-all shadow-sm active:scale-[0.99]"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-xl bg-zinc-800 border border-zinc-700/80 flex items-center justify-center text-zinc-300 shrink-0">
-                      <SlidersHorizontal className="w-4 h-4" />
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider leading-none">
-                        Quality
-                      </span>
-                      <span className="text-xs sm:text-sm font-bold text-white truncate mt-1 capitalize">
-                        {resolutionTier === '1k' ? 'Low' : resolutionTier === '2k' ? 'High' : resolutionTier === '4k' ? 'Ultra' : 'Master'}
-                      </span>
-                    </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider leading-none">
+                      Output
+                    </span>
+                    <span className="text-xs sm:text-sm font-bold text-white truncate mt-1">
+                      {ratio} • {resolutionTier.toUpperCase()}
+                    </span>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-zinc-500 shrink-0" />
                 </div>
+                <ChevronRight className="w-4 h-4 text-zinc-500 shrink-0" />
               </div>
 
-              {/* Bottom Stepper & Vibrant Pink CTA Button */}
+              {/* 5. Quality Parameters Card (Stacked full-width matching reference) */}
+              <div
+                onClick={() => setQualityPickerOpen(true)}
+                className="rounded-2xl bg-[#10141d] hover:bg-[#131924] border border-zinc-800/80 hover:border-zinc-700/80 p-3.5 flex items-center justify-between cursor-pointer transition-all shadow-sm active:scale-[0.99]"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-300 shrink-0">
+                    <SlidersHorizontal className="w-4 h-4" />
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider leading-none">
+                      Quality
+                    </span>
+                    <span className="text-xs sm:text-sm font-bold text-white truncate mt-1 capitalize">
+                      {resolutionTier === '1k' ? 'Low' : resolutionTier === '2k' ? 'High' : resolutionTier === '4k' ? 'Ultra' : 'Master'}
+                    </span>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-zinc-500 shrink-0" />
+              </div>
+
+              {/* Prompt Notice / Error Alert right above Generate Button */}
+              {notice && (
+                <div className={`flex items-start gap-2 px-3.5 py-2.5 rounded-xl border text-xs my-2 ${noticeStyles[notice.type]}`}>
+                  <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                  <span className="flex-1 font-medium">{notice.text}</span>
+                  <button type="button" onClick={() => setNotice(null)}><X className="w-4 h-4" /></button>
+                </div>
+              )}
+
+              {/* 6. Bottom Stepper & Mint Green Primary CTA Button (Matches Reference Screenshot) */}
               <div className="flex items-center gap-2.5 pt-1">
-                <div className="flex items-center gap-2 px-3 py-3 rounded-2xl bg-[#14151b] border border-zinc-800/80 text-white font-mono text-xs sm:text-sm shrink-0">
+                <div className="flex items-center gap-2 px-3 py-3 rounded-2xl bg-[#10141d] border border-zinc-800/80 text-white font-mono text-xs sm:text-sm shrink-0">
                   <button
                     type="button"
                     onClick={() => setCount(Math.max(1, count - 1))}
@@ -3955,11 +4248,11 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
                   type="button"
                   onClick={handleGenerate}
                   disabled={isGenerating}
-                  className="flex-1 py-3.5 rounded-2xl bg-[#ff2477] hover:bg-[#ff3b8b] text-white font-extrabold text-sm sm:text-base shadow-lg shadow-pink-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] disabled:opacity-60"
+                  className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:brightness-110 active:scale-[0.98] text-black font-black text-sm sm:text-base shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
                 >
                   {isGenerating ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Loader2 className="w-4 h-4 animate-spin text-black" />
                       <span>Creating Photos...</span>
                     </>
                   ) : (
@@ -5899,6 +6192,14 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
                 </div>
               </div>
 
+              {notice && (
+                <div className={`flex items-start gap-2 px-3.5 py-2.5 rounded-xl border text-xs my-2 ${noticeStyles[notice.type]}`}>
+                  <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                  <span className="flex-1 font-medium">{notice.text}</span>
+                  <button type="button" onClick={() => setNotice(null)}><X className="w-4 h-4" /></button>
+                </div>
+              )}
+
               <button
                 type="button"
                 onClick={handleFaceSwapGenerate}
@@ -6098,9 +6399,22 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
 
               {/* Section 2: Add new background */}
               <div className="rounded-2xl border border-zinc-800/80 bg-[#14151b] p-3.5 space-y-3">
-                <div>
-                  <p className="text-xs sm:text-sm font-bold text-white">Add New Background Environment</p>
-                  <p className="text-[11px] text-zinc-400">Upload background image or describe the new scene</p>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <p className="text-xs sm:text-sm font-bold text-white">Add New Background Environment</p>
+                    <p className="text-[11px] text-zinc-400">Upload background image or describe the new scene</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onNavigateView) onNavigateView('scenes-550');
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 text-xs font-bold transition shadow-sm cursor-pointer self-start sm:self-auto shrink-0"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Choose from 550+ Scenes</span>
+                    <span className="text-[9px] bg-emerald-400 text-slate-950 px-1.5 py-0.2 rounded-full font-black">760+</span>
+                  </button>
                 </div>
 
                 <div
@@ -6232,6 +6546,14 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
                   </div>
                 )}
               </div>
+
+              {notice && (
+                <div className={`flex items-start gap-2 px-3.5 py-2.5 rounded-xl border text-xs my-2 ${noticeStyles[notice.type]}`}>
+                  <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                  <span className="flex-1 font-medium">{notice.text}</span>
+                  <button type="button" onClick={() => setNotice(null)}><X className="w-4 h-4" /></button>
+                </div>
+              )}
 
               <div className="flex items-center gap-2.5 pt-1">
                 <div className="flex items-center gap-2 px-3 py-3 rounded-2xl bg-[#14151b] border border-zinc-800/80 text-white font-mono text-xs sm:text-sm shrink-0">
@@ -6802,6 +7124,14 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
               </div>
 
               {/* Bottom Stepper & Generate Variations Button */}
+              {notice && (
+                <div className={`flex items-start gap-2 px-3.5 py-2.5 rounded-xl border text-xs my-2 ${noticeStyles[notice.type]}`}>
+                  <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                  <span className="flex-1 font-medium">{notice.text}</span>
+                  <button type="button" onClick={() => setNotice(null)}><X className="w-4 h-4" /></button>
+                </div>
+              )}
+
               <div className="flex items-center gap-2.5 pt-1">
                 <div className="flex items-center gap-2 px-3 py-3 rounded-2xl bg-[#14151b] border border-zinc-800/80 text-white font-mono text-xs sm:text-sm shrink-0">
                   <button
@@ -7126,6 +7456,14 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
               </div>
 
               {/* Section 3: Bottom Action Bar matching Screenshot 1 */}
+              {notice && (
+                <div className={`flex items-start gap-2 px-3.5 py-2.5 rounded-xl border text-xs my-2 ${noticeStyles[notice.type]}`}>
+                  <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                  <span className="flex-1 font-medium">{notice.text}</span>
+                  <button type="button" onClick={() => setNotice(null)}><X className="w-4 h-4" /></button>
+                </div>
+              )}
+
               <div className="flex items-center gap-2 pt-1">
                 {/* Angle Count Stepper */}
                 <div className="flex items-center justify-between px-3.5 py-2.5 rounded-2xl bg-[#14151b] border border-zinc-800/80 gap-3">
@@ -7164,6 +7502,446 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
               </div>
             </div>
           )}
+
+          {/* SKIN RETOUCH WORKSPACE (Fal.ai FLUX.2 & OpenRouter Studio) */}
+          {activeTool === 'skin-retouch' && (
+            <div className="space-y-4">
+              <input
+                ref={retouchInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={e => {
+                  const f = e.target.files?.[0];
+                  if (f) {
+                    const r = new FileReader();
+                    r.onload = ev => { if (ev.target?.result) setRetouchTargetImage(ev.target.result as string); };
+                    r.readAsDataURL(f);
+                  }
+                  e.target.value = '';
+                }}
+              />
+
+              {/* Upload Dropzone */}
+              <div
+                onClick={() => retouchInputRef.current?.click()}
+                className="rounded-2xl border-2 border-dashed border-zinc-700/80 hover:border-pink-500/80 bg-[#14151b] p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all group min-h-[180px] relative overflow-hidden"
+              >
+                {retouchTargetImage ? (
+                  <div className="relative group/preview flex flex-col items-center">
+                    <img src={retouchTargetImage} alt="Portrait subject" className="max-h-56 rounded-xl object-contain shadow-2xl border border-zinc-700" />
+                    <button
+                      type="button"
+                      onClick={e => { e.stopPropagation(); setRetouchTargetImage(null); }}
+                      className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm flex items-center justify-center cursor-pointer shadow-lg"
+                    >
+                      ×
+                    </button>
+                    <span className="text-xs text-zinc-400 mt-2 font-medium">Click or drag to replace portrait</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="w-12 h-12 rounded-2xl bg-pink-500/10 border border-pink-500/20 text-pink-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform text-2xl">
+                      ✨
+                    </div>
+                    <p className="text-sm font-semibold text-zinc-200">Upload Portrait for AI Skin Retouch</p>
+                    <p className="text-xs text-zinc-500 mt-1 max-w-xs">
+                      Natural micro-pores preservation, blemishes smoothing & glow tone correction
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {/* Retouch Intensity Selection */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-white">Retouch Intensity</label>
+                  <span className="text-[10px] font-mono text-pink-400 font-semibold capitalize">{retouchIntensity}</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['subtle', 'moderate', 'high'] as const).map(lvl => (
+                    <button
+                      key={lvl}
+                      type="button"
+                      onClick={() => setRetouchIntensity(lvl)}
+                      className={`py-2 px-3 rounded-xl text-xs font-semibold capitalize border transition-all cursor-pointer ${
+                        retouchIntensity === lvl
+                          ? 'bg-[#2a2f3a] border-pink-500 text-white shadow-md'
+                          : 'bg-[#181a20] border-zinc-800 text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      {lvl === 'subtle' ? '🌿 Subtle Natural' : lvl === 'moderate' ? '✨ Balanced Studio' : '💎 High Glamour'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Enhancement Options */}
+              <div className="rounded-2xl border border-zinc-800/80 bg-[#14151b] p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-bold text-white block">Preserve Natural Texture</span>
+                    <span className="text-[10px] text-zinc-400">Keeps natural skin micro-pores without plastic blur</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={retouchPreserveTexture}
+                    onChange={e => setRetouchPreserveTexture(e.target.checked)}
+                    className="w-4 h-4 accent-pink-500 rounded cursor-pointer"
+                  />
+                </div>
+                <div className="flex items-center justify-between pt-2 border-t border-zinc-800">
+                  <div>
+                    <span className="text-xs font-bold text-white block">Anti-Blemish & Even Tone</span>
+                    <span className="text-[10px] text-zinc-400">Cleans acne, redness and under-eye discoloration</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={retouchAntiBlemish}
+                    onChange={e => setRetouchAntiBlemish(e.target.checked)}
+                    className="w-4 h-4 accent-pink-500 rounded cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              {/* Custom Prompt / Notes */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-zinc-300">Custom Retouch Notes (Optional)</label>
+                <input
+                  type="text"
+                  value={retouchCustomPrompt}
+                  onChange={e => setRetouchCustomPrompt(e.target.value)}
+                  placeholder="e.g. glass skin glow, soften forehead lines, maintain freckles"
+                  className="w-full bg-[#14151b] border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-pink-500"
+                />
+              </div>
+
+              {/* Action Button */}
+              <button
+                type="button"
+                onClick={handleSkinRetouchGenerate}
+                disabled={isGenerating}
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#d91276] via-[#ff2477] to-[#d91276] hover:brightness-110 text-white font-extrabold text-sm sm:text-base shadow-xl shadow-pink-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] disabled:opacity-50"
+              >
+                {isGenerating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
+                <span>{isGenerating ? 'Retouching Skin with Fal.ai FLUX...' : 'Apply Skin Retouch ✨ 15'}</span>
+              </button>
+            </div>
+          )}
+
+          {/* VIRTUAL MAKEUP WORKSPACE (Fal.ai FLUX.2 & OpenRouter Studio) */}
+          {activeTool === 'virtual-makeup' && (
+            <div className="space-y-4">
+              <input
+                ref={makeupInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={e => {
+                  const f = e.target.files?.[0];
+                  if (f) {
+                    const r = new FileReader();
+                    r.onload = ev => { if (ev.target?.result) setMakeupTargetImage(ev.target.result as string); };
+                    r.readAsDataURL(f);
+                  }
+                  e.target.value = '';
+                }}
+              />
+
+              {/* Upload Dropzone */}
+              <div
+                onClick={() => makeupInputRef.current?.click()}
+                className="rounded-2xl border-2 border-dashed border-zinc-700/80 hover:border-pink-500/80 bg-[#14151b] p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all group min-h-[180px] relative overflow-hidden"
+              >
+                {makeupTargetImage ? (
+                  <div className="relative group/preview flex flex-col items-center">
+                    <img src={makeupTargetImage} alt="Portrait subject" className="max-h-56 rounded-xl object-contain shadow-2xl border border-zinc-700" />
+                    <button
+                      type="button"
+                      onClick={e => { e.stopPropagation(); setMakeupTargetImage(null); }}
+                      className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm flex items-center justify-center cursor-pointer shadow-lg"
+                    >
+                      ×
+                    </button>
+                    <span className="text-xs text-zinc-400 mt-2 font-medium">Click or drag to replace portrait</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="w-12 h-12 rounded-2xl bg-pink-500/10 border border-pink-500/20 text-pink-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform text-2xl">
+                      💄
+                    </div>
+                    <p className="text-sm font-semibold text-zinc-200">Upload Portrait for Virtual Makeup</p>
+                    <p className="text-xs text-zinc-500 mt-1 max-w-xs">
+                      Photorealistic lipstick, eyeliner, contour, blush & foundation styling
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {/* Makeup Style Selection */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-white">Makeup Aesthetic Style</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: 'natural', label: '🌸 Natural Fresh' },
+                    { id: 'glam', label: '✨ Red Carpet Glam' },
+                    { id: 'korean_glass', label: '💎 Korean Glass' },
+                    { id: 'bridal', label: '👑 Royal Bridal' },
+                    { id: 'smokey', label: '🖤 Smokey Evening' },
+                    { id: 'editorial', label: '🎨 High Editorial' },
+                  ].map(s => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => setMakeupStyle(s.id)}
+                      className={`py-2 px-2 rounded-xl text-xs font-medium border text-center transition-all cursor-pointer ${
+                        makeupStyle === s.id
+                          ? 'bg-[#2a2f3a] border-pink-500 text-white shadow-md'
+                          : 'bg-[#181a20] border-zinc-800 text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Lipstick Color Selection */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-white">Lipstick Shade</label>
+                  <span className="text-[10px] font-mono text-pink-400 font-semibold">{makeupLipstick.replace('_', ' ')}</span>
+                </div>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                  {[
+                    { id: 'ruby_red', label: 'Ruby Red', color: '#b91c1c' },
+                    { id: 'nude_pink', label: 'Nude Pink', color: '#db2777' },
+                    { id: 'coral', label: 'Coral Peach', color: '#f97316' },
+                    { id: 'berry', label: 'Rich Berry', color: '#831843' },
+                    { id: 'peach', label: 'Soft Peach', color: '#fda4af' },
+                    { id: 'deep_plum', label: 'Deep Plum', color: '#4c0519' },
+                  ].map(c => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setMakeupLipstick(c.id)}
+                      className={`p-2 rounded-xl flex flex-col items-center gap-1 border transition-all cursor-pointer ${
+                        makeupLipstick === c.id
+                          ? 'bg-[#2a2f3a] border-pink-500 text-white'
+                          : 'bg-[#181a20] border-zinc-800 text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      <span className="w-4 h-4 rounded-full border border-white/20 shadow-sm" style={{ backgroundColor: c.color }} />
+                      <span className="text-[10px] font-medium truncate w-full text-center">{c.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Foundation Finish */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-white">Foundation Finish</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['dewy', 'matte', 'satin'] as const).map(fin => (
+                    <button
+                      key={fin}
+                      type="button"
+                      onClick={() => setMakeupFoundation(fin)}
+                      className={`py-2 px-3 rounded-xl text-xs font-semibold capitalize border transition-all cursor-pointer ${
+                        makeupFoundation === fin
+                          ? 'bg-[#2a2f3a] border-pink-500 text-white shadow-md'
+                          : 'bg-[#181a20] border-zinc-800 text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      {fin === 'dewy' ? '💧 Dewy Glow' : fin === 'matte' ? '🌫️ Velvet Matte' : '✨ Silky Satin'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Custom Prompt */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-zinc-300">Custom Cosmetics Detail (Optional)</label>
+                <input
+                  type="text"
+                  value={makeupCustomPrompt}
+                  onChange={e => setMakeupCustomPrompt(e.target.value)}
+                  placeholder="e.g. winged eyeliner, champagne gold highlighter on cheekbones"
+                  className="w-full bg-[#14151b] border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-pink-500"
+                />
+              </div>
+
+              {/* Action Button */}
+              <button
+                type="button"
+                onClick={handleVirtualMakeupGenerate}
+                disabled={isGenerating}
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#d91276] via-[#ff2477] to-[#d91276] hover:brightness-110 text-white font-extrabold text-sm sm:text-base shadow-xl shadow-pink-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] disabled:opacity-50"
+              >
+                {isGenerating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
+                <span>{isGenerating ? 'Applying Cosmetics with Fal.ai FLUX...' : 'Apply Virtual Makeup 💄 20'}</span>
+              </button>
+            </div>
+          )}
+
+          {/* HAIR TRANSFORMATION WORKSPACE (Fal.ai FLUX.2 & OpenRouter Studio) */}
+          {activeTool === 'hair-transform' && (
+            <div className="space-y-4">
+              <input
+                ref={hairInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={e => {
+                  const f = e.target.files?.[0];
+                  if (f) {
+                    const r = new FileReader();
+                    r.onload = ev => { if (ev.target?.result) setHairTargetImage(ev.target.result as string); };
+                    r.readAsDataURL(f);
+                  }
+                  e.target.value = '';
+                }}
+              />
+
+              {/* Upload Dropzone */}
+              <div
+                onClick={() => hairInputRef.current?.click()}
+                className="rounded-2xl border-2 border-dashed border-zinc-700/80 hover:border-pink-500/80 bg-[#14151b] p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all group min-h-[180px] relative overflow-hidden"
+              >
+                {hairTargetImage ? (
+                  <div className="relative group/preview flex flex-col items-center">
+                    <img src={hairTargetImage} alt="Portrait subject" className="max-h-56 rounded-xl object-contain shadow-2xl border border-zinc-700" />
+                    <button
+                      type="button"
+                      onClick={e => { e.stopPropagation(); setHairTargetImage(null); }}
+                      className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm flex items-center justify-center cursor-pointer shadow-lg"
+                    >
+                      ×
+                    </button>
+                    <span className="text-xs text-zinc-400 mt-2 font-medium">Click or drag to replace portrait</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="w-12 h-12 rounded-2xl bg-pink-500/10 border border-pink-500/20 text-pink-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform text-2xl">
+                      💇‍♀️
+                    </div>
+                    <p className="text-sm font-semibold text-zinc-200">Upload Portrait for Hair Transformation</p>
+                    <p className="text-xs text-zinc-500 mt-1 max-w-xs">
+                      Hairstyle redesign, traditional Burmese Sadon, curls, bangs & vibrant hair dyes
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {/* Hairstyle Selection */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-white">Target Hairstyle</label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { id: 'traditional_burmese_sadon', label: '🇲🇲 Burmese Sadon' },
+                    { id: 'long_wavy', label: '🌊 Long Wavy' },
+                    { id: 'sleek_bob', label: '✂️ Sleek Bob' },
+                    { id: 'curly_afro', label: '🌀 Voluminous Curls' },
+                    { id: 'pixie_cut', label: '⚡ Chic Pixie' },
+                    { id: 'curtain_bangs', label: '💇 Curtain Bangs' },
+                    { id: 'high_ponytail', label: '🎀 High Ponytail' },
+                    { id: 'braids', label: '👑 Intricate Braids' },
+                  ].map(h => (
+                    <button
+                      key={h.id}
+                      type="button"
+                      onClick={() => setHairStyle(h.id)}
+                      className={`py-2 px-2 rounded-xl text-xs font-medium border text-center transition-all cursor-pointer ${
+                        hairStyle === h.id
+                          ? 'bg-[#2a2f3a] border-pink-500 text-white shadow-md'
+                          : 'bg-[#181a20] border-zinc-800 text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      {h.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Hair Color Selection */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-white">Hair Color / Dye</label>
+                  <span className="text-[10px] font-mono text-pink-400 font-semibold">{hairColor.replace('_', ' ')}</span>
+                </div>
+                <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+                  {[
+                    { id: 'jet_black', label: 'Jet Black', color: '#171717' },
+                    { id: 'dark_brown', label: 'Espresso', color: '#451a03' },
+                    { id: 'honey_blonde', label: 'Honey Blonde', color: '#f59e0b' },
+                    { id: 'burgundy_wine', label: 'Burgundy', color: '#881337' },
+                    { id: 'ash_platinum', label: 'Platinum', color: '#e2e8f0' },
+                    { id: 'pastel_pink', label: 'Pastel Pink', color: '#f472b6' },
+                    { id: 'rose_gold', label: 'Rose Gold', color: '#fb7185' },
+                    { id: 'emerald_green', label: 'Emerald', color: '#047857' },
+                  ].map(c => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setHairColor(c.id)}
+                      className={`p-2 rounded-xl flex flex-col items-center gap-1 border transition-all cursor-pointer ${
+                        hairColor === c.id
+                          ? 'bg-[#2a2f3a] border-pink-500 text-white'
+                          : 'bg-[#181a20] border-zinc-800 text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      <span className="w-4 h-4 rounded-full border border-white/20 shadow-sm" style={{ backgroundColor: c.color }} />
+                      <span className="text-[9px] font-medium truncate w-full text-center">{c.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Hair Length Selection */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-white">Hair Length</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {(['short', 'medium', 'long', 'extra_long'] as const).map(len => (
+                    <button
+                      key={len}
+                      type="button"
+                      onClick={() => setHairLength(len)}
+                      className={`py-2 px-1 rounded-xl text-xs font-semibold capitalize border transition-all cursor-pointer ${
+                        hairLength === len
+                          ? 'bg-[#2a2f3a] border-pink-500 text-white shadow-md'
+                          : 'bg-[#181a20] border-zinc-800 text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      {len.replace('_', ' ')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Custom Prompt */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-zinc-300">Custom Hairstyle Description (Optional)</label>
+                <input
+                  type="text"
+                  value={hairCustomPrompt}
+                  onChange={e => setHairCustomPrompt(e.target.value)}
+                  placeholder="e.g. Jasmine flower garland around Burmese Sadon, balayage highlights"
+                  className="w-full bg-[#14151b] border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-pink-500"
+                />
+              </div>
+
+              {/* Action Button */}
+              <button
+                type="button"
+                onClick={handleHairTransformGenerate}
+                disabled={isGenerating}
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#d91276] via-[#ff2477] to-[#d91276] hover:brightness-110 text-white font-extrabold text-sm sm:text-base shadow-xl shadow-pink-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] disabled:opacity-50"
+              >
+                {isGenerating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
+                <span>{isGenerating ? 'Transforming Hair with Fal.ai FLUX...' : 'Transform Hair 💇‍♀️ 25'}</span>
+              </button>
+            </div>
+          )}
         </section>
 
 {/* ---------- RIGHT: RESULTS & INTEGRATED LIBRARY ---------- */}
@@ -7194,8 +7972,8 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
             </div>
           )}
 
-          {/* Studio Section Tabs (Hidden on mobile version; all buttons & tags moved inside Menu Bar) */}
-          <div className="hidden lg:flex items-center justify-between border-b border-zinc-800/80 pb-2 gap-2 flex-wrap">
+          {/* Studio Section Tabs (Matching Reference Screenshot) */}
+          <div className="hidden lg:flex items-center justify-between border-b border-zinc-800/80 pb-2.5 gap-2 flex-wrap">
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 type="button"
@@ -7203,19 +7981,19 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
                   setActiveMainTab('current');
                   setMobileTab('outputs');
                 }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
                   activeMainTab === 'current'
-                    ? 'bg-zinc-800 text-pink-300 border border-pink-500/40 shadow-sm'
+                    ? 'bg-zinc-800 text-white border border-zinc-700 shadow-sm'
                     : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
-                <Zap className="w-4 h-4 text-pink-400" />
+                <Zap className="w-3.5 h-3.5 text-zinc-300" />
                 <span>Live Outputs</span>
-                {results.length > 0 && (
-                  <span className="px-1.5 py-0.5 rounded-full bg-pink-500/20 text-[10px] text-pink-300 font-mono">
-                    {results.length}
-                  </span>
-                )}
+                <span className={`px-2 py-0.5 rounded-full text-[11px] font-mono ${
+                  activeMainTab === 'current' ? 'bg-zinc-900 text-zinc-300' : 'bg-zinc-800/60 text-zinc-400'
+                }`}>
+                  {results.length}
+                </span>
               </button>
 
               <button
@@ -7224,57 +8002,35 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
                   setActiveMainTab('library');
                   setMobileTab('library');
                 }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
                   activeMainTab === 'library'
-                    ? 'bg-zinc-800 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                    ? 'bg-zinc-800 text-white border border-zinc-700 shadow-sm'
                     : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
-                <FolderOpen className="w-4 h-4 text-cyan-400" />
+                <FolderOpen className="w-3.5 h-3.5 text-zinc-300" />
                 <span>Studio Library</span>
-                <span className="px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-[10px] text-cyan-300 font-mono">
+                <span className={`px-2 py-0.5 rounded-full text-[11px] font-mono ${
+                  activeMainTab === 'library' ? 'bg-zinc-900 text-zinc-300' : 'bg-zinc-800/60 text-zinc-400'
+                }`}>
                   {libraryItems.length}
                 </span>
               </button>
-
-              {/* 🏠 Back to Menu Quick Button */}
-              {onBackToPortal && (
-                <button
-                  type="button"
-                  onClick={onBackToPortal}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white text-xs sm:text-sm font-semibold transition-colors cursor-pointer"
-                  title="Back to Menu / 3 Sections Hub"
-                >
-                  <Home className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Back to Menu</span>
-                </button>
-              )}
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Cloud Sync Status / Button */}
-              {SupabaseService.getSession()?.user ? (
-                <button
-                  type="button"
-                  onClick={() => syncWithSupabaseCloud(true)}
-                  disabled={isCloudSyncing}
-                  title="Supabase Cloud တွင် သိမ်းထားသော ဓာတ်ပုံများနှင့် ပြန်လည်ချိန်ညှိရန်"
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-medium transition-colors"
-                >
-                  <Cloud className={`w-3.5 h-3.5 ${isCloudSyncing ? 'animate-pulse text-amber-400' : 'text-emerald-400'}`} />
-                  <span className="hidden sm:inline">{isCloudSyncing ? 'Syncing...' : 'Cloud Synced'}</span>
-                  <RefreshCw className={`w-3 h-3 text-emerald-400/80 ${isCloudSyncing ? 'animate-spin' : ''}`} />
-                </button>
-              ) : (
-                <div
-                  title="ဓာတ်ပုံများကို အကောင့်ထဲတွင် အမြဲသိမ်းဆည်းထားနိုင်ရန် Login ဝင်ပါ"
-                  className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-800/80 border border-zinc-700/60 text-zinc-400 text-xs"
-                >
-                  <Cloud className="w-3.5 h-3.5 text-zinc-500" />
-                  <span>Device Storage</span>
-                </div>
-              )}
-
+              {/* Cloud Sync Status / Button (Emerald Mint Theme) */}
+              <button
+                type="button"
+                onClick={() => syncWithSupabaseCloud(true)}
+                disabled={isCloudSyncing}
+                title="Sync gallery with Cloud"
+                className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-semibold transition-colors cursor-pointer"
+              >
+                <Cloud className={`w-3.5 h-3.5 ${isCloudSyncing ? 'animate-pulse text-amber-400' : 'text-emerald-400'}`} />
+                <span>{isCloudSyncing ? 'Syncing...' : 'Cloud Synced'}</span>
+                <RefreshCw className={`w-3 h-3 text-emerald-400/80 ${isCloudSyncing ? 'animate-spin' : ''}`} />
+              </button>
             </div>
           </div>
 
@@ -7282,14 +8038,14 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
           {activeMainTab === 'current' && (
             <div className="space-y-4">
               {isGenerating && (
-                <div className={`grid gap-3 ${count > 1 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+                <div className={`grid gap-3.5 ${count > 1 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
                   {Array.from({ length: count }).map((_, i) => (
                     <div
                       key={i}
-                      className="rounded-2xl bg-zinc-900/80 border border-zinc-800 animate-pulse flex flex-col items-center justify-center p-6 gap-2"
+                      className="rounded-2xl bg-[#10141d] border border-zinc-800 animate-pulse flex flex-col items-center justify-center p-6 gap-2"
                       style={{ aspectRatio: ratio.replace(':', ' / ') }}
                     >
-                      <Loader2 className="w-8 h-8 text-pink-400 animate-spin" />
+                      <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
                       <span className="text-xs font-mono text-zinc-400">Rendering high-res photo…</span>
                     </div>
                   ))}
@@ -7298,10 +8054,12 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
 
               {results.length > 0 ? (
                 <div className="space-y-4">
+                  {/* Secondary Toolbar: Session count, Auto-saved, Clear Results, View Mode Switcher */}
                   <div className="flex items-center justify-between text-xs text-zinc-400 px-1 flex-wrap gap-2">
                     <div className="flex items-center gap-2">
-                      <span>Generated in this session ({results.length}):</span>
-                      <span className="text-[11px] text-emerald-400 flex items-center gap-1">
+                      <span>Generated in this session ({results.length})</span>
+                      <span className="text-zinc-600">•</span>
+                      <span className="text-[11px] text-emerald-400 flex items-center gap-1 font-medium">
                         <Bookmark className="w-3 h-3" /> Auto-saved
                       </span>
                     </div>
@@ -7310,61 +8068,113 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
                       <button
                         type="button"
                         onClick={handleClearAllResults}
-                        className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-zinc-800/80 hover:bg-rose-950/40 border border-zinc-700/80 hover:border-rose-500/40 text-zinc-400 hover:text-rose-300 text-xs font-semibold transition-all shadow-sm active:scale-95 cursor-pointer"
-                        title="ရလဒ် ဓာတ်ပုံများအားလုံး ရှင်းလင်းရန်"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white text-xs font-medium transition-all cursor-pointer shadow-xs active:scale-95"
+                        title="Clear current results"
                       >
-                        <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                        <Trash2 className="w-3.5 h-3.5 text-zinc-400" />
                         <span>Clear Results</span>
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={() => handleDownloadAllToDevice(results)}
-                        disabled={isDownloadingAll || results.length === 0}
-                        className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-pink-500/15 hover:bg-pink-500/25 border border-pink-500/30 text-pink-300 text-xs font-semibold transition-all shadow-sm active:scale-95 disabled:opacity-50 cursor-pointer"
-                        title="လက်ရှိ ဓာတ်ပုံအားလုံးကို မိမိကွန်ပျူတာ/ဖုန်းထဲသို့ ဒေါင်းလုဒ်သိမ်းဆည်းရန်"
-                      >
-                        {isDownloadingAll ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin text-pink-400" />
-                        ) : (
-                          <Download className="w-3.5 h-3.5 text-pink-400" />
-                        )}
-                        <span>{isDownloadingAll ? 'စက်ထဲသိမ်းဆည်းနေပါသည်…' : 'မိမိစက်ထဲသို့ အားလုံးသိမ်းမည်'}</span>
-                      </button>
+                      {/* View Switcher: Grid vs Compact List (Matches Screenshot) */}
+                      <div className="flex items-center rounded-xl bg-zinc-900 border border-zinc-800 p-0.5">
+                        <button
+                          type="button"
+                          onClick={() => setGalleryViewMode('grid')}
+                          className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                            galleryViewMode === 'grid' ? 'bg-zinc-800 text-white shadow-xs' : 'text-zinc-500 hover:text-zinc-300'
+                          }`}
+                          title="Grid View (3 Columns)"
+                        >
+                          <Grid className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setGalleryViewMode('compact')}
+                          className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                            galleryViewMode === 'compact' ? 'bg-zinc-800 text-white shadow-xs' : 'text-zinc-500 hover:text-zinc-300'
+                          }`}
+                          title="Compact View"
+                        >
+                          <List className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="grid gap-3 sm:gap-4 grid-cols-2 md:grid-cols-2 xl:grid-cols-3">
+                  {/* Symmetrical 3-Column Image Gallery Grid (Matches Reference Screenshot) */}
+                  <div className={`grid gap-4 sm:gap-4.5 ${
+                    galleryViewMode === 'grid'
+                      ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+                      : 'grid-cols-1 sm:grid-cols-2'
+                  }`}>
                     {results.map(img => {
                       return (
                         <div
                           key={img.id}
-                          onClick={() => {
-                            const match = libraryItems.find(l => l.id === img.id) || {
-                              id: img.id,
-                              url: img.url,
-                              prompt: img.prompt,
-                              provider: img.provider,
-                              ratio: img.ratio,
-                              resolutionTier: img.resolutionTier || resolutionTier,
-                              resolutionDimensions: img.resolutionDimensions || currentResString,
-                              folder: targetFolder,
-                              createdAt: Date.now()
-                            };
-                            setLightboxItem(match);
-                          }}
-                          className="group relative rounded-2xl overflow-hidden bg-[#12141c] border border-zinc-800/80 hover:border-pink-500/80 transition-all duration-300 cursor-pointer shadow-lg hover:shadow-pink-500/15"
+                          className="group relative rounded-2xl overflow-hidden bg-[#10141d] border border-zinc-800/80 hover:border-zinc-700 transition-all duration-300 cursor-pointer shadow-lg"
                         >
                           <div
+                            onClick={() => {
+                              const match = libraryItems.find(l => l.id === img.id) || {
+                                id: img.id,
+                                url: img.url,
+                                prompt: img.prompt,
+                                provider: img.provider,
+                                ratio: img.ratio,
+                                resolutionTier: img.resolutionTier || resolutionTier,
+                                resolutionDimensions: img.resolutionDimensions || currentResString,
+                                folder: targetFolder,
+                                createdAt: Date.now()
+                              };
+                              setLightboxItem(match);
+                            }}
                             className="relative w-full bg-black/40 overflow-hidden"
-                            style={{ aspectRatio: img.ratio ? img.ratio.replace(':', ' / ') : '1 / 1' }}
+                            style={{ aspectRatio: img.ratio ? img.ratio.replace(':', ' / ') : '4 / 5' }}
                           >
                             <img
                               src={img.url}
                               alt={img.prompt || 'Generated photo'}
                               loading="lazy"
-                              className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300"
+                              className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
                             />
+                          </div>
+
+                          {/* Floating Bottom Action Buttons: Download [⬇] and More [···] (Matches Reference) */}
+                          <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex items-center justify-between pointer-events-none opacity-90 group-hover:opacity-100 transition-opacity">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                downloadImage(img.url, img.id, img.ratio, img.resolutionTier || resolutionTier);
+                              }}
+                              className="w-8 h-8 rounded-full bg-black/60 hover:bg-black/90 backdrop-blur-md border border-white/10 text-white flex items-center justify-center transition-all cursor-pointer pointer-events-auto hover:scale-105 active:scale-95 shadow-md"
+                              title="Download to device"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const match = libraryItems.find(l => l.id === img.id) || {
+                                  id: img.id,
+                                  url: img.url,
+                                  prompt: img.prompt,
+                                  provider: img.provider,
+                                  ratio: img.ratio,
+                                  resolutionTier: img.resolutionTier || resolutionTier,
+                                  resolutionDimensions: img.resolutionDimensions || currentResString,
+                                  folder: targetFolder,
+                                  createdAt: Date.now()
+                                };
+                                setLightboxItem(match);
+                              }}
+                              className="w-8 h-8 rounded-full bg-black/60 hover:bg-black/90 backdrop-blur-md border border-white/10 text-white flex items-center justify-center transition-all cursor-pointer pointer-events-auto hover:scale-105 active:scale-95 shadow-md"
+                              title="More options"
+                            >
+                              <MoreHorizontal className="w-4 h-4" />
+                            </button>
                           </div>
                         </div>
                       );
@@ -7586,7 +8396,7 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
               <button
                 type="button"
                 onClick={() => onSendToMatrix(prompt)}
-                className="text-xs text-zinc-500 hover:text-pink-300 underline underline-offset-2"
+                className="text-xs text-zinc-500 hover:text-emerald-400 underline underline-offset-2 transition-colors cursor-pointer"
               >
                 Send prompt to Prompt Matrix
               </button>
@@ -7594,6 +8404,19 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
           )}
         </section>
       </main>
+
+      {/* ========== FOOTER (Matching Reference Screenshot) ========== */}
+      <footer className="w-full border-t border-zinc-800/80 mt-12 py-6 text-xs text-zinc-500">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p>© 2025 SHOW AI. All rights reserved.</p>
+          <div className="flex items-center gap-6">
+            <a href="#" className="hover:text-zinc-300 transition-colors">Terms of Service</a>
+            <a href="#" className="hover:text-zinc-300 transition-colors">Privacy Policy</a>
+            <a href="#" className="hover:text-zinc-300 transition-colors">Community Guidelines</a>
+            <a href="#" className="hover:text-zinc-300 transition-colors">Contact</a>
+          </div>
+        </div>
+      </footer>
 
       {/* ========== MULTI-SCREEN PHOTO INSPECTOR & STUDIO FUNCTIONS MODAL ========== */}
       {lightboxItem && (

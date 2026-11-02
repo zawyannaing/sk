@@ -174,51 +174,214 @@ export const EVENT_OPTIONS: EventOption[] = [
   { id: 'other', emoji: '✏️', labelMm: '၃၁။ အခြား ကိုယ်ပိုင် ပွဲတော် (Other Custom Event)', labelEn: '31. Custom Special Event', category: 'lifestyle' },
 ];
 
+export const LOCATION_REFERENCE_MAP: Record<string, { url: string; name: string }> = {
+  shwedagon_pagoda: {
+    url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1200&q=85',
+    name: 'Shwedagon Pagoda Platform & Golden Stupa'
+  },
+  bagan_temples: {
+    url: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1200&q=85',
+    name: 'Bagan Ancient Terracotta Temples'
+  },
+  bagan_pagoda: {
+    url: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1200&q=85',
+    name: 'Bagan Ancient Terracotta Pagodas'
+  },
+  inle_lake: {
+    url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=85',
+    name: 'Inle Lake Water Pavilion & Shan Mountains'
+  },
+  mandalay_moat: {
+    url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=1200&q=85',
+    name: 'Mandalay Palace Moat & Fortress Wall'
+  },
+  konbaung_palace_interior: {
+    url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=1200&q=85',
+    name: 'Royal Konbaung Golden Palace Throne Hall'
+  },
+  mandalay_palace: {
+    url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=1200&q=85',
+    name: 'Mandalay Royal Palace Pavilion'
+  },
+  sagaing_hill: {
+    url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=1200&q=85',
+    name: 'Sagaing Hills U Min Thonze Stupas'
+  },
+  kalaw_pindaya: {
+    url: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1200&q=85',
+    name: 'Kalaw Pine Groves & Pindaya Caves'
+  },
+  pyinoolwin_garden: {
+    url: 'https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?auto=format&fit=crop&w=1200&q=85',
+    name: 'Pyin Oo Lwin National Kandawgyi Garden'
+  },
+  ngapali_beach: {
+    url: 'https://images.unsplash.com/photo-1544077960-604201fe74bc?auto=format&fit=crop&w=1200&q=85',
+    name: 'Ngapali White Sand Tropical Coast'
+  },
+  myeik_islands: {
+    url: 'https://images.unsplash.com/photo-1544077960-604201fe74bc?auto=format&fit=crop&w=1200&q=85',
+    name: 'Myeik Archipelago Turquoise Waters'
+  },
+  taunggyi_balloon_field: {
+    url: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1200&q=85',
+    name: 'Taunggyi Tazaungdaing Balloon Festival'
+  },
+  chin_mountains: {
+    url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=85',
+    name: 'Chin Hills Mount Victoria & Mist'
+  },
+  kyaiktiyo_golden_rock: {
+    url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1200&q=85',
+    name: 'Kyaiktiyo Golden Rock Cliff Sanctuary'
+  },
+  riverside_sunset: {
+    url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=85',
+    name: 'Ayeyarwady Riverbank Jetty at Sunset'
+  },
+  monastery_temple_hall: {
+    url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1200&q=85',
+    name: 'Traditional Teakwood Monastery Dhamma Hall'
+  },
+  ubein_bridge: {
+    url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=85',
+    name: 'U Bein Teak Bridge Taungthaman Lake'
+  },
+  amarapura_teak_bridge: {
+    url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=85',
+    name: 'Amarapura U Bein Teak Bridge'
+  },
+  mrauk_u_temples: {
+    url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1200&q=85',
+    name: 'Mrauk-U Shittaung Fortress Sanctuary'
+  },
+  paris_eiffel_tower: {
+    url: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1200&q=85',
+    name: 'Paris Eiffel Tower & Seine River'
+  },
+  santorini_greece: {
+    url: 'https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?auto=format&fit=crop&w=1200&q=85',
+    name: 'Santorini Caldera & Blue Domes'
+  },
+  kyoto_bamboo_torii: {
+    url: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=1200&q=85',
+    name: 'Kyoto Bamboo Grove & Torii Path'
+  },
+  swiss_alps_snow: {
+    url: 'https://images.unsplash.com/photo-1530122037265-a5f1f91d3b99?auto=format&fit=crop&w=1200&q=85',
+    name: 'Swiss Alps Snowy Peaks & Glacial Lake'
+  },
+  venice_gondola_canal: {
+    url: 'https://images.unsplash.com/photo-1514890547357-a9ee288728e0?auto=format&fit=crop&w=1200&q=85',
+    name: 'Venice Grand Canal & Gondolas'
+  },
+  taj_mahal_palace: {
+    url: 'https://images.unsplash.com/photo-1564507592333-c60657eea523?auto=format&fit=crop&w=1200&q=85',
+    name: 'Taj Mahal Monumental Grounds'
+  },
+  bali_jungle_swing: {
+    url: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=1200&q=85',
+    name: 'Bali Ubud Rice Terraces & Jungle Canopy'
+  },
+  maldives_overwater: {
+    url: 'https://images.unsplash.com/photo-1514282401047-d79a71a590e8?auto=format&fit=crop&w=1200&q=85',
+    name: 'Maldives Overwater Bungalow & Lagoon'
+  },
+  cappadocia_balloons: {
+    url: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=85',
+    name: 'Cappadocia Fairy Chimneys & Hot Air Balloons'
+  },
+  ny_central_park: {
+    url: 'https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?auto=format&fit=crop&w=1200&q=85',
+    name: 'New York Central Park Bow Bridge & Skyline'
+  },
+  plain_studio: {
+    url: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=1200&q=85',
+    name: 'Minimalist Plain Cyclorama Studio'
+  },
+  wood_brick_studio: {
+    url: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=1200&q=85',
+    name: 'Modern Industrial Brick & Wood Studio'
+  },
+  luxury_hotel_ballroom: {
+    url: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=85',
+    name: 'Luxury Hotel Grand Ballroom'
+  },
+  cafe_interior: {
+    url: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=1200&q=85',
+    name: 'Aesthetic Modern Cafe Interior'
+  },
+  traditional_myanmar_house: {
+    url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1200&q=85',
+    name: 'Traditional Myanmar Teak House'
+  },
+  golden_hour_paddy_field: {
+    url: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1200&q=85',
+    name: 'Golden Hour Harvest Paddy Field'
+  },
+  lush_forest_stream: {
+    url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1200&q=85',
+    name: 'Lush Forest Waterfall & Mountain Stream'
+  },
+  cherry_blossom_garden: {
+    url: 'https://images.unsplash.com/photo-1522383225653-ed111181a951?auto=format&fit=crop&w=1200&q=85',
+    name: 'Cherry Blossom Spring Flower Garden'
+  },
+  modern_city_street: {
+    url: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=85',
+    name: 'Modern City Street & Architecture'
+  },
+  neon_city_night: {
+    url: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=1200&q=85',
+    name: 'Cyberpunk Neon City Nightscape'
+  }
+};
+
 export const LOCATION_OPTIONS: LocationOption[] = [
   { id: 'skip', emoji: '🚫', labelMm: '🚫 မရွေးပါ (မူလ တည်နေရာ)', labelEn: '🚫 Skip / Default Location', environmentType: 'studio', category: 'indoor_studio' },
   
   // မြန်မာ့ ထင်ရှားသော နေရာများ (Myanmar Iconic Locations - 1 to 15)
-  { id: 'shwedagon_pagoda', emoji: '🛕', labelMm: '၁။ ရွှေတိဂုံ စေတီတော် ရင်ပြင်တော် (Shwedagon Pagoda Platform)', labelEn: '1. Shwedagon Pagoda Platform', environmentType: 'outdoor', category: 'myanmar' },
-  { id: 'bagan_temples', emoji: '🌅', labelMm: '၂။ ပုဂံ ရှေးဟောင်း စေတီပုထိုးများနှင့် နေဝင်ချိန် (Bagan Ancient Temples & Sunset)', labelEn: '2. Bagan Ancient Temples & Sunset', environmentType: 'outdoor', category: 'myanmar' },
-  { id: 'inle_lake', emoji: '🛶', labelMm: '၃။ အင်းလေးကန် ရေပြင်နှင့် ဖောင်တော်ဦး ဘုရား (Inle Lake Scenic Waters & Phaung Daw Oo)', labelEn: '3. Inle Lake & Phaung Daw Oo', environmentType: 'outdoor', category: 'myanmar' },
-  { id: 'mandalay_moat', emoji: '🏰', labelMm: '၄။ မန္တလေး ကျုံးနှင့် နန်းမြို့ရိုး (Mandalay Palace Moat & Wall)', labelEn: '4. Mandalay Palace Moat & Wall', environmentType: 'outdoor', category: 'myanmar' },
-  { id: 'konbaung_palace_interior', emoji: '🏛️', labelMm: '၅။ ကုန်းဘောင် / ရတနာပုံ နန်းတွင်း ရွှေနန်းတော် အတွင်း (Royal Konbaung Golden Palace)', labelEn: '5. Royal Konbaung Golden Palace Interior', environmentType: 'indoor', category: 'myanmar' },
-  { id: 'sagaing_hill', emoji: '⛰️', labelMm: '၆။ စစ်ကိုင်းတောင်ရိုး စေတီများ ရှုခင်း (Sagaing Hill View)', labelEn: '6. Sagaing Hill View', environmentType: 'outdoor', category: 'myanmar' },
-  { id: 'kalaw_pindaya', emoji: '🌲', labelMm: '၇။ ကလော ထင်းရှူးတောနှင့် ပင်းတယ လိုဏ်ဂူ ရှုခင်း (Kalaw Pine Forest & Pindaya)', labelEn: '7. Kalaw Pine Forest & Pindaya', environmentType: 'outdoor', category: 'myanmar' },
-  { id: 'pyinoolwin_garden', emoji: '🌺', labelMm: '၈။ ပြင်ဦးလွင် အမျိုးသား ကန်တော်ကြီး ပန်းခြံ (Pyin Oo Lwin National Garden)', labelEn: '8. Pyin Oo Lwin National Garden', environmentType: 'outdoor', category: 'myanmar' },
-  { id: 'ngapali_beach', emoji: '🏖️', labelMm: '၉။ ငပလီ / ချောင်းသာ / ငွေဆောင် ကမ်းခြေ (Ngapali & White Sand Beach)', labelEn: '9. Ngapali & White Sand Beach', environmentType: 'outdoor', category: 'myanmar' },
-  { id: 'myeik_islands', emoji: '🌊', labelMm: '၁၀။ မြိတ် ကျွန်းစုများ၏ အပြာရောင် ပင်လယ် (Myeik Archipelago Turquoise Sea)', labelEn: '10. Myeik Archipelago Turquoise Sea', environmentType: 'outdoor', category: 'myanmar' },
-  { id: 'taunggyi_balloon_field', emoji: '🎈', labelMm: '၁၁။ တောင်ကြီး မီးပုံးပျံပွဲတော် ကွင်း (Taunggyi Balloon Field)', labelEn: '11. Taunggyi Balloon Field', environmentType: 'outdoor', category: 'myanmar' },
-  { id: 'chin_mountains', emoji: '🏔️', labelMm: '၁၂။ ချင်းတောင်တန်း၊ ဝိတိုရိယတောင်နှင့် မြူခိုး (Chin Hills, Mount Victoria & Mist)', labelEn: '12. Chin Mountains & Mist', environmentType: 'outdoor', category: 'myanmar' },
-  { id: 'kyaiktiyo_golden_rock', emoji: '🪨', labelMm: '၁၃။ ကျိုက်ထီးရိုး ဆံတော်ရှင် စေတီတော် (Kyaiktiyo Golden Rock Pagoda)', labelEn: '13. Kyaiktiyo Golden Rock Pagoda', environmentType: 'outdoor', category: 'myanmar' },
-  { id: 'riverside_sunset', emoji: '🌅', labelMm: '၁၄။ ရန်ကုန်မြစ်ကမ်း / ဧရာဝတီ မြစ်ကမ်း သင်္ဘောဆိပ် (Riverside Jetty & Sunset)', labelEn: '14. Riverside Jetty & Sunset', environmentType: 'outdoor', category: 'myanmar' },
-  { id: 'monastery_temple_hall', emoji: '🏛️', labelMm: '၁၅။ ရိုးရာ ကျောင်းတိုက် / ဓမ္မာရုံ / ပြာသာဒ် (Monastery Dhamma Hall & Royal Pavilion)', labelEn: '15. Monastery Dhamma Hall', environmentType: 'indoor', category: 'myanmar' },
+  { id: 'shwedagon_pagoda', emoji: '🛕', labelMm: '၁။ ရွှေတိဂုံ စေတီတော် ရင်ပြင်တော် (Shwedagon Pagoda Platform)', labelEn: '1. Shwedagon Pagoda Platform', environmentType: 'outdoor', category: 'myanmar', referenceImage: LOCATION_REFERENCE_MAP.shwedagon_pagoda.url, previewImage: LOCATION_REFERENCE_MAP.shwedagon_pagoda.url },
+  { id: 'bagan_temples', emoji: '🌅', labelMm: '၂။ ပုဂံ ရှေးဟောင်း စေတီပုထိုးများနှင့် နေဝင်ချိန် (Bagan Ancient Temples & Sunset)', labelEn: '2. Bagan Ancient Temples & Sunset', environmentType: 'outdoor', category: 'myanmar', referenceImage: LOCATION_REFERENCE_MAP.bagan_temples.url, previewImage: LOCATION_REFERENCE_MAP.bagan_temples.url },
+  { id: 'inle_lake', emoji: '🛶', labelMm: '၃။ အင်းလေးကန် ရေပြင်နှင့် ဖောင်တော်ဦး ဘုရား (Inle Lake Scenic Waters & Phaung Daw Oo)', labelEn: '3. Inle Lake & Phaung Daw Oo', environmentType: 'outdoor', category: 'myanmar', referenceImage: LOCATION_REFERENCE_MAP.inle_lake.url, previewImage: LOCATION_REFERENCE_MAP.inle_lake.url },
+  { id: 'mandalay_moat', emoji: '🏰', labelMm: '၄။ မန္တလေး ကျုံးနှင့် နန်းမြို့ရိုး (Mandalay Palace Moat & Wall)', labelEn: '4. Mandalay Palace Moat & Wall', environmentType: 'outdoor', category: 'myanmar', referenceImage: LOCATION_REFERENCE_MAP.mandalay_moat.url, previewImage: LOCATION_REFERENCE_MAP.mandalay_moat.url },
+  { id: 'konbaung_palace_interior', emoji: '🏛️', labelMm: '၅။ ကုန်းဘောင် / ရတနာပုံ နန်းတွင်း ရွှေနန်းတော် အတွင်း (Royal Konbaung Golden Palace)', labelEn: '5. Royal Konbaung Golden Palace Interior', environmentType: 'indoor', category: 'myanmar', referenceImage: LOCATION_REFERENCE_MAP.konbaung_palace_interior.url, previewImage: LOCATION_REFERENCE_MAP.konbaung_palace_interior.url },
+  { id: 'sagaing_hill', emoji: '⛰️', labelMm: '၆။ စစ်ကိုင်းတောင်ရိုး စေတီများ ရှုခင်း (Sagaing Hill View)', labelEn: '6. Sagaing Hill View', environmentType: 'outdoor', category: 'myanmar', referenceImage: LOCATION_REFERENCE_MAP.sagaing_hill.url, previewImage: LOCATION_REFERENCE_MAP.sagaing_hill.url },
+  { id: 'kalaw_pindaya', emoji: '🌲', labelMm: '၇။ ကလော ထင်းရှူးတောနှင့် ပင်းတယ လိုဏ်ဂူ ရှုခင်း (Kalaw Pine Forest & Pindaya)', labelEn: '7. Kalaw Pine Forest & Pindaya', environmentType: 'outdoor', category: 'myanmar', referenceImage: LOCATION_REFERENCE_MAP.kalaw_pindaya.url, previewImage: LOCATION_REFERENCE_MAP.kalaw_pindaya.url },
+  { id: 'pyinoolwin_garden', emoji: '🌺', labelMm: '၈။ ပြင်ဦးလွင် အမျိုးသား ကန်တော်ကြီး ပန်းခြံ (Pyin Oo Lwin National Garden)', labelEn: '8. Pyin Oo Lwin National Garden', environmentType: 'outdoor', category: 'myanmar', referenceImage: LOCATION_REFERENCE_MAP.pyinoolwin_garden.url, previewImage: LOCATION_REFERENCE_MAP.pyinoolwin_garden.url },
+  { id: 'ngapali_beach', emoji: '🏖️', labelMm: '၉။ ငပလီ / ချောင်းသာ / ငွေဆောင် ကမ်းခြေ (Ngapali & White Sand Beach)', labelEn: '9. Ngapali & White Sand Beach', environmentType: 'outdoor', category: 'myanmar', referenceImage: LOCATION_REFERENCE_MAP.ngapali_beach.url, previewImage: LOCATION_REFERENCE_MAP.ngapali_beach.url },
+  { id: 'myeik_islands', emoji: '🌊', labelMm: '၁၀။ မြိတ် ကျွန်းစုများ၏ အပြာရောင် ပင်လယ် (Myeik Archipelago Turquoise Sea)', labelEn: '10. Myeik Archipelago Turquoise Sea', environmentType: 'outdoor', category: 'myanmar', referenceImage: LOCATION_REFERENCE_MAP.myeik_islands.url, previewImage: LOCATION_REFERENCE_MAP.myeik_islands.url },
+  { id: 'taunggyi_balloon_field', emoji: '🎈', labelMm: '၁၁။ တောင်ကြီး မီးပုံးပျံပွဲတော် ကွင်း (Taunggyi Balloon Field)', labelEn: '11. Taunggyi Balloon Field', environmentType: 'outdoor', category: 'myanmar', referenceImage: LOCATION_REFERENCE_MAP.taunggyi_balloon_field.url, previewImage: LOCATION_REFERENCE_MAP.taunggyi_balloon_field.url },
+  { id: 'chin_mountains', emoji: '🏔️', labelMm: '၁၂။ ချင်းတောင်တန်း၊ ဝိတိုရိယတောင်နှင့် မြူခိုး (Chin Hills, Mount Victoria & Mist)', labelEn: '12. Chin Mountains & Mist', environmentType: 'outdoor', category: 'myanmar', referenceImage: LOCATION_REFERENCE_MAP.chin_mountains.url, previewImage: LOCATION_REFERENCE_MAP.chin_mountains.url },
+  { id: 'kyaiktiyo_golden_rock', emoji: '🪨', labelMm: '၁၃။ ကျိုက်ထီးရိုး ဆံတော်ရှင် စေတီတော် (Kyaiktiyo Golden Rock Pagoda)', labelEn: '13. Kyaiktiyo Golden Rock Pagoda', environmentType: 'outdoor', category: 'myanmar', referenceImage: LOCATION_REFERENCE_MAP.kyaiktiyo_golden_rock.url, previewImage: LOCATION_REFERENCE_MAP.kyaiktiyo_golden_rock.url },
+  { id: 'riverside_sunset', emoji: '🌅', labelMm: '၁၄။ ရန်ကုန်မြစ်ကမ်း / ဧရာဝတီ မြစ်ကမ်း သင်္ဘောဆိပ် (Riverside Jetty & Sunset)', labelEn: '14. Riverside Jetty & Sunset', environmentType: 'outdoor', category: 'myanmar', referenceImage: LOCATION_REFERENCE_MAP.riverside_sunset.url, previewImage: LOCATION_REFERENCE_MAP.riverside_sunset.url },
+  { id: 'monastery_temple_hall', emoji: '🏛️', labelMm: '၁၅။ ရိုးရာ ကျောင်းတိုက် / ဓမ္မာရုံ / ပြာသာဒ် (Monastery Dhamma Hall & Royal Pavilion)', labelEn: '15. Monastery Dhamma Hall', environmentType: 'indoor', category: 'myanmar', referenceImage: LOCATION_REFERENCE_MAP.monastery_temple_hall.url, previewImage: LOCATION_REFERENCE_MAP.monastery_temple_hall.url },
 
   // ကမ္ဘာ့ ထိပ်တန်း ဓာတ်ပုံ စာရင်းဝင် နေရာများ (World-Class Iconic Photo Locations - 16 to 25)
-  { id: 'paris_eiffel_tower', emoji: '🗼', labelMm: '၁၆။ ပြင်သစ် ပါရီ အီဖယ်တာဝါနှင့် စိန်းမြစ်ကမ်း (Paris Eiffel Tower & Seine River)', labelEn: '16. Paris Eiffel Tower & Seine River', environmentType: 'outdoor', category: 'world' },
-  { id: 'santorini_greece', emoji: '🏛️', labelMm: '၁၇။ ဂရိ ဆန်တိုရီနီ အဖြူရောင် ပင်လယ်ကမ်းပါး မြို့ကလေး (Santorini White Village & Blue Domes)', labelEn: '17. Santorini White Village & Blue Domes', environmentType: 'outdoor', category: 'world' },
-  { id: 'kyoto_bamboo_torii', emoji: '🎋', labelMm: '၁၈။ ဂျပန် ကျိုတို အာရာရှိယာမ ဝါးတောနှင့် တိုရီးတံခါးအနီ (Kyoto Bamboo Grove & Fushimi Inari)', labelEn: '18. Kyoto Bamboo Grove & Fushimi Inari', environmentType: 'outdoor', category: 'world' },
-  { id: 'swiss_alps_snow', emoji: '🏔️', labelMm: '၁၉။ ဆွစ်ဇာလန် အဲလ်ပ်စ် နှင်းတောင်နှင့် သဘာဝ ရေကန် (Swiss Alps Snowy Peaks & Alpine Lake)', labelEn: '19. Swiss Alps Snowy Peaks & Alpine Lake', environmentType: 'outdoor', category: 'world' },
-  { id: 'venice_gondola_canal', emoji: '🛶', labelMm: '၂၀။ အီတလီ ဗင်းနစ် ဂွန်ဒိုလာ လှေနှင့် မြို့ပြ ရေမြောင်း (Venice Grand Canal & Gondola)', labelEn: '20. Venice Grand Canal & Gondola', environmentType: 'outdoor', category: 'world' },
-  { id: 'taj_mahal_palace', emoji: '🕌', labelMm: '၂၁။ အိန္ဒိယ တာဂျ်မဟာရ် စကျင်ကျောက် နန်းတော် (Taj Mahal Monumental Grounds)', labelEn: '21. Taj Mahal Monumental Grounds', environmentType: 'outdoor', category: 'world' },
-  { id: 'bali_jungle_swing', emoji: '🌴', labelMm: '၂၂။ အင်ဒိုနီးရှား ဘာလီ လယ်ကွင်းနှင့် သပိတ်တော (Bali Rice Terraces & Jungle Swing)', labelEn: '22. Bali Rice Terraces & Jungle Swing', environmentType: 'outdoor', category: 'world' },
-  { id: 'maldives_overwater', emoji: '🏝️', labelMm: '၂၃။ မော်လဒိုက် ရေပေါ် ဘန်ဂလိုနှင့် အပြာရောင် လဂွန် (Maldives Overwater Bungalow & Lagoon)', labelEn: '23. Maldives Overwater Bungalow & Lagoon', environmentType: 'outdoor', category: 'world' },
-  { id: 'cappadocia_balloons', emoji: '🎈', labelMm: '၂၄။ တူရကီ ကက်ပါဒိုစီယာ မီးပုံးပျံနှင့် ကျောက်တောင် ရှုခင်း (Cappadocia Balloons & Cave View)', labelEn: '24. Cappadocia Balloons & Cave View', environmentType: 'outdoor', category: 'world' },
-  { id: 'ny_central_park', emoji: '🗽', labelMm: '၂၅။ အမေရိကန် နယူးယောက် စင်ထရယ်ပါ့ခ်နှင့် မြို့ပြရှုခင်း (New York Central Park & Skyline)', labelEn: '25. New York Central Park & Skyline', environmentType: 'outdoor', category: 'world' },
+  { id: 'paris_eiffel_tower', emoji: '🗼', labelMm: '၁၆။ ပြင်သစ် ပါရီ အီဖယ်တာဝါနှင့် စိန်းမြစ်ကမ်း (Paris Eiffel Tower & Seine River)', labelEn: '16. Paris Eiffel Tower & Seine River', environmentType: 'outdoor', category: 'world', referenceImage: LOCATION_REFERENCE_MAP.paris_eiffel_tower.url, previewImage: LOCATION_REFERENCE_MAP.paris_eiffel_tower.url },
+  { id: 'santorini_greece', emoji: '🏛️', labelMm: '၁၇။ ဂရိ ဆန်တိုရီနီ အဖြူရောင် ပင်လယ်ကမ်းပါး မြို့ကလေး (Santorini White Village & Blue Domes)', labelEn: '17. Santorini White Village & Blue Domes', environmentType: 'outdoor', category: 'world', referenceImage: LOCATION_REFERENCE_MAP.santorini_greece.url, previewImage: LOCATION_REFERENCE_MAP.santorini_greece.url },
+  { id: 'kyoto_bamboo_torii', emoji: '🎋', labelMm: '၁၈။ ဂျပန် ကျိုတို အာရာရှိယာမ ဝါးတောနှင့် တိုရီးတံခါးအနီ (Kyoto Bamboo Grove & Fushimi Inari)', labelEn: '18. Kyoto Bamboo Grove & Fushimi Inari', environmentType: 'outdoor', category: 'world', referenceImage: LOCATION_REFERENCE_MAP.kyoto_bamboo_torii.url, previewImage: LOCATION_REFERENCE_MAP.kyoto_bamboo_torii.url },
+  { id: 'swiss_alps_snow', emoji: '🏔️', labelMm: '၁၉။ ဆွစ်ဇာလန် အဲလ်ပ်စ် နှင်းတောင်နှင့် သဘာဝ ရေကန် (Swiss Alps Snowy Peaks & Alpine Lake)', labelEn: '19. Swiss Alps Snowy Peaks & Alpine Lake', environmentType: 'outdoor', category: 'world', referenceImage: LOCATION_REFERENCE_MAP.swiss_alps_snow.url, previewImage: LOCATION_REFERENCE_MAP.swiss_alps_snow.url },
+  { id: 'venice_gondola_canal', emoji: '🛶', labelMm: '၂၀။ အီတလီ ဗင်းနစ် ဂွန်ဒိုလာ လှေနှင့် မြို့ပြ ရေမြောင်း (Venice Grand Canal & Gondola)', labelEn: '20. Venice Grand Canal & Gondola', environmentType: 'outdoor', category: 'world', referenceImage: LOCATION_REFERENCE_MAP.venice_gondola_canal.url, previewImage: LOCATION_REFERENCE_MAP.venice_gondola_canal.url },
+  { id: 'taj_mahal_palace', emoji: '🕌', labelMm: '၂၁။ အိန္ဒိယ တာဂျ်မဟာရ် စကျင်ကျောက် နန်းတော် (Taj Mahal Monumental Grounds)', labelEn: '21. Taj Mahal Monumental Grounds', environmentType: 'outdoor', category: 'world', referenceImage: LOCATION_REFERENCE_MAP.taj_mahal_palace.url, previewImage: LOCATION_REFERENCE_MAP.taj_mahal_palace.url },
+  { id: 'bali_jungle_swing', emoji: '🌴', labelMm: '၂၂။ အင်ဒိုနီးရှား ဘာလီ လယ်ကွင်းနှင့် သပိတ်တော (Bali Rice Terraces & Jungle Swing)', labelEn: '22. Bali Rice Terraces & Jungle Swing', environmentType: 'outdoor', category: 'world', referenceImage: LOCATION_REFERENCE_MAP.bali_jungle_swing.url, previewImage: LOCATION_REFERENCE_MAP.bali_jungle_swing.url },
+  { id: 'maldives_overwater', emoji: '🏝️', labelMm: '၂၃။ မော်လဒိုက် ရေပေါ် ဘန်ဂလိုနှင့် အပြာရောင် လဂွန် (Maldives Overwater Bungalow & Lagoon)', labelEn: '23. Maldives Overwater Bungalow & Lagoon', environmentType: 'outdoor', category: 'world', referenceImage: LOCATION_REFERENCE_MAP.maldives_overwater.url, previewImage: LOCATION_REFERENCE_MAP.maldives_overwater.url },
+  { id: 'cappadocia_balloons', emoji: '🎈', labelMm: '၂၄။ တူရကီ ကက်ပါဒိုစီယာ မီးပုံးပျံနှင့် ကျောက်တောင် ရှုခင်း (Cappadocia Balloons & Cave View)', labelEn: '24. Cappadocia Balloons & Cave View', environmentType: 'outdoor', category: 'world', referenceImage: LOCATION_REFERENCE_MAP.cappadocia_balloons.url, previewImage: LOCATION_REFERENCE_MAP.cappadocia_balloons.url },
+  { id: 'ny_central_park', emoji: '🗽', labelMm: '၂၅။ အမေရိကန် နယူးယောက် စင်ထရယ်ပါ့ခ်နှင့် မြို့ပြရှုခင်း (New York Central Park & Skyline)', labelEn: '25. New York Central Park & Skyline', environmentType: 'outdoor', category: 'world', referenceImage: LOCATION_REFERENCE_MAP.ny_central_park.url, previewImage: LOCATION_REFERENCE_MAP.ny_central_park.url },
 
   // စတူဒီယိုနှင့် အခန်းတွင်း အခင်းအကျင်းများ (Indoor & Studio - 26 to 30)
-  { id: 'plain_studio', emoji: '📸', labelMm: '၂၆။ စတူဒီယို သန့်သန့် မိုနိုခရုန်း နောက်ခံ (Minimalist Studio Backdrop)', labelEn: '26. Minimalist Plain Studio Backdrop', environmentType: 'studio', category: 'indoor_studio' },
-  { id: 'wood_brick_studio', emoji: '🧱', labelMm: '၂၇။ စတူဒီယို သစ်သား / အုတ်နံရံ ခေတ်မီစတိုင်လ် (Modern Brick & Wooden Studio)', labelEn: '27. Modern Brick & Wooden Studio', environmentType: 'studio', category: 'indoor_studio' },
-  { id: 'luxury_hotel_ballroom', emoji: '🏨', labelMm: '၂၈။ ဟိုတယ် လော်ဘီနှင့် ခမ်းနားသော ပွဲမ အခန်းမ (Luxury Hotel Grand Ballroom & Lobby)', labelEn: '28. Luxury Hotel Ballroom & Lobby', environmentType: 'indoor', category: 'indoor_studio' },
-  { id: 'cafe_interior', emoji: '☕', labelMm: '၂၉။ ခေတ်မီ မီးရောင်စုံ ကော်ဖီဆိုင် အတွင်း (Aesthetic Modern Cafe Interior)', labelEn: '29. Aesthetic Modern Cafe Interior', environmentType: 'indoor', category: 'indoor_studio' },
-  { id: 'traditional_myanmar_house', emoji: '🏠', labelMm: '၃၀။ ရိုးရာ မြန်မာ့ သစ်သားအိမ်နှင့် ပန်းခြံ (Traditional Myanmar Teak House)', labelEn: '30. Traditional Myanmar Teak House', environmentType: 'indoor', category: 'indoor_studio' },
+  { id: 'plain_studio', emoji: '📸', labelMm: '၂၆။ စတူဒီယို သန့်သန့် မိုနိုခရုန်း နောက်ခံ (Minimalist Studio Backdrop)', labelEn: '26. Minimalist Plain Studio Backdrop', environmentType: 'studio', category: 'indoor_studio', referenceImage: LOCATION_REFERENCE_MAP.plain_studio.url, previewImage: LOCATION_REFERENCE_MAP.plain_studio.url },
+  { id: 'wood_brick_studio', emoji: '🧱', labelMm: '၂၇။ စတူဒီယို သစ်သား / အုတ်နံရံ ခေတ်မီစတိုင်လ် (Modern Brick & Wooden Studio)', labelEn: '27. Modern Brick & Wooden Studio', environmentType: 'studio', category: 'indoor_studio', referenceImage: LOCATION_REFERENCE_MAP.wood_brick_studio.url, previewImage: LOCATION_REFERENCE_MAP.wood_brick_studio.url },
+  { id: 'luxury_hotel_ballroom', emoji: '🏨', labelMm: '၂၈။ ဟိုတယ် လော်ဘီနှင့် ခမ်းနားသော ပွဲမ အခန်းမ (Luxury Hotel Grand Ballroom & Lobby)', labelEn: '28. Luxury Hotel Ballroom & Lobby', environmentType: 'indoor', category: 'indoor_studio', referenceImage: LOCATION_REFERENCE_MAP.luxury_hotel_ballroom.url, previewImage: LOCATION_REFERENCE_MAP.luxury_hotel_ballroom.url },
+  { id: 'cafe_interior', emoji: '☕', labelMm: '၂၉။ ခေတ်မီ မီးရောင်စုံ ကော်ဖီဆိုင် အတွင်း (Aesthetic Modern Cafe Interior)', labelEn: '29. Aesthetic Modern Cafe Interior', environmentType: 'indoor', category: 'indoor_studio', referenceImage: LOCATION_REFERENCE_MAP.cafe_interior.url, previewImage: LOCATION_REFERENCE_MAP.cafe_interior.url },
+  { id: 'traditional_myanmar_house', emoji: '🏠', labelMm: '၃၀။ ရိုးရာ မြန်မာ့ သစ်သားအိမ်နှင့် ပန်းခြံ (Traditional Myanmar Teak House)', labelEn: '30. Traditional Myanmar Teak House', environmentType: 'indoor', category: 'indoor_studio', referenceImage: LOCATION_REFERENCE_MAP.traditional_myanmar_house.url, previewImage: LOCATION_REFERENCE_MAP.traditional_myanmar_house.url },
 
   // သဘာဝနှင့် မြို့ပြ အခင်းအကျင်းများ (Nature & Lifestyle - 31 to 35)
-  { id: 'golden_hour_paddy_field', emoji: '🌾', labelMm: '၃၁။ နေဝင်ချိန် ရွှေရောင် လယ်ကွင်းများ (Golden Hour Paddy Field)', labelEn: '31. Golden Hour Paddy Field', environmentType: 'outdoor', category: 'nature_lifestyle' },
-  { id: 'lush_forest_stream', emoji: '🌲', labelMm: '၃၂။ စိမ်းစိုသော သစ်တော၊ ရေတံခွန်နှင့် စမ်းချောင်း (Lush Forest, Waterfall & Stream)', labelEn: '32. Lush Forest, Waterfall & Stream', environmentType: 'outdoor', category: 'nature_lifestyle' },
-  { id: 'cherry_blossom_garden', emoji: '🌸', labelMm: '၃၃။ ပန်းချယ်ရီခင်းနှင့် သဘာဝပန်းခြံ (Cherry Blossom Flower Garden)', labelEn: '33. Cherry Blossom Flower Garden', environmentType: 'outdoor', category: 'nature_lifestyle' },
-  { id: 'modern_city_street', emoji: '🏙️', labelMm: '၃၄။ မြို့ပြ လမ်းမနှင့် ခေတ်မီ ဒေါင်လိုက် အဆောက်အဦများ (Modern City Street & Skyscrapers)', labelEn: '34. Modern City Street & Skyscrapers', environmentType: 'outdoor', category: 'nature_lifestyle' },
-  { id: 'neon_city_night', emoji: '🌃', labelMm: '၃၅။ နီယွန်မီးရောင်စုံ ညမြို့ပြ (Neon City Nightscape & Cyberpunk)', labelEn: '35. Neon City Nightscape', environmentType: 'fantasy', category: 'nature_lifestyle' },
+  { id: 'golden_hour_paddy_field', emoji: '🌾', labelMm: '၃၁။ နေဝင်ချိန် ရွှေရောင် လယ်ကွင်းများ (Golden Hour Paddy Field)', labelEn: '31. Golden Hour Paddy Field', environmentType: 'outdoor', category: 'nature_lifestyle', referenceImage: LOCATION_REFERENCE_MAP.golden_hour_paddy_field.url, previewImage: LOCATION_REFERENCE_MAP.golden_hour_paddy_field.url },
+  { id: 'lush_forest_stream', emoji: '🌲', labelMm: '၃၂။ စိမ်းစိုသော သစ်တော၊ ရေတံခွန်နှင့် စမ်းချောင်း (Lush Forest, Waterfall & Stream)', labelEn: '32. Lush Forest, Waterfall & Stream', environmentType: 'outdoor', category: 'nature_lifestyle', referenceImage: LOCATION_REFERENCE_MAP.lush_forest_stream.url, previewImage: LOCATION_REFERENCE_MAP.lush_forest_stream.url },
+  { id: 'cherry_blossom_garden', emoji: '🌸', labelMm: '၃၃။ ပန်းချယ်ရီခင်းနှင့် သဘာဝပန်းခြံ (Cherry Blossom Flower Garden)', labelEn: '33. Cherry Blossom Flower Garden', environmentType: 'outdoor', category: 'nature_lifestyle', referenceImage: LOCATION_REFERENCE_MAP.cherry_blossom_garden.url, previewImage: LOCATION_REFERENCE_MAP.cherry_blossom_garden.url },
+  { id: 'modern_city_street', emoji: '🏙️', labelMm: '၃၄။ မြို့ပြ လမ်းမနှင့် ခေတ်မီ ဒေါင်လိုက် အဆောက်အဦများ (Modern City Street & Skyscrapers)', labelEn: '34. Modern City Street & Skyscrapers', environmentType: 'outdoor', category: 'nature_lifestyle', referenceImage: LOCATION_REFERENCE_MAP.modern_city_street.url, previewImage: LOCATION_REFERENCE_MAP.modern_city_street.url },
+  { id: 'neon_city_night', emoji: '🌃', labelMm: '၃၅။ နီယွန်မီးရောင်စုံ ညမြို့ပြ (Neon City Nightscape & Cyberpunk)', labelEn: '35. Neon City Nightscape', environmentType: 'fantasy', category: 'nature_lifestyle', referenceImage: LOCATION_REFERENCE_MAP.neon_city_night.url, previewImage: LOCATION_REFERENCE_MAP.neon_city_night.url },
   
   { id: 'other_location', emoji: '✏️', labelMm: '၃၆။ အခြား ကိုယ်ပိုင် တည်နေရာ (Custom Location)', labelEn: '36. Custom Location', environmentType: 'outdoor', category: 'nature_lifestyle' },
 ];

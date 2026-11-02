@@ -36,7 +36,8 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
 
   return (
     <header
-      className={`fixed top-0 right-0 h-16 bg-[#ffffff]/95 backdrop-blur-md border-b border-[#e0e2e8] z-40 flex items-center justify-between px-3 sm:px-6 transition-all duration-300 ease-in-out ${
+      style={{ top: 'var(--top-banner-height, 0px)' }}
+      className={`fixed right-0 h-16 bg-[#ffffff]/95 backdrop-blur-md border-b border-[#e0e2e8] z-40 flex items-center justify-between px-3 sm:px-6 transition-[top,left] duration-300 ease-in-out ${
         isPortalMode ? 'left-0' : `left-0 ${isCollapsed ? 'md:left-20' : 'md:left-64'}`
       }`}
     >

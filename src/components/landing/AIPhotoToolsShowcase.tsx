@@ -61,12 +61,12 @@ const TOOLS_DATA: ToolDetail[] = [
       { label: 'Processing Speed', value: '< 3.2s' },
       { label: 'Max Fidelity', value: '8K UHD' }
     ],
-    beforeImage: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=700&auto=format&fit=crop&q=80',
-    afterImage: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=700&auto=format&fit=crop&q=80',
-    beforeLabelEn: 'Source Portrait Photo',
-    beforeLabelMm: 'မူရင်း လူမျက်နှာ ဓာတ်ပုံ',
-    afterLabelEn: 'Royal Dynasty Swapped Masterpiece',
-    afterLabelMm: 'နန်းတွင်းဝတ်စုံဖြင့် မျက်နှာအစားထိုးထားသော ပုံရိပ်'
+    beforeImage: '/landing/faceswap-before.jpg',
+    afterImage: '/landing/faceswap-after.jpg',
+    beforeLabelEn: 'Modern Studio Portrait',
+    beforeLabelMm: 'မူရင်း ခေတ်ပေါ် စတူဒီယို ဓာတ်ပုံ',
+    afterLabelEn: 'Royal Konbaung Prince Face-Swap (100% Likeness)',
+    afterLabelMm: 'ကုန်းဘောင်မင်းသား ဝတ်စုံဖြင့် မျက်နှာအစားထိုး ရလဒ်'
   },
   {
     id: 'bgchange',
@@ -97,10 +97,10 @@ const TOOLS_DATA: ToolDetail[] = [
       { label: 'Cultural Presets', value: '40+ Scenes' },
       { label: 'Light Bleed Sync', value: 'Automatic' }
     ],
-    beforeImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=700&auto=format&fit=crop&q=80',
-    afterImage: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=700&auto=format&fit=crop&q=80',
-    beforeLabelEn: 'Studio Plain Background',
-    beforeLabelMm: 'ရိုးရိုးစတူဒီယို နောက်ခံ',
+    beforeImage: '/landing/bgchange-before.jpg',
+    afterImage: '/landing/bgchange-after.jpg',
+    beforeLabelEn: 'Plain Studio Backdrop',
+    beforeLabelMm: 'ရိုးရိုး စတူဒီယို နောက်ခံ',
     afterLabelEn: 'Golden Hour Bagan Pagoda Composite',
     afterLabelMm: 'ပုဂံနေဝင်ချိန် နောက်ခံအသစ်ဖြင့် ပေါင်းစပ်ထားသောပုံ'
   },
@@ -133,12 +133,12 @@ const TOOLS_DATA: ToolDetail[] = [
       { label: 'Fabric Inpaint', value: '100% Weave Accuracy' },
       { label: 'Prop Library', value: '150+ Cultural Items' }
     ],
-    beforeImage: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=700&auto=format&fit=crop&q=80',
-    afterImage: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=700&auto=format&fit=crop&q=80',
-    beforeLabelEn: 'Standard Resolution Photo',
-    beforeLabelMm: 'သာမန် အရည်အသွေးရှိ ဓာတ်ပုံ',
-    afterLabelEn: '8K Ultra-Sharp Retouched Commercial Poster',
-    afterLabelMm: '8K အဆင့်မြင့် ပြုပြင်မွမ်းမံထားသော ကြော်ငြာပိုစတာ'
+    beforeImage: '/landing/edit-before.jpg',
+    afterImage: '/landing/edit-after.jpg',
+    beforeLabelEn: 'Casual Outdoor Portrait',
+    beforeLabelMm: 'သာမန် တီရှပ်ဝတ်စုံဖြင့် ဓာတ်ပုံ',
+    afterLabelEn: 'Inpainted Amarapura Acheik & Pathein Parasol (8K)',
+    afterLabelMm: 'အမရပူရချိတ်ထည်နှင့် ပုသိမ်ထီး ပြင်ဆင်ထည့်သွင်းထားသော ရလဒ်'
   }
 ];
 
@@ -321,11 +321,15 @@ export const AIPhotoToolsShowcase: React.FC<AIPhotoToolsShowcaseProps> = ({
                 </div>
 
                 {/* Display Image with Cyberpunk Frame */}
-                <div className="relative mt-4 rounded-2xl overflow-hidden aspect-[4/3] bg-black/60 border border-white/10 group">
+                <div 
+                  onClick={() => setShowAfterView(!showAfterView)}
+                  className="relative mt-4 rounded-2xl overflow-hidden aspect-square bg-black/60 border border-white/10 group cursor-pointer"
+                  title="Click to toggle Before / After"
+                >
                   <img
                     src={showAfterView ? activeTool.afterImage : activeTool.beforeImage}
                     alt={showAfterView ? activeTool.afterLabelEn : activeTool.beforeLabelEn}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
                   />
 
                   {/* Floating Result Badge */}

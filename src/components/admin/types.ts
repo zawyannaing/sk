@@ -100,3 +100,76 @@ export interface AppSettingRecord {
   description?: string;
   updated_at?: string;
 }
+
+export interface BundleItem {
+  id: string;
+  name_en: string;
+  name_my: string;
+  credits: number;
+  bonus_credits: number;
+  price: number;
+  currency: string;
+  valid_days?: number | null;
+  is_active: boolean;
+  sort_order: number;
+  badge_text?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface PromoCodeItem {
+  code: string;
+  credits: number;
+  max_uses: number;
+  used_count: number;
+  expires_at?: string | null;
+  is_active: boolean;
+  created_by?: string;
+  created_at?: string;
+}
+
+export interface PromoRedemptionItem {
+  id: string;
+  code: string;
+  user_id: string;
+  credits_granted: number;
+  redeemed_at: string;
+  user_email?: string;
+}
+
+export interface TopupRequestItem {
+  id: string;
+  user_id: string;
+  bundle_id: string;
+  payment_method: 'kpay' | 'wave' | 'kbz_pay' | 'wave_pay' | 'card' | 'crypto' | 'bank_transfer';
+  slip_image_path: string;
+  amount_paid?: number;
+  currency?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  admin_note?: string | null;
+  created_at: string;
+  updated_at?: string;
+  user_email?: string;
+  bundle_name?: string;
+}
+
+export interface ProviderSecretMeta {
+  provider: string;
+  label: string;
+  last4: string;
+  status: 'active' | 'disabled' | 'expired';
+  updated_at: string;
+  updated_by?: string;
+}
+
+export interface DashboardStats {
+  totalUsers: number;
+  activeToday: number;
+  totalCreditsCirculating: number;
+  totalTransactions: number;
+  pendingTopups: number;
+  dailyUsageTrend: { day: string; credits: number; count: number }[];
+  studioDistribution: { studio: string; count: number; percentage: number }[];
+}

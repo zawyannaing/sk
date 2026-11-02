@@ -38,8 +38,8 @@ export const ScrollProgressBar: React.FC = () => {
     <>
       {/* Top Scroll Indicator Line */}
       <motion.div
-        className="fixed top-0 left-0 right-0 h-[2.5px] bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 origin-left z-50 shadow-[0_0_12px_rgba(52,211,153,0.8)] pointer-events-none"
-        style={{ scaleX: smoothProgress }}
+        className="fixed left-0 right-0 h-[2.5px] bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 origin-left z-50 shadow-[0_0_12px_rgba(52,211,153,0.8)] pointer-events-none transition-[top] duration-300 ease-out"
+        style={{ scaleX: smoothProgress, top: 'var(--top-banner-height, 0px)' }}
       />
 
       {/* 🌟 Circular Glass Scroll Progress Animation Tracker (Bottom-Right) */}

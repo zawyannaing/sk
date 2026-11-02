@@ -368,18 +368,283 @@ create policy "Admins can update app settings"
   using (public.is_admin());
 
 -- ============================================================================
--- 10. SUPABASE STORAGE BUCKETS FOR WEBSITE PHOTOS & USER GENERATIONS
+-- 10. ANNOUNCEMENTS & IN-APP NOTICES
+-- ============================================================================
+create table if not exists public.announcements (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  body text not null,
+  type text not null default 'info' check (type in ('info', 'warning', 'success', 'critical')),
+  placement text not null default 'banner' check (placement in ('banner', 'modal', 'toast')),
+  audience text not null default 'all' check (audience in ('all', 'logged_in', 'logged_out')),
+  starts_at timestamptz not null default now(),
+  ends_at timestamptz,
+  is_active boolean not null default true,
+  dismissible boolean not null default true,
+  cta_label text,
+  cta_url text,
+  language text not null default 'both' check (language in ('en', 'my', 'both')),
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_announcements_active on public.announcements(is_active, starts_at, ends_at);
+
+alter table public.announcements enable row level security;
+
+drop policy if exists "Anyone can read active announcements" on public.announcements;
+create policy "Anyone can read active announcements"
+  on public.announcements for select
+  using (is_active = true or public.is_admin());
+
+drop policy if exists "Admins have full access to announcements" on public.announcements;
+create policy "Admins have full access to announcements"
+  on public.announcements for all
+  using (public.is_admin())
+  with check (public.is_admin());
+
+-- Reload schema cache in PostgREST
+notify pgrst, 'reload schema';
+
+-- ============================================================================
+-- 11. BUNDLES (Credit Packages & Pricing)
+-- ============================================================================
+create table if not exists public.bundles (
+  id text primary key,
+  name_en text not null,
+  name_my text not null,
+  credits integer not null check (credits > 0),
+  bonus_credits integer not null default 0 check (bonus_credits >= 0),
+  price numeric(10, 2) not null check (price >= 0),
+  currency text not null default 'USD',
+  valid_days integer,
+  is_active boolean not null default true,
+  sort_order integer not null default 0,
+  badge_text text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- Seed default pricing bundles
+insert into public.bundles (id, name_en, name_my, credits, bonus_credits, price, currency, is_active, sort_order, badge_text)
+values
+  ('starter', 'Starter Creator', 'စတင်သူအထုပ်', 1000, 0, 10.00, 'USD', true, 1, 'POPULAR FOR BEGINNERS'),
+  ('creator_pro', 'Creator Pro', 'ဖန်တီးသူပရိုအထုပ်', 5000, 500, 50.00, 'USD', true, 2, '+10% BONUS CREDITS'),
+  ('master', 'Studio Master', 'စတူဒီယိုမာစတာအထုပ်', 12000, 2400, 100.00, 'USD', true, 3, '+20% MAXIMUM VALUE')
+on conflict (id) do nothing;
+
+alter table public.bundles enable row level security;
+
+drop policy if exists "Anyone can read active bundles" on public.bundles;
+create policy "Anyone can read active bundles"
+  on public.bundles for select
+  using (is_active = true or public.is_admin());
+
+drop policy if exists "Admins have full access to bundles" on public.bundles;
+create policy "Admins have full access to bundles"
+  on public.bundles for all
+  using (public.is_admin())
+  with check (public.is_admin());
+
+-- ============================================================================
+-- 12. TOP-UP REQUESTS & MANUAL PAYMENT SLIPS
+-- ============================================================================
+create table if not exists public.topup_requests (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  bundle_id text not null references public.bundles(id),
+  payment_method text not null check (payment_method in ('kpay', 'wave', 'kbz_pay', 'wave_pay', 'card', 'crypto', 'bank_transfer')),
+  slip_image_path text not null,
+  amount_paid numeric(10, 2),
+  currency text default 'MMK',
+  status text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
+  reviewed_by uuid references auth.users(id),
+  reviewed_at timestamptz,
+  admin_note text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_topup_requests_status on public.topup_requests(status, created_at desc);
+
+alter table public.topup_requests enable row level security;
+
+drop policy if exists "Users view own topup requests" on public.topup_requests;
+create policy "Users view own topup requests"
+  on public.topup_requests for select
+  using (auth.uid() = user_id or public.is_admin());
+
+drop policy if exists "Users insert own topup requests" on public.topup_requests;
+create policy "Users insert own topup requests"
+  on public.topup_requests for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Admins update topup requests" on public.topup_requests;
+create policy "Admins update topup requests"
+  on public.topup_requests for update
+  using (public.is_admin())
+  with check (public.is_admin());
+
+-- ============================================================================
+-- 12b. SECURE APPROVE TOPUP RPC FUNCTION
+-- ============================================================================
+create or replace function public.approve_topup(
+  p_request_id text,
+  p_note text default 'Verified payment slip'
+)
+returns jsonb
+language plpgsql
+security definer
+as $$
+declare
+  v_req record;
+  v_credits int := 100;
+  v_new_balance int;
+  v_admin_id uuid;
+begin
+  v_admin_id := auth.uid();
+
+  -- Find the topup request
+  select * into v_req
+  from public.topup_requests
+  where id::text = p_request_id::text;
+
+  if not found then
+    return jsonb_build_object('success', false, 'error', 'Topup request not found');
+  end if;
+
+  if v_req.status = 'approved' then
+    return jsonb_build_object('success', false, 'error', 'Request has already been approved');
+  end if;
+
+  -- Determine credits from bundles or fallback
+  begin
+    select coalesce(credits + bonus_credits, credits, 100)
+    into v_credits
+    from public.bundles
+    where id = v_req.bundle_id;
+  exception when others then
+    v_credits := 100;
+  end;
+
+  if v_credits is null or v_credits <= 0 then
+    v_credits := 100;
+  end if;
+
+  -- Update request to approved
+  update public.topup_requests
+  set status = 'approved',
+      admin_note = p_note,
+      reviewed_by = v_admin_id,
+      reviewed_at = now(),
+      updated_at = now()
+  where id::text = p_request_id::text;
+
+  -- Update user credits in profiles
+  update public.profiles
+  set credits = coalesce(credits, 0) + v_credits,
+      updated_at = now()
+  where id = v_req.user_id
+  returning credits into v_new_balance;
+
+  -- Log transaction in credit_transactions
+  insert into public.credit_transactions (
+    user_id,
+    amount,
+    balance_after,
+    type,
+    description,
+    admin_id
+  ) values (
+    v_req.user_id,
+    v_credits,
+    coalesce(v_new_balance, v_credits),
+    'admin_topup',
+    coalesce(p_note, 'Top-up approved by admin'),
+    v_admin_id
+  );
+
+  return jsonb_build_object(
+    'success', true,
+    'credits_granted', v_credits,
+    'new_balance', v_new_balance
+  );
+end;
+$$;
+
+grant execute on function public.approve_topup(text, text) to authenticated;
+grant execute on function public.approve_topup(text, text) to anon;
+
+-- ============================================================================
+-- 13. PROMO CODES & REDEMPTIONS
+-- ============================================================================
+create table if not exists public.promo_codes (
+  code text primary key,
+  credits integer not null check (credits > 0),
+  max_uses integer not null default 100,
+  used_count integer not null default 0 check (used_count >= 0),
+  expires_at timestamptz,
+  is_active boolean not null default true,
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.promo_redemptions (
+  id uuid primary key default gen_random_uuid(),
+  code text not null references public.promo_codes(code) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  credits_granted integer not null,
+  redeemed_at timestamptz not null default now(),
+  constraint uq_promo_user unique (code, user_id)
+);
+
+alter table public.promo_codes enable row level security;
+alter table public.promo_redemptions enable row level security;
+
+drop policy if exists "Anyone can read active promo codes" on public.promo_codes;
+create policy "Anyone can read active promo codes"
+  on public.promo_codes for select
+  using (is_active = true or public.is_admin());
+
+drop policy if exists "Admins manage promo codes" on public.promo_codes;
+create policy "Admins manage promo codes"
+  on public.promo_codes for all
+  using (public.is_admin())
+  with check (public.is_admin());
+
+drop policy if exists "Users read own redemptions" on public.promo_redemptions;
+create policy "Users read own redemptions"
+  on public.promo_redemptions for select
+  using (auth.uid() = user_id or public.is_admin());
+
+drop policy if exists "Users redeem promo code" on public.promo_redemptions;
+create policy "Users redeem promo code"
+  on public.promo_redemptions for insert
+  with check (auth.uid() = user_id);
+
+-- Reload schema cache in PostgREST
+notify pgrst, 'reload schema';
+
+-- ============================================================================
+-- 14. SUPABASE STORAGE BUCKETS FOR WEBSITE PHOTOS & USER GENERATIONS
 -- ============================================================================
 insert into storage.buckets (id, name, public)
 values
   ('website-photos', 'website-photos', true),
-  ('user-generations', 'user-generations', true)
+  ('user-generations', 'user-generations', true),
+  ('payment-slips', 'payment-slips', true)
 on conflict (id) do nothing;
 
 drop policy if exists "Public view website-photos" on storage.objects;
 create policy "Public view website-photos"
   on storage.objects for select
-  using (bucket_id in ('website-photos', 'user-generations'));
+  using (bucket_id in ('website-photos', 'user-generations', 'payment-slips'));
+
+drop policy if exists "Authenticated users upload payment-slips" on storage.objects;
+create policy "Authenticated users upload payment-slips"
+  on storage.objects for insert
+  with check (bucket_id in ('user-generations', 'payment-slips'));
 
 drop policy if exists "Authenticated users upload to user-generations" on storage.objects;
 create policy "Authenticated users upload to user-generations"

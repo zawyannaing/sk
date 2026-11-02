@@ -17,7 +17,8 @@ import {
   QUALITY_PROFILES,
   IDENTITY_LOCK_OPTIONS,
   POSE_EXPRESSION_OPTIONS,
-  CHARACTER_PRESETS
+  CHARACTER_PRESETS,
+  LOCATION_REFERENCE_MAP
 } from '../data/presetData';
 
 // Sub components & deep resource views
@@ -73,7 +74,8 @@ import {
   Upload,
   Image as ImageIcon,
   Tag,
-  ShoppingBag
+  ShoppingBag,
+  HelpCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -309,6 +311,47 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
   const [productPodium, setProductPodium] = useState<string>('Polished Black Travertine Marble Plinth');
   const [productFloatingElements, setProductFloatingElements] = useState<string>('Floating 24k gold dust & sparkling bokeh particles');
   const productImageInputRef = useRef<HTMLInputElement>(null);
+
+  // How it works modal
+  const [showHowItWorksModal, setShowHowItWorksModal] = useState<boolean>(false);
+
+  // 1-Click AI Auto-Harmonize
+  const handleAutoHarmonize = () => {
+    if (historicalTimeline === 'royal') {
+      onUpdateSelection({
+        subject: selection.subject || 'woman',
+        location: 'bagan_temples',
+        timeAndLighting: 'golden_hour_sunset',
+        colorGrade: 'mandalay_gold',
+        moodEmotion: 'regal_majestic',
+        camera: 'portrait_85mm_14',
+        cameraAngle: 'bust_portrait',
+        customLocationDetails: 'Gilded Mandalay Palace Throne Hall with carved teak columns and soft Tyndall light rays'
+      });
+    } else if (historicalTimeline === '1940s') {
+      onUpdateSelection({
+        subject: selection.subject || 'woman',
+        location: 'yangon_colonial_street',
+        timeAndLighting: 'colonial_window_light',
+        colorGrade: 'monochrome_sepia',
+        moodEmotion: 'nostalgic_melancholic',
+        camera: 'vintage_large_format',
+        cameraAngle: 'cowboy_shot',
+        customLocationDetails: 'Historic rain-slicked colonial Strand Road in Yangon with vintage merchant buildings'
+      });
+    } else {
+      onUpdateSelection({
+        subject: selection.subject || 'woman',
+        location: 'modern_yangon_skyline',
+        timeAndLighting: 'pro_studio_softbox',
+        colorGrade: 'commercial_vibrant',
+        moodEmotion: 'urgent_promotion_fomo',
+        camera: 'hasselblad_h6d',
+        cameraAngle: 'hero_45',
+        customLocationDetails: 'Contemporary luxury high-rise architecture with illuminated Shwedagon in distance'
+      });
+    }
+  };
 
   const handleProductImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -945,6 +988,17 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
               )}
             </div>
 
+            {/* 1-Click AI Auto-Harmonize Button */}
+            <button
+              type="button"
+              onClick={handleAutoHarmonize}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold transition cursor-pointer active:scale-95 shrink-0"
+              title="Automatically harmonize Context, Lighting, Style & Camera for current Era"
+            >
+              <Wand2 className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden sm:inline">Auto-Harmonize</span>
+            </button>
+
             {/* Start Creating Setup Button */}
             <button
               type="button"
@@ -1233,8 +1287,32 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                   <button
                     type="button"
                     onClick={() => {
+                      const locRef = selection.location && selection.location !== 'skip' ? LOCATION_REFERENCE_MAP[selection.location]?.url : null;
+                      const refPhotos: { url: string; name: string; role: 'character' | 'background' }[] = [];
+                      if (selection.referenceImage) {
+                        refPhotos.push({
+                          url: selection.referenceImage,
+                          name: 'Character Face Reference',
+                          role: 'character'
+                        });
+                      }
+                      if (locRef) {
+                        refPhotos.push({
+                          url: locRef,
+                          name: `${selection.location} (Scene Location Plate)`,
+                          role: 'background'
+                        });
+                      }
                       onSendToPhotoStudio(displayedPromptText, {
-                        ratio: selection.aspectRatio || '16:9'
+                        ratio: selection.aspectRatio || '16:9',
+                        referencePhoto: locRef || selection.referenceImage || null,
+                        referencePhotos: refPhotos.length > 0 ? refPhotos : undefined,
+                        chosenOptions: [
+                          { label: 'Location', value: selection.location },
+                          { label: 'Time & Lighting', value: selection.timeAndLighting },
+                          { label: 'Subject', value: selection.subject },
+                          { label: 'Mood & Atmosphere', value: selection.moodEmotion },
+                        ]
                       });
                     }}
                     className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 text-black font-black text-sm hover:brightness-110 active:scale-95 transition shadow-lg shadow-emerald-500/25 cursor-pointer"
@@ -1270,12 +1348,24 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                   </h2>
                 </div>
 
-                {/* Step Enhanced Snippet if available */}
-                {enhancedSections[activeStepId] && (
-                  <div className="text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 rounded-xl max-w-sm truncate">
-                    ✨ {enhancedSections[activeStepId]}
-                  </div>
-                )}
+                <div className="flex items-center gap-2">
+                  {/* Step Enhanced Snippet if available */}
+                  {enhancedSections[activeStepId] && (
+                    <div className="text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 rounded-xl max-w-sm truncate hidden sm:block">
+                      ✨ {enhancedSections[activeStepId]}
+                    </div>
+                  )}
+
+                  {/* How it works modal trigger (Matches Screenshot) */}
+                  <button
+                    type="button"
+                    onClick={() => setShowHowItWorksModal(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-white text-xs font-semibold cursor-pointer transition shrink-0"
+                  >
+                    <HelpCircle className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>How it works?</span>
+                  </button>
+                </div>
               </div>
 
               {/* STEP 1: SUBJECT (Consolidated Sub-Tabs: Product / Wedding / Character) */}
@@ -1667,31 +1757,71 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
 
                   {/* Sub-tab: Archetypes */}
                   {projectCategory !== 'product' && projectCategory !== 'wedding' && step1SubTab === 'archetypes' && (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                        {SUBJECT_OPTIONS.filter(o => o.id !== 'skip').map(opt => (
-                          <button
-                            key={opt.id}
-                            type="button"
-                            onClick={() => onUpdateSelection({ subject: opt.id })}
-                            className={`p-3 rounded-2xl border text-center transition cursor-pointer ${
-                              selection.subject === opt.id
-                                ? 'bg-emerald-500/20 border-emerald-500 text-white shadow-md'
-                                : 'bg-zinc-900/60 border-zinc-800 text-zinc-300 hover:border-zinc-700'
-                            }`}
-                          >
-                            <div className="text-xl mb-1">{opt.emoji || '👤'}</div>
-                            <div className="font-bold text-xs">{isMyanmar ? opt.labelMm : opt.labelEn}</div>
-                          </button>
-                        ))}
+                    <div className="space-y-5">
+                      {/* 8-Card Symmetrical Subject Grid matching User Screenshot */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {SUBJECT_OPTIONS.filter(o => o.id !== 'skip').map(opt => {
+                          const isSel = selection.subject === opt.id;
+                          return (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={() => onUpdateSelection({ subject: opt.id })}
+                              className={`relative group p-4 sm:p-5 rounded-2xl border text-center transition-all cursor-pointer ${
+                                isSel
+                                  ? 'bg-[#121c19] border-emerald-500 shadow-lg shadow-emerald-950/40 ring-1 ring-emerald-500/50'
+                                  : 'bg-[#10141d] border-zinc-800/80 hover:border-zinc-700 hover:bg-[#141924] text-zinc-300'
+                              }`}
+                            >
+                              {isSel && (
+                                <div className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-emerald-500 text-black flex items-center justify-center text-[10px] font-black shadow-md">
+                                  ✓
+                                </div>
+                              )}
+                              <div className={`w-12 h-12 mx-auto mb-2.5 rounded-2xl flex items-center justify-center text-2xl transition-transform group-hover:scale-110 ${
+                                isSel ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-zinc-800/80 border border-zinc-700/60 text-zinc-300'
+                              }`}>
+                                {opt.emoji || '👤'}
+                              </div>
+                              <div className="font-bold text-xs sm:text-sm text-zinc-100">{isMyanmar ? opt.labelMm : opt.labelEn}</div>
+                            </button>
+                          );
+                        })}
                       </div>
 
-                      {/* Timeline-filtered archetypes */}
-                      <div className="p-4 rounded-2xl bg-zinc-900/50 border border-zinc-800/80">
-                        <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider block mb-2">
-                          {historicalTimeline.toUpperCase()} ERA ARCHETYPES:
-                        </span>
-                        <div className="flex flex-wrap gap-2">
+                      {/* Timeline-filtered archetypes carousel with < > arrows matching screenshot */}
+                      <div className="p-4 rounded-2xl bg-[#10141d] border border-zinc-800/80 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider block">
+                            {historicalTimeline.toUpperCase()} ERA ARCHETYPES
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const container = document.getElementById('archetypes-scroll-container');
+                                if (container) container.scrollBy({ left: -220, behavior: 'smooth' });
+                              }}
+                              className="w-7 h-7 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white flex items-center justify-center transition cursor-pointer"
+                              title="Scroll Left"
+                            >
+                              <ChevronLeft className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const container = document.getElementById('archetypes-scroll-container');
+                                if (container) container.scrollBy({ left: 220, behavior: 'smooth' });
+                              }}
+                              className="w-7 h-7 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white flex items-center justify-center transition cursor-pointer"
+                              title="Scroll Right"
+                            >
+                              <ChevronRight className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div id="archetypes-scroll-container" className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1">
                           {(historicalTimeline === '1940s' ? [
                             '1940s Rangoon Literary Scholar with Pinni Coat',
                             'Colonial Heritage High School Teacher with Lace Yinzi',
@@ -1712,10 +1842,10 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                               key={i}
                               type="button"
                               onClick={() => onUpdateSelection({ customSubjectDetails: arch })}
-                              className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition cursor-pointer ${
+                              className={`px-3.5 py-2 rounded-xl text-xs font-medium border transition cursor-pointer shrink-0 whitespace-nowrap ${
                                 selection.customSubjectDetails === arch
-                                  ? 'bg-emerald-500 text-black font-bold border-emerald-400'
-                                  : 'bg-zinc-800/80 text-zinc-300 border-zinc-700 hover:border-zinc-600'
+                                  ? 'bg-emerald-500/20 text-emerald-300 font-bold border-emerald-400 shadow-md'
+                                  : 'bg-zinc-900/80 text-zinc-300 border-zinc-800 hover:border-zinc-700 hover:text-white'
                               }`}
                             >
                               {arch}
@@ -1759,14 +1889,12 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                     </div>
                   )}
 
-                  {/* Custom Subject Details Input with Inline AI Enhance & Recreate */}
-                  <div className="p-4 rounded-2xl bg-zinc-900/90 border border-emerald-500/30 space-y-3 shadow-lg">
+                  {/* Custom Subject Details Input (Matches Screenshot) */}
+                  <div className="p-4 sm:p-5 rounded-2xl bg-[#10141d] border border-zinc-800/80 space-y-3">
                     <div className="flex items-center justify-between">
-                      <label className="block text-xs font-bold text-emerald-300 flex items-center gap-2">
+                      <label className="text-xs font-bold text-emerald-400 flex items-center gap-2">
                         <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>
-                          {isMyanmar ? 'စိတ်ကြိုက် ဇာတ်ကောင် / ပစ္စည်း အသေးစိတ် (Custom Details):' : 'Custom Subject / Product Specifications:'}
-                        </span>
+                        <span>Custom Subject / Product Specifications</span>
                       </label>
                       {step1CustomInput && (
                         <button
@@ -1776,56 +1904,40 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                             onUpdateSelection({ customSubjectDetails: '' });
                             setStep1EnhancedResult('');
                           }}
-                          className="text-[11px] text-zinc-500 hover:text-zinc-300 transition"
+                          className="text-xs text-zinc-400 hover:text-zinc-200 transition cursor-pointer flex items-center gap-1"
                         >
-                          Clear
+                          <RotateCcw className="w-3 h-3" />
+                          <span>Clear</span>
                         </button>
                       )}
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <input
-                        type="text"
+                    <div className="relative">
+                      <textarea
+                        rows={3}
                         value={step1CustomInput}
+                        maxLength={500}
                         onChange={(e) => {
                           setStep1CustomInput(e.target.value);
                           onUpdateSelection({ customSubjectDetails: e.target.value });
                         }}
-                        placeholder={
-                          projectCategory === 'product'
-                            ? 'e.g. Rare Mogok untreated pigeon blood ruby set in 24k antique Burmese gold with emerald accents'
-                            : projectCategory === 'wedding'
-                            ? 'e.g. Royal Burmese bridal couple in pure gold-embroidered silk attire with traditional jasmine garlands'
-                            : 'e.g. 1940s Burmese lady holding oiled-paper umbrella with graceful smile on rainy street'
-                        }
-                        className="flex-1 px-4 py-2.5 rounded-xl bg-black/60 border border-zinc-700/80 text-zinc-100 text-xs focus:outline-none focus:border-emerald-500 placeholder:text-zinc-500"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            handleEnhanceStep1();
-                          }
-                        }}
+                        placeholder="Describe your custom subject or product details..."
+                        className="w-full p-3.5 rounded-xl bg-black/60 border border-zinc-800 text-zinc-100 text-xs focus:outline-none focus:border-emerald-500 placeholder:text-zinc-500 font-sans resize-none"
                       />
-
-                      <button
-                        type="button"
-                        onClick={() => handleEnhanceStep1()}
-                        disabled={isStep1Enhancing}
-                        className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-black font-bold text-xs hover:brightness-110 active:scale-95 transition shadow-md shadow-emerald-500/20 flex items-center justify-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50"
-                      >
-                        {isStep1Enhancing ? (
-                          <>
-                            <RotateCcw className="w-3.5 h-3.5 animate-spin" />
-                            <span>Enhancing...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="w-3.5 h-3.5 fill-black" />
-                            <span>✨ Enhance</span>
-                          </>
-                        )}
-                      </button>
+                      <div className="flex items-center justify-between text-[10px] text-zinc-500 font-mono mt-1">
+                        <button
+                          type="button"
+                          onClick={() => handleEnhanceStep1()}
+                          disabled={isStep1Enhancing}
+                          className="text-emerald-400 hover:text-emerald-300 font-bold transition flex items-center gap-1 cursor-pointer"
+                        >
+                          <Sparkles className="w-3 h-3" />
+                          <span>{isStep1Enhancing ? 'AI Enhancing...' : 'AI Enhance Details'}</span>
+                        </button>
+                        <span>{step1CustomInput.length} / 500</span>
+                      </div>
                     </div>
+                  </div>
 
                     {/* ✨ AI ENHANCED SUGGESTION CARD */}
                     {step1EnhancedResult && (
@@ -1898,7 +2010,6 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                         </div>
                       </div>
                     )}
-                  </div>
 
                 </div>
               )}
@@ -2020,13 +2131,81 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                   )}
 
                   {projectCategory !== 'product' && step2SubTab === 'locations' && (
-                    <div className="space-y-4">
+                    <div className="space-y-5">
+                      {/* 8-Card Symmetrical Location Grid matching Step 1 */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {[
+                          { id: 'bagan_temples', icon: '🏛️', nameEn: 'Bagan Temples', nameMm: 'ပုဂံ ရှေးဟောင်း စေတီပုထိုးများ', desc: 'Ancient 11th-century terracotta brickwork at dawn mist' },
+                          { id: 'mandalay_palace', icon: '👑', nameEn: 'Mandalay Palace', nameMm: 'မန္တလေး ရတနာပုံ နန်းတွင်း', desc: 'Gilded throne hall with carved teak columns and courtly majesty' },
+                          { id: 'shwedagon_pagoda', icon: '✨', nameEn: 'Shwedagon Pagoda', nameMm: 'ရွှေတိဂုံ ရင်ပြင်တော်', desc: 'Sacred marble terrace bathed in evening candle glow and golden spires' },
+                          { id: 'inle_lake', icon: '🌊', nameEn: 'Inle Lake Waterways', nameMm: 'အင်းလေးကန် ရှုခင်း', desc: 'Serene blue waters with traditional leg-rowers and Shan mountain mist' },
+                          { id: 'u_bein_bridge', icon: '🌅', nameEn: 'U Bein Teak Bridge', nameMm: 'ဦးပိန် ရှေးဟောင်း သစ်သားတံတား', desc: 'World’s longest teak bridge silhouetted against crimson sunset' },
+                          { id: 'yangon_colonial_street', icon: '🌧️', nameEn: 'Colonial Street', nameMm: 'ရန်ကုန် ကိုလိုနီ ရာဇဝင်လမ်း', desc: 'Rain-slicked cobblestones, vintage merchant facades & Pathein parasols' },
+                          { id: 'royal_moat_wall', icon: '🪷', nameEn: 'Palace Royal Moat', nameMm: 'နန်းမြို့ရိုးနှင့် ကျုံးရေပြင်', desc: 'Lotus blossoms floating beside ancient red brick fortress walls' },
+                          { id: 'commercial_studio', icon: '📸', nameEn: 'Studio Staging', nameMm: 'ခေတ်မီ စတူဒီယို အခင်းအကျင်း', desc: 'Professional high-key minimalist commercial studio setup' }
+                        ].map(loc => {
+                          const isSel = selection.location === loc.id;
+                          return (
+                            <button
+                              key={loc.id}
+                              type="button"
+                              onClick={() => onUpdateSelection({ location: loc.id as any })}
+                              className={`relative group p-4 sm:p-5 rounded-2xl border text-center transition-all cursor-pointer ${
+                                isSel
+                                  ? 'bg-[#121c19] border-emerald-500 shadow-lg shadow-emerald-950/40 ring-1 ring-emerald-500/50'
+                                  : 'bg-[#10141d] border-zinc-800/80 hover:border-zinc-700 hover:bg-[#141924] text-zinc-300'
+                              }`}
+                            >
+                              {isSel && (
+                                <div className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-emerald-500 text-black flex items-center justify-center text-[10px] font-black shadow-md">
+                                  ✓
+                                </div>
+                              )}
+                              <div className={`w-12 h-12 mx-auto mb-2.5 rounded-2xl flex items-center justify-center text-2xl transition-transform group-hover:scale-110 ${
+                                isSel ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-zinc-800/80 border border-zinc-700/60 text-zinc-300'
+                              }`}>
+                                {loc.icon}
+                              </div>
+                              <div className="font-bold text-xs sm:text-sm text-zinc-100">{isMyanmar ? loc.nameMm : loc.nameEn}</div>
+                              <div className="text-[10px] text-zinc-500 mt-1 line-clamp-1">{loc.desc}</div>
+                            </button>
+                          );
+                        })}
+                      </div>
+
                       {/* Timeline-filtered Location Suggestions */}
-                      <div className="p-4 rounded-2xl bg-zinc-900/50 border border-zinc-800/80">
-                        <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider block mb-2">
-                          {historicalTimeline.toUpperCase()} ERA BACKDROPS:
-                        </span>
-                        <div className="flex flex-wrap gap-2">
+                      <div className="p-4 rounded-2xl bg-[#10141d] border border-zinc-800/80 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider block">
+                            {historicalTimeline.toUpperCase()} ERA BACKDROPS
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const container = document.getElementById('backdrops-scroll-container');
+                                if (container) container.scrollBy({ left: -220, behavior: 'smooth' });
+                              }}
+                              className="w-7 h-7 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white flex items-center justify-center transition cursor-pointer"
+                              title="Scroll Left"
+                            >
+                              <ChevronLeft className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const container = document.getElementById('backdrops-scroll-container');
+                                if (container) container.scrollBy({ left: 220, behavior: 'smooth' });
+                              }}
+                              className="w-7 h-7 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white flex items-center justify-center transition cursor-pointer"
+                              title="Scroll Right"
+                            >
+                              <ChevronRight className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div id="backdrops-scroll-container" className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1">
                           {(historicalTimeline === '1940s' ? [
                             '1940s Colonial Rangoon Heritage Street with Vintage Trams',
                             'Historic Yangon Colonial Railway Station with Brick Arches',
@@ -2047,10 +2226,10 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                               key={i}
                               type="button"
                               onClick={() => onUpdateSelection({ customLocationDetails: loc })}
-                              className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition cursor-pointer ${
+                              className={`px-3.5 py-2 rounded-xl text-xs font-medium border transition cursor-pointer shrink-0 whitespace-nowrap ${
                                 selection.customLocationDetails === loc
-                                  ? 'bg-emerald-500 text-black font-bold border-emerald-400'
-                                  : 'bg-zinc-800/80 text-zinc-300 border-zinc-700 hover:border-zinc-600'
+                                  ? 'bg-emerald-500/20 text-emerald-300 font-bold border-emerald-400 shadow-md'
+                                  : 'bg-zinc-900/80 text-zinc-300 border-zinc-800 hover:border-zinc-700 hover:text-white'
                               }`}
                             >
                               {loc}
@@ -2058,16 +2237,10 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                           ))}
                         </div>
                       </div>
-
-                      <LocationSelectionCarousel
-                        language={language}
-                        selection={selection}
-                        onUpdateSelection={onUpdateSelection}
-                      />
                     </div>
                   )}
 
-                  {projectCategory !== 'product' && step2SubTab === 'festivals' && (
+                  {step2SubTab === 'festivals' && (
                     <div className="w-full">
                       <FestivalsStudioView
                         language={language}
@@ -2077,47 +2250,39 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                     </div>
                   )}
 
-                  {projectCategory !== 'product' && step2SubTab === 'props' && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {(projectCategory === 'product' ? (
-                        historicalTimeline === '1940s' ? [
-                          { name: 'Aged Colonial Teak Desk', desc: 'Antique solid teak wood desk with heritage patina' },
-                          { name: 'Vintage Brass Ceremonial Tray', desc: 'Engraved mid-century Burmese brass display surface' },
-                          { name: 'Vintage Embroidered Lace Tablecloth', desc: 'Delicate hand-loomed heritage lace linen' },
-                          { name: 'Antique Glass Vitrine Display', desc: 'Classic wooden showcase with velvet base' }
-                        ] : historicalTimeline === 'modern' ? [
-                          { name: 'Polished Black/White Marble Podium', desc: 'Minimalist luxury geometric pedestal' },
-                          { name: 'Floating Lotus Petals on Water Ripple', desc: 'Serene botanical water surface with reflections' },
-                          { name: 'Illuminated Acrylic Display Block', desc: 'Contemporary high-fashion jewelry pedestal' },
-                          { name: 'Natural Slate & Raw Teak Plinth', desc: 'Organic architectural texture combination' }
-                        ] : [
-                          { name: 'Gilded Royal Pedestal (Shwe Kalat)', desc: '24k gold leaf royal offering stand' },
-                          { name: 'Intricate Kanote Carved Teak Stand', desc: 'Master woodcarving with floral filigree' },
-                          { name: 'Vermilion Lacquer Ceremonial Tray', desc: 'Bagan royal red lacquerware plate' },
-                          { name: 'Gold Lotus Leaf Shallow Bowl', desc: 'Handcrafted courtly centerpiece' }
-                        ]
-                      ) : [
-                        { name: 'Pathein Handcrafted Parasol', desc: 'Traditional floral oiled parasol' },
-                        { name: 'Mogok Ruby Filigree Torque', desc: 'Royal golden neckpiece with ruby stones' },
-                        { name: 'Circular Stone Thanaka Grinder', desc: 'Kyauk-pyin with fragrant Thanaka bark' },
-                        { name: 'Royal Silver Water Bowl (Pha-la)', desc: 'Hand-embossed repousse silver bowl' },
-                        { name: 'Lacquerware Betel Box (Kun-it)', desc: 'Multi-tiered traditional Bagan lacquer' },
-                        { name: 'Fresh Jasmine & Lotus Garland', desc: 'Fragrant ceremonial floral offering' }
-                      ]).map((prop, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => onUpdateSelection({ culturalPropsDetails: prop.name })}
-                          className={`p-3.5 rounded-2xl border text-left transition cursor-pointer ${
-                            selection.culturalPropsDetails === prop.name
-                              ? 'bg-emerald-500/10 border-emerald-500 text-white shadow-md'
-                              : 'bg-zinc-900/60 border-zinc-800 text-zinc-300 hover:border-zinc-700'
-                          }`}
-                        >
-                          <div className="font-bold text-xs">{prop.name}</div>
-                          <div className="text-[11px] text-zinc-400 mt-1">{prop.desc}</div>
-                        </button>
-                      ))}
+                  {step2SubTab === 'props' && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                      {[
+                        { name: 'Pathein Handcrafted Parasol', icon: '☂️', desc: 'Traditional floral oiled parasol' },
+                        { name: 'Mogok Ruby Filigree Torque', icon: '💎', desc: 'Royal golden neckpiece with ruby stones' },
+                        { name: 'Circular Stone Thanaka Grinder', icon: '🪵', desc: 'Kyauk-pyin with fragrant Thanaka bark' },
+                        { name: 'Royal Silver Water Bowl (Pha-la)', icon: '🥣', desc: 'Hand-embossed repousse silver bowl' },
+                        { name: 'Lacquerware Betel Box (Kun-it)', icon: '🏺', desc: 'Multi-tiered traditional Bagan lacquer' },
+                        { name: 'Fresh Jasmine & Lotus Garland', icon: '🌸', desc: 'Fragrant ceremonial floral offering' }
+                      ].map((prop, idx) => {
+                        const isSel = selection.culturalPropsDetails === prop.name;
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => onUpdateSelection({ culturalPropsDetails: prop.name })}
+                            className={`relative group p-4 rounded-2xl border text-center transition-all cursor-pointer ${
+                              isSel
+                                ? 'bg-[#121c19] border-emerald-500 shadow-lg shadow-emerald-950/40 ring-1 ring-emerald-500/50'
+                                : 'bg-[#10141d] border-zinc-800/80 hover:border-zinc-700 hover:bg-[#141924] text-zinc-300'
+                            }`}
+                          >
+                            {isSel && (
+                              <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-emerald-500 text-black flex items-center justify-center text-[9px] font-black shadow-md">
+                                ✓
+                              </div>
+                            )}
+                            <div className="text-2xl mb-1.5">{prop.icon}</div>
+                            <div className="font-bold text-xs text-white">{prop.name}</div>
+                            <div className="text-[10px] text-zinc-400 mt-0.5 line-clamp-1">{prop.desc}</div>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
 
@@ -2145,42 +2310,29 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                       )}
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <input
-                        type="text"
+                    <div className="space-y-1.5">
+                      <textarea
+                        rows={2}
                         value={step2CustomInput}
                         onChange={(e) => {
                           setStep2CustomInput(e.target.value);
                           onUpdateSelection({ customLocationDetails: e.target.value });
                         }}
-                        placeholder="e.g. Set against misty Shan mountain pagoda terrace at sunrise with floating prayer flags"
-                        className="flex-1 px-4 py-2.5 rounded-xl bg-black/60 border border-zinc-700/80 text-zinc-100 text-xs focus:outline-none focus:border-emerald-500 placeholder:text-zinc-500"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            handleEnhanceStep2();
-                          }
-                        }}
+                        placeholder="e.g. Set against misty Shan mountain pagoda terrace at sunrise with floating prayer flags..."
+                        className="w-full p-3.5 rounded-xl bg-black/60 border border-zinc-800 text-zinc-100 text-xs focus:outline-none focus:border-emerald-500 placeholder:text-zinc-500 font-sans resize-none"
                       />
-
-                      <button
-                        type="button"
-                        onClick={() => handleEnhanceStep2()}
-                        disabled={isStep2Enhancing}
-                        className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-black font-bold text-xs hover:brightness-110 active:scale-95 transition shadow-md shadow-emerald-500/20 flex items-center justify-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50"
-                      >
-                        {isStep2Enhancing ? (
-                          <>
-                            <RotateCcw className="w-3.5 h-3.5 animate-spin" />
-                            <span>Enhancing...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="w-3.5 h-3.5 fill-black" />
-                            <span>✨ Enhance</span>
-                          </>
-                        )}
-                      </button>
+                      <div className="flex items-center justify-between text-[10px] text-zinc-500 font-mono mt-1">
+                        <button
+                          type="button"
+                          onClick={() => handleEnhanceStep2()}
+                          disabled={isStep2Enhancing}
+                          className="text-emerald-400 hover:text-emerald-300 font-bold transition flex items-center gap-1 cursor-pointer"
+                        >
+                          <Sparkles className="w-3 h-3" />
+                          <span>{isStep2Enhancing ? 'AI Enhancing...' : 'AI Enhance Details'}</span>
+                        </button>
+                        <span>{step2CustomInput.length} / 500</span>
+                      </div>
                     </div>
 
                     {/* ✨ AI ENHANCED SUGGESTION CARD */}
@@ -2259,48 +2411,65 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                 </div>
               )}
 
-              {/* STEP 3: COMPOSITION (Prioritized by Category) */}
+              {/* STEP 3: COMPOSITION (Symmetrical 8-Card Grid) */}
               {activeStepId === 'composition' && (
                 <div className="space-y-6">
                   <div>
                     <span className="text-xs font-bold text-zinc-300 block mb-3">
                       {projectCategory === 'product' ? 'Commercial Product Framing & Camera Angles:' : 'Framing & Camera Perspectives:'}
                     </span>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       {(projectCategory === 'product' ? [
-                        { id: 'macro_extreme', title: 'Macro 1:1 Detail Close-Up', desc: 'Extreme close focus on gemstone faceting, silk weave, and lacquer glaze' },
-                        { id: 'hero_45', title: '45° Commercial Hero Shot', desc: 'Standard studio product angle showing dimension, depth, and shadow' },
-                        { id: 'top_down_flatlay', title: 'Top-Down Flat Lay', desc: 'Elegant bird’s-eye arrangement of items and cultural accessories' },
-                        { id: 'podium_center', title: 'Podium Center Framing', desc: 'Regal museum pedestal framing with symmetrical balance' },
-                        { id: 'floating_exploded', title: 'Dynamic Floating Exploded View', desc: 'Modern gravity-defying floating product composition' },
-                        { id: 'shallow_dof_table', title: 'Shallow Depth Tabletop', desc: 'Soft blurred cultural background with razor-sharp product focus' }
+                        { id: 'macro_extreme', title: 'Macro 1:1 Detail', icon: '🔍', desc: 'Gemstones, silk weave & lacquer glaze' },
+                        { id: 'hero_45', title: '45° Hero Shot', icon: '📸', desc: 'Standard commercial studio dimension' },
+                        { id: 'top_down_flatlay', title: 'Top-Down Flat Lay', icon: '🦅', desc: 'Bird’s-eye cultural staging arrangement' },
+                        { id: 'podium_center', title: 'Podium Center', icon: '🏛️', desc: 'Regal museum pedestal symmetry' },
+                        { id: 'floating_exploded', title: 'Dynamic Floating', icon: '⚡', desc: 'Gravity-defying modern exploded view' },
+                        { id: 'shallow_dof_table', title: 'Shallow Tabletop', icon: '🪵', desc: 'Soft blurred background, razor-sharp focus' },
+                        { id: 'low_heroic', title: 'Low Heroic Angle', icon: '📐', desc: 'Cinematic perspective looking upward' },
+                        { id: 'lifestyle_wide', title: 'Lifestyle Staging', icon: '🌿', desc: 'Organic ambient environment framing' }
                       ] : projectCategory === 'wedding' ? [
-                        { id: 'romantic_two_shot', title: 'Romantic Two-Shot', desc: 'Intimate bride & groom medium portrait capturing mutual warmth' },
-                        { id: 'wide_prewedding', title: 'Wide Architectural Pre-Wedding', desc: 'Epic environmental shot framed by ancient temple or colonial arch' },
-                        { id: 'candid_intimate', title: 'Candid Intimate Framing', desc: 'Heartfelt unposed smile, hand-holding, and veil movement' },
-                        { id: 'macro_rings_attire', title: 'Attire & Rings Macro Detail', desc: 'Focused close-up of interlocking Acheik silk and wedding rings' },
-                        { id: 'full_ceremonial', title: 'Full-Length Ceremonial Portrait', desc: 'Traditional formal pose showcasing full bridal trains' }
+                        { id: 'romantic_two_shot', title: 'Romantic Two-Shot', icon: '💑', desc: 'Intimate bride & groom medium portrait' },
+                        { id: 'wide_prewedding', title: 'Architectural Wide', icon: '🏛️', desc: 'Temple terrace or colonial arch framing' },
+                        { id: 'candid_intimate', title: 'Candid Intimate', icon: '❤️', desc: 'Heartfelt smile, hand-holding & movement' },
+                        { id: 'macro_rings_attire', title: 'Attire & Rings Macro', icon: '💍', desc: 'Interlocking Acheik silk & gold rings' },
+                        { id: 'full_ceremonial', title: 'Full Ceremonial', icon: '👘', desc: 'Traditional formal pose with bridal trains' },
+                        { id: 'hero_45', title: 'Hero 45° Angle', icon: '📸', desc: 'Dynamic three-quarters face angle' },
+                        { id: 'bust_portrait', title: 'Medium Bust', icon: '👤', desc: 'Head-and-shoulders highlighting jewelry' },
+                        { id: 'extreme_closeup', title: 'Extreme Close-Up', icon: '🔍', desc: 'Eyes, bridal floral hair & Thanaka detail' }
                       ] : [
-                        { id: 'extreme_closeup', title: 'Extreme Close-Up (ECU)', desc: 'Focused on eyes, Thanaka cheek patterns, and skin micro-texture' },
-                        { id: 'bust_portrait', title: 'Medium Bust Portrait', desc: 'Classic head-and-shoulders highlighting jewelry and neckline' },
-                        { id: 'cowboy_shot', title: 'Cowboy Shot (3/4th Length)', desc: 'Torso to mid-thigh capturing posture and longyi patterns' },
-                        { id: 'full_body', title: 'Full-Body Ethnographic Shot', desc: 'Complete traditional attire and posture from head to footwear' },
-                        { id: 'low_heroic', title: 'Low Heroic Angle', desc: 'Empowering cinematic perspective looking slightly upward' }
-                      ]).map(comp => (
-                        <button
-                          key={comp.id}
-                          type="button"
-                          onClick={() => onUpdateSelection({ cameraAngle: comp.id as any })}
-                          className={`p-4 rounded-2xl border text-left transition cursor-pointer ${
-                            selection.cameraAngle === comp.id
-                              ? 'bg-emerald-500/10 border-emerald-500 text-white shadow-md'
-                              : 'bg-zinc-900/60 border-zinc-800 text-zinc-300 hover:border-zinc-700'
-                          }`}
-                        >
-                          <div className="font-bold text-xs">{comp.title}</div>
-                          <div className="text-[11px] text-zinc-400 mt-1">{comp.desc}</div>
-                        </button>
-                      ))}
+                        { id: 'extreme_closeup', title: 'Extreme Close-Up', icon: '🔍', desc: 'Eyes, Thanaka swirl & skin micro-texture' },
+                        { id: 'bust_portrait', title: 'Medium Bust', icon: '👤', desc: 'Classic portrait highlighting jewelry' },
+                        { id: 'cowboy_shot', title: 'Cowboy (3/4th)', icon: '👘', desc: 'Torso to mid-thigh capturing longyi patterns' },
+                        { id: 'full_body', title: 'Full-Body Shot', icon: '🧍', desc: 'Complete traditional attire and stance' },
+                        { id: 'hero_45', title: 'Hero 45° Angle', icon: '📸', desc: 'Dynamic three-quarters cinematic view' },
+                        { id: 'low_heroic', title: 'Low Heroic Angle', icon: '⚡', desc: 'Empowering perspective looking upward' },
+                        { id: 'candid_intimate', title: 'Candid Intimate', icon: '❤️', desc: 'Warm natural gesture and gentle emotion' },
+                        { id: 'wide_environmental', title: 'Environmental Wide', icon: '🏛️', desc: 'Grand ancient architecture backdrop' }
+                      ]).map(comp => {
+                        const isSel = selection.cameraAngle === comp.id;
+                        return (
+                          <button
+                            key={comp.id}
+                            type="button"
+                            onClick={() => onUpdateSelection({ cameraAngle: comp.id as any })}
+                            className={`relative group p-4 rounded-2xl border text-center transition-all cursor-pointer ${
+                              isSel
+                                ? 'bg-[#121c19] border-emerald-500 shadow-lg shadow-emerald-950/40 ring-1 ring-emerald-500/50'
+                                : 'bg-[#10141d] border-zinc-800/80 hover:border-zinc-700 hover:bg-[#141924] text-zinc-300'
+                            }`}
+                          >
+                            {isSel && (
+                              <div className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-emerald-500 text-black flex items-center justify-center text-[10px] font-black shadow-md">
+                                ✓
+                              </div>
+                            )}
+                            <div className="text-2xl mb-1.5">{comp.icon}</div>
+                            <div className="font-bold text-xs text-white">{comp.title}</div>
+                            <div className="text-[10px] text-zinc-400 mt-1 line-clamp-2">{comp.desc}</div>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -2312,7 +2481,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                 </div>
               )}
 
-              {/* STEP 4: STYLE */}
+              {/* STEP 4: STYLE (Symmetrical 8-Card Grid) */}
               {activeStepId === 'style' && (
                 <div className="space-y-4">
                   <span className="text-xs font-bold text-zinc-300 block">
@@ -2320,47 +2489,72 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                       ? 'Graphic Design Poster Style & Commercial Aesthetic (ကြော်ငြာ ဟန်ပန်):'
                       : `Aesthetic Medium & Art Style (Tuned for ${historicalTimeline.toUpperCase()} Era):`}
                   </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {(projectCategory === 'product' ? [
-                      { id: 'octane_3d_render', title: '3D Octane / Cinema4D Render', desc: 'Hyper-glossy modern commercial poster with ray-traced reflections' },
-                      { id: 'commercial_8k_studio', title: 'Modern Luxury High-Fashion Ad', desc: 'Vogue-style pristine commercial lighting and minimalist layout' },
-                      { id: 'bold_pop_art_banner', title: 'Bold Pop-Art Commercial Flyer', desc: 'High-contrast vibrant social media promotional poster' },
-                      { id: 'vintage_lithograph_ad', title: 'Vintage Burmese Lithograph Ad', desc: '1940s colonial Rangoon heritage advertisement poster' }
+                      { id: 'octane_3d_render', title: '3D Octane Render', icon: '⚡', desc: 'Glossy commercial poster with ray tracing' },
+                      { id: 'commercial_8k_studio', title: 'Luxury Fashion Ad', icon: '💎', desc: 'Vogue-style pristine lighting & layout' },
+                      { id: 'bold_pop_art_banner', title: 'Bold Pop-Art Flyer', icon: '🎨', desc: 'High-contrast vibrant social promo poster' },
+                      { id: 'vintage_lithograph_ad', title: 'Vintage Lithograph', icon: '📜', desc: '1940s colonial Rangoon retro poster' },
+                      { id: 'cinematic_anamorphic', title: 'Cinematic Studio', icon: '🎬', desc: 'Anamorphic flare with dramatic falloff' },
+                      { id: 'watercolor_blueprint', title: 'Artisanal Sketch', icon: '🖌️', desc: 'Watercolor wash & blueprint calligraphy' },
+                      { id: 'minimal_scandinavian', title: 'Minimalist Fusion', icon: '🌿', desc: 'Clean negative space meets Burmese teak' },
+                      { id: 'holographic_neon', title: 'Cyberpunk Rim Glow', icon: '🔮', desc: 'Futuristic neon accents on heritage craft' }
                     ] : historicalTimeline === '1940s' ? [
-                      { id: 'vintage_silver_gelatin', title: '1940s Silver Gelatin Photo', desc: 'Authentic mid-century black and white photographic print with smooth tonality' },
-                      { id: 'colonial_postcard', title: 'Hand-Tinted Colonial Postcard', desc: 'Early 20th century hand-colored archival postcard print' },
-                      { id: 'classic_35mm_grain', title: 'Classic 35mm Film Grain Still', desc: 'Warm cinema still with organic analog film grain and soft roll-off' },
-                      { id: 'early_kodachrome', title: 'Early Kodachrome Warm Tone', desc: 'Rich 1940s color film archive with saturated reds and golds' }
+                      { id: 'vintage_silver_gelatin', title: '1940s Silver Gelatin', icon: '🎞️', desc: 'Mid-century black & white analog print' },
+                      { id: 'colonial_postcard', title: 'Colonial Postcard', icon: '📮', desc: 'Hand-tinted early 20th century print' },
+                      { id: 'classic_35mm_grain', title: 'Classic 35mm Film', icon: '📼', desc: 'Warm cinema still with organic grain' },
+                      { id: 'early_kodachrome', title: 'Early Kodachrome', icon: '🌈', desc: 'Rich 1940s film archive with saturated tones' },
+                      { id: 'commercial_8k_studio', title: '8K Commercial Studio', icon: '💎', desc: 'Pristine sharpness and commercial clarity' },
+                      { id: 'vogue_editorial', title: 'Vogue Editorial', icon: '👗', desc: 'Contemporary high-fashion magazine aesthetic' },
+                      { id: 'regal_classical_oil', title: 'Classical Court Oil', icon: '🖌️', desc: 'Opulent Burmese court oil painting masterpiece' },
+                      { id: 'unreal_engine_5', title: 'Unreal Engine 5 CGI', icon: '⚡', desc: 'Next-gen photorealistic CGI rendering' }
                     ] : historicalTimeline === 'modern' ? [
-                      { id: 'commercial_8k_studio', title: '8K Commercial Studio Photo', desc: 'Razor-sharp commercial photography with pristine edge clarity' },
-                      { id: 'vogue_editorial', title: 'Vogue Editorial Fashion', desc: 'Contemporary high-fashion magazine aesthetic with dynamic poise' },
-                      { id: 'unreal_engine_5', title: 'Unreal Engine 5 3D Render', desc: 'Cutting-edge photorealistic CGI with ray-traced lighting' },
-                      { id: 'crisp_digital_cinema', title: 'Crisp Digital Cinema (ARRI)', desc: 'Modern anamorphic 4K cinema look with rich dynamic range' }
+                      { id: 'commercial_8k_studio', title: '8K Commercial Studio', icon: '💎', desc: 'Razor-sharp commercial photography' },
+                      { id: 'vogue_editorial', title: 'Vogue Editorial', icon: '👗', desc: 'Contemporary high-fashion magazine aesthetic' },
+                      { id: 'unreal_engine_5', title: 'Unreal Engine 5 CGI', icon: '⚡', desc: 'Photorealistic CGI with ray-traced lighting' },
+                      { id: 'crisp_digital_cinema', title: 'Crisp Digital ARRI', icon: '🎬', desc: 'Anamorphic 4K cinema look with rich range' },
+                      { id: 'classic_35mm_grain', title: '35mm Film Grain', icon: '📼', desc: 'Warm organic cinema film grain roll-off' },
+                      { id: 'vintage_silver_gelatin', title: 'Silver Gelatin B&W', icon: '🎞️', desc: 'Classic monochrome print tonal gradations' },
+                      { id: 'regal_classical_oil', title: 'Neo-Classical Oil', icon: '🖌️', desc: 'Modern master oil brushwork fusion' },
+                      { id: 'early_kodachrome', title: 'Warm Kodachrome', icon: '🌈', desc: 'Rich nostalgic saturated color tones' }
                     ] : [
-                      { id: 'bagan_wall_fresco', title: 'Bagan Wall Mural / Fresco', desc: 'Ancient 11th-century temple wall fresco with aged terracotta plaster' },
-                      { id: 'parabaik_manuscript', title: 'Parabaik Royal Manuscript', desc: 'Traditional Burmese folded accordion manuscript watercolor painting' },
-                      { id: 'regal_classical_oil', title: 'Regal Classical Oil Painting', desc: 'Opulent European-influenced Burmese court oil masterpiece' },
-                      { id: 'epic_historical_cinema', title: 'Epic Historical Cinema Still', desc: 'Grand feudal dynasty period drama film cinematography' }
-                    ]).map(style => (
-                      <button
-                        key={style.id}
-                        type="button"
-                        onClick={() => onUpdateSelection({ qualityProfile: style.id as any })}
-                        className={`p-4 rounded-2xl border text-left transition cursor-pointer ${
-                          selection.qualityProfile === style.id
-                            ? 'bg-emerald-500/10 border-emerald-500 text-white shadow-md'
-                            : 'bg-zinc-900/60 border-zinc-800 text-zinc-300 hover:border-zinc-700'
-                        }`}
-                      >
-                        <div className="font-bold text-xs">{style.title}</div>
-                        <div className="text-[11px] text-zinc-400 mt-1">{style.desc}</div>
-                      </button>
-                    ))}
+                      { id: 'bagan_wall_fresco', title: 'Ancient Fresco', icon: '🏛️', desc: '11th-century temple mural plaster patina' },
+                      { id: 'parabaik_manuscript', title: 'Parabaik Watercolor', icon: '📜', desc: 'Traditional folded manuscript painting' },
+                      { id: 'regal_classical_oil', title: 'Classical Court Oil', icon: '🖌️', desc: 'Opulent Burmese court oil masterpiece' },
+                      { id: 'epic_historical_cinema', title: 'Epic Period Cinema', icon: '🎬', desc: 'Feudal dynasty period drama cinematography' },
+                      { id: 'commercial_8k_studio', title: '8K Archival Studio', icon: '💎', desc: 'Modern museum-grade ultra-detailed record' },
+                      { id: 'vintage_silver_gelatin', title: 'Silver Gelatin Print', icon: '🎞️', desc: 'Early expeditionary archival photographic plate' },
+                      { id: 'early_kodachrome', title: 'Rich Kodachrome', icon: '🌈', desc: 'Vibrant historical reds and gold leaf saturation' },
+                      { id: 'unreal_engine_5', title: 'Unreal Engine 5 CGI', icon: '⚡', desc: 'Hyper-detailed 3D digital heritage recreation' }
+                    ]).map(style => {
+                      const isSel = selection.qualityProfile === style.id;
+                      return (
+                        <button
+                          key={style.id}
+                          type="button"
+                          onClick={() => onUpdateSelection({ qualityProfile: style.id as any })}
+                          className={`relative group p-4 rounded-2xl border text-center transition-all cursor-pointer ${
+                            isSel
+                              ? 'bg-[#121c19] border-emerald-500 shadow-lg shadow-emerald-950/40 ring-1 ring-emerald-500/50'
+                              : 'bg-[#10141d] border-zinc-800/80 hover:border-zinc-700 hover:bg-[#141924] text-zinc-300'
+                          }`}
+                        >
+                          {isSel && (
+                            <div className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-emerald-500 text-black flex items-center justify-center text-[10px] font-black shadow-md">
+                              ✓
+                            </div>
+                          )}
+                          <div className="text-2xl mb-1.5">{style.icon}</div>
+                          <div className="font-bold text-xs text-white">{style.title}</div>
+                          <div className="text-[10px] text-zinc-400 mt-1 line-clamp-2">{style.desc}</div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
 
-              {/* STEP 5: COLOR PALETTE */}
+              {/* STEP 5: COLOR PALETTE (Symmetrical 8-Card Grid) */}
               {activeStepId === 'colorPalette' && (
                 <div className="space-y-4">
                   <span className="text-xs font-bold text-zinc-300 block">
@@ -2368,48 +2562,49 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                       ? 'Brand Commercial Color Harmony (တံဆိပ် အရောင်အသွေး):'
                       : `Curated Color Swatches (Tuned for ${historicalTimeline.toUpperCase()} Era):`}
                   </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    {(projectCategory === 'product' ? [
-                      { id: 'gold_obsidian', name: 'Royal Gold & Obsidian Black', dots: ['#FFD700', '#1C1917', '#78350F'], desc: 'Supreme luxury jewelry, watches and imperial craft' },
-                      { id: 'high_key_white', name: 'High-Key Pure White & Platinum', dots: ['#FFFFFF', '#E2E8F0', '#94A3B8'], desc: 'Clean minimalist cosmetics, skincare & tech products' },
-                      { id: 'crimson_festive_sale', name: 'Bold Crimson Red & Gold', dots: ['#DC2626', '#F59E0B', '#1E1B4B'], desc: 'High-energy big promotion and festive seasonal sale' }
-                    ] : historicalTimeline === '1940s' ? [
-                      { id: 'monochrome_sepia', name: 'Monochrome Sepia & Silver', dots: ['#2C221E', '#8B7D6B', '#E8DFC8'], desc: 'Warm charcoal, sepia wash and aged paper white' },
-                      { id: 'faded_ochre_indigo', name: 'Warm Faded Ochre & Indigo', dots: ['#B8860B', '#2E4057', '#E5DCC5'], desc: 'Colonial postal tones and heritage dyed fabrics' },
-                      { id: 'vintage_brass_rose', name: 'Vintage Brass & Muted Rose', dots: ['#B5A642', '#A0522D', '#D8A47F'], desc: 'Antique brass filigree, tea-stained lace & rose silk' }
-                    ] : historicalTimeline === 'modern' ? [
-                      { id: 'commercial_vibrant', name: 'High-Contrast Commercial Vibrant', dots: ['#10B981', '#06B6D4', '#18181B'], desc: 'Bold emerald, radiant cyan and deep studio blacks' },
-                      { id: 'luxury_bridal_pastel', name: 'Soft Luxury Bridal Pastels', dots: ['#FBCFE8', '#E0E7FF', '#FEF3C7'], desc: 'Champagne gold, powder pink and ivory silk' },
-                      { id: 'studio_monochrome', name: 'Clean Neutral Studio', dots: ['#FFFFFF', '#71717A', '#18181B'], desc: 'Pure studio white, titanium gray and dark charcoal' }
-                    ] : [
-                      { id: 'mandalay_gold', name: 'Royal Gold Leaf & Vermilion', dots: ['#FFD700', '#C8102E', '#1A3D2F'], desc: 'Konbaung dynasty pure gold leaf, vermilion and emerald velvet' },
-                      { id: 'bagan_terracotta', name: 'Ancient Bagan Sandstone & Ochre', dots: ['#C05A3E', '#D2B48C', '#4A2E18'], desc: 'Baked brick terracotta, desert ochre and dark teakwood' },
-                      { id: 'lotus_jade', name: 'Lotus Jade & Sacred Teak', dots: ['#0B6623', '#79443B', '#D4AF37'], desc: 'Imperial Mogok jadeite green, antique teak and gold filigree' }
-                    ]).map(pal => (
-                      <button
-                        key={pal.id}
-                        type="button"
-                        onClick={() => onUpdateSelection({ colorGrade: pal.id as any })}
-                        className={`p-4 rounded-2xl border text-left transition cursor-pointer ${
-                          selection.colorGrade === pal.id
-                            ? 'bg-emerald-500/10 border-emerald-500 text-white shadow-md'
-                            : 'bg-zinc-900/60 border-zinc-800 text-zinc-300 hover:border-zinc-700'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 mb-2">
-                          {pal.dots.map((d, i) => (
-                            <span key={i} className="w-5 h-5 rounded-full border border-black/30 shadow-xs" style={{ backgroundColor: d }} />
-                          ))}
-                        </div>
-                        <div className="font-bold text-xs">{pal.name}</div>
-                        <div className="text-[11px] text-zinc-400 mt-1">{pal.desc}</div>
-                      </button>
-                    ))}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {[
+                      { id: 'mandalay_gold', name: 'Mandalay Gold', dots: ['#FFD700', '#C8102E', '#1A3D2F'], desc: 'Royal gold leaf, vermilion & emerald velvet' },
+                      { id: 'bagan_terracotta', name: 'Bagan Terracotta', dots: ['#C05A3E', '#D2B48C', '#4A2E18'], desc: 'Baked brick terracotta, desert ochre & teak' },
+                      { id: 'monochrome_sepia', name: 'Sepia & Silver', dots: ['#2C221E', '#8B7D6B', '#E8DFC8'], desc: 'Warm charcoal, sepia wash & archival white' },
+                      { id: 'lotus_jade', name: 'Lotus Jade & Teak', dots: ['#0B6623', '#79443B', '#D4AF37'], desc: 'Mogok jadeite green, antique teak & gold' },
+                      { id: 'faded_ochre_indigo', name: 'Ochre & Indigo', dots: ['#B8860B', '#2E4057', '#E5DCC5'], desc: 'Colonial postal tones & heritage dyed silk' },
+                      { id: 'commercial_vibrant', name: 'Vibrant Emerald', dots: ['#10B981', '#06B6D4', '#18181B'], desc: 'Bold emerald, radiant cyan & deep blacks' },
+                      { id: 'luxury_bridal_pastel', name: 'Bridal Champagne', dots: ['#FBCFE8', '#E0E7FF', '#FEF3C7'], desc: 'Champagne gold, blush pink & ivory silk' },
+                      { id: 'studio_monochrome', name: 'Clean Neutral', dots: ['#FFFFFF', '#71717A', '#18181B'], desc: 'Pure studio white, titanium gray & charcoal' }
+                    ].map(pal => {
+                      const isSel = selection.colorGrade === pal.id;
+                      return (
+                        <button
+                          key={pal.id}
+                          type="button"
+                          onClick={() => onUpdateSelection({ colorGrade: pal.id as any })}
+                          className={`relative group p-4 rounded-2xl border text-center transition-all cursor-pointer ${
+                            isSel
+                              ? 'bg-[#121c19] border-emerald-500 shadow-lg shadow-emerald-950/40 ring-1 ring-emerald-500/50'
+                              : 'bg-[#10141d] border-zinc-800/80 hover:border-zinc-700 hover:bg-[#141924] text-zinc-300'
+                          }`}
+                        >
+                          {isSel && (
+                            <div className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-emerald-500 text-black flex items-center justify-center text-[10px] font-black shadow-md">
+                              ✓
+                            </div>
+                          )}
+                          <div className="flex items-center justify-center gap-1.5 mb-2">
+                            {pal.dots.map((d, i) => (
+                              <span key={i} className="w-4 h-4 rounded-full border border-black/30 shadow-xs" style={{ backgroundColor: d }} />
+                            ))}
+                          </div>
+                          <div className="font-bold text-xs text-white">{pal.name}</div>
+                          <div className="text-[10px] text-zinc-400 mt-1 line-clamp-2">{pal.desc}</div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
 
-              {/* STEP 6: LIGHTING */}
+              {/* STEP 6: LIGHTING (Symmetrical 8-Card Grid) */}
               {activeStepId === 'lighting' && (
                 <div className="space-y-4">
                   <span className="text-xs font-bold text-zinc-300 block">
@@ -2417,38 +2612,40 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                       ? 'Commercial Studio Lighting Rigs (စတူဒီယို ကြော်ငြာ အလင်း):'
                       : `Lighting Mood & Optics (Tuned for ${historicalTimeline.toUpperCase()} Era):`}
                   </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {(projectCategory === 'product' ? [
-                      { id: 'pro_studio_softbox', title: 'Pro Studio Dual Softbox & Rim', desc: 'Pristine wrap-around key light with sharp edge separation rim' },
-                      { id: 'specular_gem_light', title: 'Precision Specular Jewelry Optics', desc: 'Pinpoint optical highlights capturing gemstone refraction and metallic sparkle' },
-                      { id: 'underlit_acrylic_glow', title: 'Dramatic Underlit Platform Glow', desc: 'Futuristic glowing acrylic pedestal elevating product presence' }
-                    ] : historicalTimeline === '1940s' ? [
-                      { id: '1940s_flashbulb', title: '1940s Studio Flashbulb', desc: 'High-contrast direct vintage flash with dramatic falloff shadows' },
-                      { id: 'colonial_window_light', title: 'Diffused Colonial Window Light', desc: 'Soft afternoon sunlight filtering through wooden louvers' },
-                      { id: 'monsoon_rainy_atmosphere', title: 'Warm Nostalgic Monsoon Haze', desc: 'Rain-slicked reflections and misty overcast ambient mood' }
-                    ] : historicalTimeline === 'modern' ? [
-                      { id: 'pro_studio_softbox', title: 'Pro Studio Dual Softbox & Rim', desc: 'Pristine wrap-around key light with sharp edge separation rim' },
-                      { id: 'specular_gem_light', title: 'Precision Specular Jewelry Light', desc: 'Pinpoint optical highlights capturing gemstone refraction' },
-                      { id: 'golden_hour_sunset', title: 'Golden Hour Flare & Backlight', desc: 'Warm cinematic sunset glow with subtle natural lens flare' }
-                    ] : [
-                      { id: 'thadingyut_oil_lamp', title: 'Traditional Oil Lamp (Si-Mi) Glow', desc: 'Warm flickering amber candlelight and terracotta clay lamps' },
-                      { id: 'tyndall_incense_rays', title: 'Volumetric Temple Incense Rays', desc: 'Dramatic God-rays streaming through pagoda doorways in incense smoke' },
-                      { id: 'golden_hour_sunset', title: 'Palace Courtyard Sunlight', desc: 'Rich golden late afternoon sunlight bathing gilded spires' }
-                    ]).map(light => (
-                      <button
-                        key={light.id}
-                        type="button"
-                        onClick={() => onUpdateSelection({ timeAndLighting: light.id as any })}
-                        className={`p-4 rounded-2xl border text-left transition cursor-pointer ${
-                          selection.timeAndLighting === light.id
-                            ? 'bg-emerald-500/10 border-emerald-500 text-white shadow-md'
-                            : 'bg-zinc-900/60 border-zinc-800 text-zinc-300 hover:border-zinc-700'
-                        }`}
-                      >
-                        <div className="font-bold text-xs">{light.title}</div>
-                        <div className="text-[11px] text-zinc-400 mt-1">{light.desc}</div>
-                      </button>
-                    ))}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {[
+                      { id: 'thadingyut_oil_lamp', title: 'Si-Mi Oil Lamp', icon: '🕯️', desc: 'Warm flickering amber candlelight & clay lamps' },
+                      { id: 'tyndall_incense_rays', title: 'Temple God-Rays', icon: '✨', desc: 'Volumetric incense sunbeams through doorways' },
+                      { id: 'golden_hour_sunset', title: 'Palace Golden Hour', icon: '🌅', desc: 'Rich golden late afternoon sunlight on spires' },
+                      { id: '1940s_flashbulb', title: '1940s Flashbulb', icon: '📸', desc: 'High-contrast direct vintage flash with shadows' },
+                      { id: 'colonial_window_light', title: 'Colonial Window', icon: '🪟', desc: 'Soft diffused sunlight through wooden louvers' },
+                      { id: 'pro_studio_softbox', title: 'Studio Dual Softbox', icon: '💡', desc: 'Pristine wrap-around key light with rim separation' },
+                      { id: 'specular_gem_light', title: 'Specular Gem Optics', icon: '💎', desc: 'Pinpoint optical highlights capturing sparkle' },
+                      { id: 'blue_hour_twilight', title: 'Blue Hour Twilight', icon: '🌌', desc: 'Deep indigo ambient with golden pagoda glow' }
+                    ].map(light => {
+                      const isSel = selection.timeAndLighting === light.id;
+                      return (
+                        <button
+                          key={light.id}
+                          type="button"
+                          onClick={() => onUpdateSelection({ timeAndLighting: light.id as any })}
+                          className={`relative group p-4 rounded-2xl border text-center transition-all cursor-pointer ${
+                            isSel
+                              ? 'bg-[#121c19] border-emerald-500 shadow-lg shadow-emerald-950/40 ring-1 ring-emerald-500/50'
+                              : 'bg-[#10141d] border-zinc-800/80 hover:border-zinc-700 hover:bg-[#141924] text-zinc-300'
+                          }`}
+                        >
+                          {isSel && (
+                            <div className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-emerald-500 text-black flex items-center justify-center text-[10px] font-black shadow-md">
+                              ✓
+                            </div>
+                          )}
+                          <div className="text-2xl mb-1.5">{light.icon}</div>
+                          <div className="font-bold text-xs text-white">{light.title}</div>
+                          <div className="text-[10px] text-zinc-400 mt-1 line-clamp-2">{light.desc}</div>
+                        </button>
+                      );
+                    })}
                   </div>
 
                   <LightingSelectionCarousel
@@ -2459,7 +2656,7 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                 </div>
               )}
 
-              {/* STEP 7: MOOD & ATMOSPHERE */}
+              {/* STEP 7: MOOD & ATMOSPHERE (Symmetrical 8-Card Grid) */}
               {activeStepId === 'mood' && (
                 <div className="space-y-4">
                   <span className="text-xs font-bold text-zinc-300 block">
@@ -2468,41 +2665,39 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                       : `Mood & Emotional Resonance (Category: ${projectCategory.toUpperCase()} • Timeline: ${historicalTimeline.toUpperCase()}):`}
                   </span>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {(projectCategory === 'product' ? [
-                      { id: 'urgent_promotion_fomo', title: 'Urgent Promotion & FOMO', desc: 'High-energy "Limited Time Exclusive" discount excitement' },
-                      { id: 'ultra_luxurious', title: 'Ultra-Luxurious & Prestige', desc: 'Flawless imperial luxury, status, and high-value appeal' },
-                      { id: 'artisanal_heritage', title: 'Pure Heritage Craft Pride', desc: 'Deep reverence for traditional master Burmese artisans' },
-                      { id: 'festive_joyous', title: 'Festive Season Celebration', desc: 'Warm joyful Thingyan / Thadingyut promotional spirit' }
-                    ] : historicalTimeline === '1940s' ? [
-                      { id: 'nostalgic_melancholic', title: 'Nostalgic & Melancholic', desc: 'Evocative longing for vintage Yangon eras' },
-                      { id: 'poetic_heritage', title: 'Poetic & Literary Grace', desc: 'Intellectual elegance and quiet dignity' },
-                      { id: 'vintage_romance', title: 'Vintage Romance', desc: 'Subtle classic romance and refined decorum' },
-                      { id: 'monsoon_mood', title: 'Monsoon Rainy Yangon', desc: 'Atmospheric rain mist and poetic mood' }
-                    ] : projectCategory === 'wedding' ? [
-                      { id: 'joyous_celebratory', title: 'Joyous & Celebratory', desc: 'Radiant wedding bliss and family honor' },
-                      { id: 'regal_majestic', title: 'Regal Court Wedding', desc: 'Stately dignity and sacred ritual reverence' },
-                      { id: 'intimate_romantic', title: 'Intimate Romance', desc: 'Soft warmth, love and gentle gazes' },
-                      { id: 'blessed_spiritual', title: 'Blessed & Auspicious', desc: 'Sanctified by tradition and Buddhist blessings' }
-                    ] : [
-                      { id: 'regal_majestic', title: 'Regal & Majestic', desc: 'Feudal royal nobility and courtly power' },
-                      { id: 'serene_spiritual', title: 'Serene & Spiritual', desc: 'Peaceful Buddhist devotion and tranquil grace' },
-                      { id: 'ancient_mysterious', title: 'Ancient & Timeless', desc: 'Echoes of forgotten millennia and stone stupas' },
-                      { id: 'festive_joyous', title: 'Festive & Joyous', desc: 'Exuberant national celebration and rhythm' }
-                    ]).map(m => (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => onUpdateSelection({ moodEmotion: m.id as any })}
-                        className={`p-3.5 rounded-2xl border text-left transition cursor-pointer ${
-                          selection.moodEmotion === m.id
-                            ? 'bg-emerald-500/10 border-emerald-500 text-white shadow-md'
-                            : 'bg-zinc-900/60 border-zinc-800 text-zinc-300 hover:border-zinc-700'
-                        }`}
-                      >
-                        <div className="font-bold text-xs">{m.title}</div>
-                        <div className="text-[11px] text-zinc-400 mt-1">{m.desc}</div>
-                      </button>
-                    ))}
+                    {[
+                      { id: 'regal_majestic', title: 'Regal & Majestic', icon: '👑', desc: 'Feudal royal nobility and sovereign court dignity' },
+                      { id: 'serene_spiritual', title: 'Serene & Spiritual', icon: '🙏', desc: 'Tranquil Buddhist devotion & peaceful grace' },
+                      { id: 'nostalgic_melancholic', title: 'Nostalgic Monsoon', icon: '🌧️', desc: 'Atmospheric rain mist & vintage Yangon mood' },
+                      { id: 'festive_joyous', title: 'Festive & Joyous', icon: '🎉', desc: 'Thingyan water or Thadingyut lantern spirit' },
+                      { id: 'ancient_mysterious', title: 'Ancient & Timeless', icon: '🏛️', desc: 'Echoes of forgotten millennia & stone stupas' },
+                      { id: 'intimate_romantic', title: 'Intimate Romance', icon: '❤️', desc: 'Soft warmth, mutual love and gentle gazes' },
+                      { id: 'poetic_heritage', title: 'Poetic Literary Grace', icon: '📜', desc: 'Intellectual elegance and refined decorum' },
+                      { id: 'urgent_promotion_fomo', title: 'Urgent Promo Ad', icon: '⚡', desc: 'High-conversion commercial FOMO excitement' }
+                    ].map(m => {
+                      const isSel = selection.moodEmotion === m.id;
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => onUpdateSelection({ moodEmotion: m.id as any })}
+                          className={`relative group p-4 rounded-2xl border text-center transition-all cursor-pointer ${
+                            isSel
+                              ? 'bg-[#121c19] border-emerald-500 shadow-lg shadow-emerald-950/40 ring-1 ring-emerald-500/50'
+                              : 'bg-[#10141d] border-zinc-800/80 hover:border-zinc-700 hover:bg-[#141924] text-zinc-300'
+                          }`}
+                        >
+                          {isSel && (
+                            <div className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-emerald-500 text-black flex items-center justify-center text-[10px] font-black shadow-md">
+                              ✓
+                            </div>
+                          )}
+                          <div className="text-2xl mb-1.5">{m.icon}</div>
+                          <div className="font-bold text-xs text-white">{m.title}</div>
+                          <div className="text-[10px] text-zinc-400 mt-1 line-clamp-2">{m.desc}</div>
+                        </button>
+                      );
+                    })}
                   </div>
 
                   <MoodSelectionCarousel
@@ -2513,41 +2708,47 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                 </div>
               )}
 
-              {/* STEP 8: TECHNICAL DETAILS */}
+              {/* STEP 8: TECHNICAL DETAILS (Symmetrical 8-Card Grid) */}
               {activeStepId === 'technical' && (
                 <div className="space-y-6">
                   <div>
                     <span className="text-xs font-bold text-zinc-300 block mb-2">
                       Optics & Camera Hardware Specification:
                     </span>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      {(historicalTimeline === '1940s' ? [
-                        { id: 'vintage_large_format', title: 'Vintage Large Format Bellows', desc: 'Wood & brass view camera with authentic analog depth' },
-                        { id: 'petzval_bokeh', title: 'Petzval 85mm Swirly Bokeh', desc: 'Historic lens producing circular swirly background bokeh' },
-                        { id: 'kodak_trix_35mm', title: 'Kodak Tri-X 400 35mm Film', desc: 'Classic black & white film grain and authentic silver tonality' }
-                      ] : projectCategory === 'product' ? [
-                        { id: 'macro_100mm_prime', title: '100mm f/2.8 1:1 Macro Prime', desc: 'Zero distortion, maximum sharpness for gems and textiles' },
-                        { id: 'focus_stacking', title: 'Focus Stacking Technique', desc: 'Edge-to-edge tack-sharp focal plane across complex crafts' },
-                        { id: 'polarized_filter', title: 'Circular Polarizer (CPL)', desc: 'Eliminates glare while deepening rich lacquer & gold saturation' }
-                      ] : [
-                        { id: 'portrait_85mm_14', title: '85mm f/1.4 Prime Portrait Lens', desc: 'Dreamy background separation with tack-sharp eye focus' },
-                        { id: 'hasselblad_h6d', title: 'Hasselblad 100MP Medium Format', desc: 'True-to-life skin micro-pores and handwoven silk threads' },
-                        { id: 'anamorphic_35mm', title: '35mm Anamorphic Cinema Lens', desc: 'Oval bokeh, horizontal flares and widescreen epic presence' }
-                      ]).map(opt => (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          onClick={() => onUpdateSelection({ camera: opt.id as any })}
-                          className={`p-3.5 rounded-2xl border text-left transition cursor-pointer ${
-                            selection.camera === opt.id
-                              ? 'bg-emerald-500/10 border-emerald-500 text-white shadow-md'
-                              : 'bg-zinc-900/60 border-zinc-800 text-zinc-300 hover:border-zinc-700'
-                          }`}
-                        >
-                          <div className="font-bold text-xs">{opt.title}</div>
-                          <div className="text-[11px] text-zinc-400 mt-1">{opt.desc}</div>
-                        </button>
-                      ))}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {[
+                        { id: 'hasselblad_h6d', title: 'Hasselblad 100MP', icon: '📷', desc: 'Medium format skin micro-pores & threads' },
+                        { id: 'portrait_85mm_14', title: '85mm f/1.4 Prime', icon: '🎯', desc: 'Dreamy background separation & sharp eyes' },
+                        { id: 'macro_100mm_prime', title: '100mm f/2.8 Macro', icon: '🔬', desc: 'Zero distortion for gems, lacquer & textiles' },
+                        { id: 'anamorphic_35mm', title: '35mm Anamorphic', icon: '🎬', desc: 'Oval bokeh, horizontal flares & epic widescreen' },
+                        { id: 'petzval_bokeh', title: 'Petzval Swirly Bokeh', icon: '🌀', desc: 'Historic brass lens circular swirly bokeh' },
+                        { id: 'vintage_large_format', title: 'Large Format Bellows', icon: '🪵', desc: 'Wood & brass view camera authentic depth' },
+                        { id: 'leica_m_monochrom', title: 'Leica M Monochrom', icon: '🎞️', desc: 'Sublime black & white silver halide tones' },
+                        { id: 'sony_a7r_v', title: 'Sony A7R V Prime', icon: '⚡', desc: 'Ultra-sharp multi-shot sensor optics' }
+                      ].map(opt => {
+                        const isSel = selection.camera === opt.id;
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => onUpdateSelection({ camera: opt.id as any })}
+                            className={`relative group p-4 rounded-2xl border text-center transition-all cursor-pointer ${
+                              isSel
+                                ? 'bg-[#121c19] border-emerald-500 shadow-lg shadow-emerald-950/40 ring-1 ring-emerald-500/50'
+                                : 'bg-[#10141d] border-zinc-800/80 hover:border-zinc-700 hover:bg-[#141924] text-zinc-300'
+                            }`}
+                          >
+                            {isSel && (
+                              <div className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-emerald-500 text-black flex items-center justify-center text-[10px] font-black shadow-md">
+                                ✓
+                              </div>
+                            )}
+                            <div className="text-2xl mb-1.5">{opt.icon}</div>
+                            <div className="font-bold text-xs text-white">{opt.title}</div>
+                            <div className="text-[10px] text-zinc-400 mt-1 line-clamp-2">{opt.desc}</div>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -2559,27 +2760,38 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
 
                   <div>
                     <span className="text-xs font-bold text-zinc-300 block mb-2">Aspect Ratio:</span>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
                       {[
-                        { ratio: '1:1', label: '1:1 Square (Product / IG)', desc: 'Best for crafts, gemstones & social posts' },
-                        { ratio: '4:5', label: '4:5 Portrait (Studio / Mobile)', desc: 'Classic vertical editorial framing' },
-                        { ratio: '16:9', label: '16:9 Cinematic (Widescreen)', desc: 'Epic temples & panoramic landscapes' },
-                        { ratio: '9:16', label: '9:16 Vertical (Reels / TikTok)', desc: 'Full-screen mobile story orientation' }
-                      ].map(r => (
-                        <button
-                          key={r.ratio}
-                          type="button"
-                          onClick={() => onUpdateSelection({ aspectRatio: r.ratio })}
-                          className={`p-3.5 rounded-2xl border text-left transition cursor-pointer ${
-                            selection.aspectRatio === r.ratio
-                              ? 'bg-emerald-500/20 border-emerald-500 text-white shadow-md'
-                              : 'bg-zinc-900/60 border-zinc-800 text-zinc-300 hover:border-zinc-700'
-                          }`}
-                        >
-                          <div className="font-black text-sm text-emerald-400">{r.label}</div>
-                          <div className="text-[11px] text-zinc-400 mt-1">{r.desc}</div>
-                        </button>
-                      ))}
+                        { ratio: '1:1', label: '1:1 Square', sub: 'Instagram / Product', icon: '⏹️' },
+                        { ratio: '4:5', label: '4:5 Portrait', sub: 'Social / Editorial', icon: '📱' },
+                        { ratio: '3:4', label: '3:4 Classic', sub: 'Fine Art Print', icon: '🖼️' },
+                        { ratio: '9:16', label: '9:16 Vertical', sub: 'Reels / TikTok', icon: '📲' },
+                        { ratio: '16:9', label: '16:9 Cinematic', sub: 'Widescreen Landscape', icon: '🖥️' },
+                        { ratio: '21:9', label: '21:9 Panavision', sub: 'Epic Ultrawide', icon: '🎬' }
+                      ].map(r => {
+                        const isSel = selection.aspectRatio === r.ratio;
+                        return (
+                          <button
+                            key={r.ratio}
+                            type="button"
+                            onClick={() => onUpdateSelection({ aspectRatio: r.ratio })}
+                            className={`relative group p-3 rounded-2xl border text-center transition-all cursor-pointer ${
+                              isSel
+                                ? 'bg-[#121c19] border-emerald-500 shadow-lg shadow-emerald-950/40 ring-1 ring-emerald-500/50'
+                                : 'bg-[#10141d] border-zinc-800/80 hover:border-zinc-700 hover:bg-[#141924] text-zinc-300'
+                            }`}
+                          >
+                            {isSel && (
+                              <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-emerald-500 text-black flex items-center justify-center text-[9px] font-black shadow-md">
+                                ✓
+                              </div>
+                            )}
+                            <div className="text-lg mb-1">{r.icon}</div>
+                            <div className="font-black text-xs text-emerald-400">{r.label}</div>
+                            <div className="text-[10px] text-zinc-400 mt-0.5">{r.sub}</div>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -2636,6 +2848,42 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                   </button>
                 </div>
 
+              </div>
+
+              {/* 🌟 4 Value Cards (Smart Context, Cultural Accuracy, Professional Quality, Save & Organize) */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 pt-2">
+                {[
+                  {
+                    icon: '✨',
+                    title: isMyanmar ? 'စမတ်ကျသော စကားစပ်' : 'Smart Context',
+                    desc: isMyanmar ? 'သမိုင်းခေတ်နှင့် ရည်ရွယ်ချက်အလိုက် အလိုအလျောက် ဟန်ချက်ညီစေခြင်း' : 'Dynamic prompt harmonization based on historical eras.'
+                  },
+                  {
+                    icon: '👑',
+                    title: isMyanmar ? 'ယဉ်ကျေးမှု တိကျမှု' : 'Cultural Accuracy',
+                    desc: isMyanmar ? 'တိုင်းရင်းသား ၁၃၅ မျိုး၊ နန်းတွင်း ဝတ်စားဆင်ယင်မှုများ' : 'Curated against 135 ethnic groups & royal court archetypes.'
+                  },
+                  {
+                    icon: '💎',
+                    title: isMyanmar ? 'ပရော်ဖက်ရှင်နယ် အဆင့်' : 'Professional Quality',
+                    desc: isMyanmar ? 'စတူဒီယို 8K အလင်း၊ Hasselblad optics နှင့် grading' : 'Calibrated with 8K studio lighting & medium-format optics.'
+                  },
+                  {
+                    icon: '📦',
+                    title: isMyanmar ? 'သိမ်းဆည်း & အသုံးပြု' : 'Save & Organize',
+                    desc: isMyanmar ? 'Photo Studio ပို့ခြင်းနှင့် cloud သိမ်းဆည်းခြင်း' : 'Instant export to Photo Studio or save to project archives.'
+                  }
+                ].map((card, i) => (
+                  <div key={i} className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-[#0e121a]/90 border border-zinc-800/80 hover:border-emerald-500/30 transition-all flex flex-col sm:flex-row items-start gap-2 sm:gap-3">
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-base sm:text-lg shrink-0">
+                      {card.icon}
+                    </div>
+                    <div>
+                      <h4 className="text-xs sm:text-xs font-bold text-white mb-0.5 leading-tight">{card.title}</h4>
+                      <p className="text-[10px] sm:text-[11px] text-zinc-400 leading-relaxed line-clamp-2">{card.desc}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
 
             </div>
@@ -2726,15 +2974,40 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
               )}
             </div>
 
-            {/* Primary Action Button */}
-            <button
-              type="button"
-              onClick={handleGeneratePromptNow}
-              className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-black font-black text-xs hover:brightness-110 active:scale-95 transition shadow-lg shadow-emerald-500/20 cursor-pointer shrink-0"
-            >
-              <Zap className="w-3.5 h-3.5 fill-black" />
-              <span>{isMyanmar ? '⚡ Generate Prompt Now' : '⚡ Generate Prompt Now'}</span>
-            </button>
+            {/* Action Buttons: Render in Photo Studio + Generate Prompt */}
+            <div className="flex items-center gap-2 shrink-0">
+              {onSendToPhotoStudio && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const promptToRender = displayedPromptText || buildComprehensiveMasterPrompt(selection, language);
+                    onSendToPhotoStudio(promptToRender, {
+                      ratio: selection.aspectRatio,
+                      chosenOptions: [
+                        { label: 'Era', value: historicalTimeline },
+                        { label: 'Category', value: projectCategory }
+                      ]
+                    });
+                  }}
+                  className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-emerald-500/40 text-emerald-300 font-bold text-xs hover:brightness-110 active:scale-95 transition shadow-sm cursor-pointer"
+                  title="Send directly to AI Photo Studio for generation"
+                >
+                  <Camera className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="hidden sm:inline">{isMyanmar ? '📷 Photo Studio သို့ ပို့မည်' : '📷 Render in Photo Studio'}</span>
+                  <span className="sm:hidden">Studio</span>
+                </button>
+              )}
+
+              {/* Primary Action Button */}
+              <button
+                type="button"
+                onClick={handleGeneratePromptNow}
+                className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-black font-black text-xs hover:brightness-110 active:scale-95 transition shadow-lg shadow-emerald-500/20 cursor-pointer"
+              >
+                <Zap className="w-3.5 h-3.5 fill-black" />
+                <span>{isMyanmar ? '⚡ Generate Prompt Now' : '⚡ Generate Prompt Now'}</span>
+              </button>
+            </div>
 
           </div>
         </div>
@@ -2993,6 +3266,105 @@ export const BurmesePromptMatrix: React.FC<BurmesePromptMatrixProps> = ({
                   className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-black text-xs font-black hover:brightness-110 active:scale-95 transition shadow-lg shadow-emerald-500/20 cursor-pointer flex items-center gap-1.5"
                 >
                   <span>Launch 8-Step Suite →</span>
+                </button>
+              </div>
+
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 🌟 8. "HOW IT WORKS" MODAL */}
+      <AnimatePresence>
+        {showHowItWorksModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowHowItWorksModal(false)}
+              className="fixed inset-0 bg-black/80 backdrop-blur-md"
+            />
+
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative w-full max-w-2xl bg-[#0e121a] border border-emerald-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl z-10 max-h-[90vh] overflow-y-auto space-y-6"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-xl">
+                    💡
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                      Workflow Guide
+                    </span>
+                    <h2 className="text-xl font-black text-white mt-0.5">
+                      {isMyanmar ? 'SHOW AI Prompt Suite အသုံးပြုနည်း လမ်းညွှန်' : 'How SHOW AI Prompt Suite Works'}
+                    </h2>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowHowItWorksModal(false)}
+                  className="p-1.5 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white transition cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* 4 Guided Workflow Steps */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {[
+                  {
+                    step: '01',
+                    icon: '👑',
+                    title: isMyanmar ? '၁။ ခေတ်နှင့် အမျိုးအစား ရွေးချယ်ပါ' : '1. Choose Era & Category',
+                    desc: isMyanmar ? 'နန်းတွင်းခေတ်၊ ၁၉၄၀ အလယ်ခေတ် သို့မဟုတ် မျက်မှောက်ခေတ်ကို Character, Wedding, သို့မဟုတ် Product အလိုက် စတင်ပါ။' : 'Select Royal Court, 1940s Vintage, or Modern Studio mode along with Character, Product, or Wedding.'
+                  },
+                  {
+                    step: '02',
+                    icon: '🎨',
+                    title: isMyanmar ? '၂။ အဆင့် ၈ ဆင့် ရွေးချယ်ပါ' : '2. 8 Balanced Steps',
+                    desc: isMyanmar ? 'Subject မှစ၍ Lighting, Optics အထိ ညီညွတ်သော 8-card grid စနစ်ဖြင့် လိုချင်သော အစိတ်အပိုင်းများကို အလွယ်တကူ ရွေးပါ။' : 'Pick curated options across all 8 steps with symmetrical cards, or write your own custom specifications.'
+                  },
+                  {
+                    step: '03',
+                    icon: '✨',
+                    title: isMyanmar ? '၃။ 1-Click Auto-Harmonize' : '3. 1-Click Harmonization',
+                    desc: isMyanmar ? 'Auto-Harmonize ခလုတ်ကို နှိပ်လိုက်ရုံဖြင့် အဆင့်အားလုံးကို ရွေးချယ်ထားသော ခေတ်စနစ်နှင့် အံကိုက်ဖြစ်အောင် ချိန်ညှိပေးပါသည်။' : 'Click "Auto-Harmonize" in the toolbar to automatically align all 8 steps to your selected era and category.'
+                  },
+                  {
+                    step: '04',
+                    icon: '📷',
+                    title: isMyanmar ? '၄။ Photo Studio သို့ တိုက်ရိုက်ပို့ပါ' : '4. Direct Studio Bridge',
+                    desc: isMyanmar ? 'Prompt ရရှိပြီးသည်နှင့် "Render in Photo Studio" ကို နှိပ်ပြီး AI ဖြင့် တိုက်ရိုက် ပုံထုတ်လုပ်နိုင်ပါသည်။' : 'Send the final optimized prompt and aspect ratio straight to the AI Photo Studio for instant high-res generation.'
+                  }
+                ].map((item, idx) => (
+                  <div key={idx} className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xl">{item.icon}</span>
+                      <span className="text-[10px] font-black text-emerald-400 font-mono px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
+                        {item.step}
+                      </span>
+                    </div>
+                    <h3 className="font-bold text-xs text-white">{item.title}</h3>
+                    <p className="text-[11px] text-zinc-400 leading-relaxed">{item.desc}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Action Button */}
+              <div className="pt-2 border-t border-zinc-800 flex items-center justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowHowItWorksModal(false)}
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-black text-xs font-black hover:brightness-110 active:scale-95 transition shadow-lg shadow-emerald-500/20 cursor-pointer"
+                >
+                  {isMyanmar ? 'နားလည်ပါပြီ • စတင်ဖန်တီးမည် →' : 'Got it! Let’s Create →'}
                 </button>
               </div>
 

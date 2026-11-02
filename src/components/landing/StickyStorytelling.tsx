@@ -71,7 +71,7 @@ export const StickyStorytelling: React.FC<StickyStorytellingProps> = ({
   const currentChapter = t.chapters[activeChapterIndex] || t.chapters[0];
 
   return (
-    <section id="features" className="relative py-20 sm:py-32 bg-[#07090e] border-t border-white/5">
+    <section id="features" className="relative py-10 sm:py-24 bg-[#07090e] border-t border-white/5">
       
       {/* Background ambient accents */}
       <div className="absolute top-1/2 left-0 w-96 h-96 bg-emerald-500/5 rounded-full blur-[140px] pointer-events-none" />
@@ -80,7 +80,7 @@ export const StickyStorytelling: React.FC<StickyStorytellingProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Section Header */}
-        <div className="text-center max-w-3xl mx-auto space-y-4 mb-16 sm:mb-24">
+        <div className="text-center max-w-3xl mx-auto space-y-3 mb-6 sm:mb-20">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold tracking-wider uppercase">
             <Sparkles className="w-3.5 h-3.5" />
             <span>{t.sectionBadge}</span>
@@ -378,50 +378,76 @@ export const StickyStorytelling: React.FC<StickyStorytellingProps> = ({
 
         </div>
 
-        {/* 📱 MOBILE LAYOUT (Stacked Cards, No Pinning, Full Content Preserved) */}
-        <div className="grid grid-cols-1 gap-8 lg:hidden">
-          {t.chapters.map((chap) => (
-            <div
-              key={chap.id}
-              id={chap.navAnchorId}
-              className="p-6 rounded-3xl bg-[#0d121c] border border-emerald-500/30 space-y-4 shadow-xl"
-            >
-              <div className="flex items-center justify-between">
-                <span className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 font-mono font-bold text-xs text-emerald-400 flex items-center justify-center">
-                  {chap.number}
-                </span>
-                <span className="text-[10px] font-mono tracking-wider text-emerald-300 uppercase px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
-                  {chap.badge}
-                </span>
-              </div>
-
-              <h3 className={`text-xl font-bold text-white ${isMyanmar ? 'font-myanmar leading-normal' : ''}`}>
-                {chap.title}
-              </h3>
-              <p className="text-xs text-teal-400 font-mono">{chap.tagline}</p>
-              <p className={`text-xs text-zinc-300 leading-relaxed ${isMyanmar ? 'font-myanmar leading-[1.8]' : ''}`}>
-                {chap.description}
-              </p>
-
-              <ul className="space-y-2">
-                {chap.features.map((feat, fIdx) => (
-                  <li key={fIdx} className="flex items-start gap-2 text-xs text-zinc-300">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                    <span className={isMyanmar ? 'font-myanmar leading-relaxed' : ''}>{feat}</span>
-                  </li>
-                ))}
-              </ul>
-
+        {/* 📱 MOBILE LAYOUT (Interactive Compact Chapter Stepper) */}
+        <div className="block lg:hidden space-y-4">
+          {/* Chapter Selector Chips */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 px-0.5">
+            {t.chapters.map((chap, idx) => (
               <button
+                key={chap.id}
                 type="button"
-                onClick={() => onLaunchChapter(chap.id)}
-                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-black text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer"
+                onClick={() => setActiveChapterIndex(idx)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition cursor-pointer border flex-shrink-0 ${
+                  activeChapterIndex === idx
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 shadow-sm shadow-emerald-500/20'
+                    : 'bg-white/5 text-zinc-400 hover:text-white border-white/5'
+                }`}
               >
-                <span>Launch {chap.title}</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <span className="font-mono text-[10px] text-emerald-400 font-bold">{chap.number}</span>
+                <span>{chap.title}</span>
               </button>
-            </div>
-          ))}
+            ))}
+          </div>
+
+          {/* Active Mobile Chapter Card */}
+          {(() => {
+            const chap = t.chapters[activeChapterIndex] || t.chapters[0];
+            return (
+              <div
+                id={chap.navAnchorId}
+                className="p-5 rounded-2xl bg-[#0d121c] border border-emerald-500/30 space-y-3.5 shadow-xl"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 font-mono font-bold text-xs text-emerald-400 flex items-center justify-center">
+                    {chap.number}
+                  </span>
+                  <span className="text-[10px] font-mono tracking-wider text-emerald-300 uppercase px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
+                    {chap.badge}
+                  </span>
+                </div>
+
+                <h3 className={`text-lg font-bold text-white ${isMyanmar ? 'font-myanmar leading-normal' : ''}`}>
+                  {chap.title}
+                </h3>
+                <p className="text-xs text-teal-400 font-mono">{chap.tagline}</p>
+                <p className={`text-xs text-zinc-300 leading-relaxed line-clamp-3 ${isMyanmar ? 'font-myanmar leading-[1.7]' : ''}`}>
+                  {chap.description}
+                </p>
+
+                {/* 2x2 Compact Feature Badges Grid on Mobile */}
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  {chap.features.slice(0, 4).map((feat, fIdx) => (
+                    <div 
+                      key={fIdx} 
+                      className="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 flex items-start gap-1.5 text-[11px] text-zinc-300"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                      <span className={`line-clamp-2 ${isMyanmar ? 'font-myanmar leading-tight' : 'leading-tight'}`}>{feat}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => onLaunchChapter(chap.id)}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-black text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer shadow-md active:scale-95 transition"
+                >
+                  <span>Launch {chap.title}</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            );
+          })()}
         </div>
 
       </div>

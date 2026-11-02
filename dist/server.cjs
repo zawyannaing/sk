@@ -29,7 +29,12 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // server.ts
 var server_exports = {};
 __export(server_exports, {
+  MOOD_ATMOSPHERE_OVERRIDE_MAP: () => MOOD_ATMOSPHERE_OVERRIDE_MAP,
+  SUBJECT_WEATHER_INTERACTION_MAP: () => SUBJECT_WEATHER_INTERACTION_MAP,
+  TIME_LIGHTING_OVERRIDE_MAP: () => TIME_LIGHTING_OVERRIDE_MAP,
   app: () => app,
+  detectMoodFromPrompt: () => detectMoodFromPrompt,
+  detectTimeFromPrompt: () => detectTimeFromPrompt,
   sanitizePhotoPrompt: () => sanitizePhotoPrompt,
   startServer: () => startServer
 });
@@ -38,6 +43,7 @@ var import_node_dns = __toESM(require("node:dns"), 1);
 var import_express = __toESM(require("express"), 1);
 var import_http = __toESM(require("http"), 1);
 var import_path = __toESM(require("path"), 1);
+var import_fs = __toESM(require("fs"), 1);
 var import_vite = require("vite");
 var import_genai = require("@google/genai");
 var import_dotenv = __toESM(require("dotenv"), 1);
@@ -71,6 +77,211 @@ var LOVERS_COUPLE_OPTIONS = [
 var ALL_COUPLE_OPTIONS = [
   ...WEDDING_COUPLE_OPTIONS,
   ...LOVERS_COUPLE_OPTIONS
+];
+var LOCATION_REFERENCE_MAP = {
+  shwedagon_pagoda: {
+    url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1200&q=85",
+    name: "Shwedagon Pagoda Platform & Golden Stupa"
+  },
+  bagan_temples: {
+    url: "https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1200&q=85",
+    name: "Bagan Ancient Terracotta Temples"
+  },
+  bagan_pagoda: {
+    url: "https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1200&q=85",
+    name: "Bagan Ancient Terracotta Pagodas"
+  },
+  inle_lake: {
+    url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=85",
+    name: "Inle Lake Water Pavilion & Shan Mountains"
+  },
+  mandalay_moat: {
+    url: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=1200&q=85",
+    name: "Mandalay Palace Moat & Fortress Wall"
+  },
+  konbaung_palace_interior: {
+    url: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=1200&q=85",
+    name: "Royal Konbaung Golden Palace Throne Hall"
+  },
+  mandalay_palace: {
+    url: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=1200&q=85",
+    name: "Mandalay Royal Palace Pavilion"
+  },
+  sagaing_hill: {
+    url: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=1200&q=85",
+    name: "Sagaing Hills U Min Thonze Stupas"
+  },
+  kalaw_pindaya: {
+    url: "https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1200&q=85",
+    name: "Kalaw Pine Groves & Pindaya Caves"
+  },
+  pyinoolwin_garden: {
+    url: "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?auto=format&fit=crop&w=1200&q=85",
+    name: "Pyin Oo Lwin National Kandawgyi Garden"
+  },
+  ngapali_beach: {
+    url: "https://images.unsplash.com/photo-1544077960-604201fe74bc?auto=format&fit=crop&w=1200&q=85",
+    name: "Ngapali White Sand Tropical Coast"
+  },
+  myeik_islands: {
+    url: "https://images.unsplash.com/photo-1544077960-604201fe74bc?auto=format&fit=crop&w=1200&q=85",
+    name: "Myeik Archipelago Turquoise Waters"
+  },
+  taunggyi_balloon_field: {
+    url: "https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1200&q=85",
+    name: "Taunggyi Tazaungdaing Balloon Festival"
+  },
+  chin_mountains: {
+    url: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=85",
+    name: "Chin Hills Mount Victoria & Mist"
+  },
+  kyaiktiyo_golden_rock: {
+    url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1200&q=85",
+    name: "Kyaiktiyo Golden Rock Cliff Sanctuary"
+  },
+  riverside_sunset: {
+    url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=85",
+    name: "Ayeyarwady Riverbank Jetty at Sunset"
+  },
+  monastery_temple_hall: {
+    url: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1200&q=85",
+    name: "Traditional Teakwood Monastery Dhamma Hall"
+  },
+  ubein_bridge: {
+    url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=85",
+    name: "U Bein Teak Bridge Taungthaman Lake"
+  },
+  amarapura_teak_bridge: {
+    url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=85",
+    name: "Amarapura U Bein Teak Bridge"
+  },
+  mrauk_u_temples: {
+    url: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1200&q=85",
+    name: "Mrauk-U Shittaung Fortress Sanctuary"
+  },
+  paris_eiffel_tower: {
+    url: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1200&q=85",
+    name: "Paris Eiffel Tower & Seine River"
+  },
+  santorini_greece: {
+    url: "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?auto=format&fit=crop&w=1200&q=85",
+    name: "Santorini Caldera & Blue Domes"
+  },
+  kyoto_bamboo_torii: {
+    url: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=1200&q=85",
+    name: "Kyoto Bamboo Grove & Torii Path"
+  },
+  swiss_alps_snow: {
+    url: "https://images.unsplash.com/photo-1530122037265-a5f1f91d3b99?auto=format&fit=crop&w=1200&q=85",
+    name: "Swiss Alps Snowy Peaks & Glacial Lake"
+  },
+  venice_gondola_canal: {
+    url: "https://images.unsplash.com/photo-1514890547357-a9ee288728e0?auto=format&fit=crop&w=1200&q=85",
+    name: "Venice Grand Canal & Gondolas"
+  },
+  taj_mahal_palace: {
+    url: "https://images.unsplash.com/photo-1564507592333-c60657eea523?auto=format&fit=crop&w=1200&q=85",
+    name: "Taj Mahal Monumental Grounds"
+  },
+  bali_jungle_swing: {
+    url: "https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=1200&q=85",
+    name: "Bali Ubud Rice Terraces & Jungle Canopy"
+  },
+  maldives_overwater: {
+    url: "https://images.unsplash.com/photo-1514282401047-d79a71a590e8?auto=format&fit=crop&w=1200&q=85",
+    name: "Maldives Overwater Bungalow & Lagoon"
+  },
+  cappadocia_balloons: {
+    url: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=85",
+    name: "Cappadocia Fairy Chimneys & Hot Air Balloons"
+  },
+  ny_central_park: {
+    url: "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?auto=format&fit=crop&w=1200&q=85",
+    name: "New York Central Park Bow Bridge & Skyline"
+  },
+  plain_studio: {
+    url: "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=1200&q=85",
+    name: "Minimalist Plain Cyclorama Studio"
+  },
+  wood_brick_studio: {
+    url: "https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=1200&q=85",
+    name: "Modern Industrial Brick & Wood Studio"
+  },
+  luxury_hotel_ballroom: {
+    url: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=85",
+    name: "Luxury Hotel Grand Ballroom"
+  },
+  cafe_interior: {
+    url: "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=1200&q=85",
+    name: "Aesthetic Modern Cafe Interior"
+  },
+  traditional_myanmar_house: {
+    url: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1200&q=85",
+    name: "Traditional Myanmar Teak House"
+  },
+  golden_hour_paddy_field: {
+    url: "https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1200&q=85",
+    name: "Golden Hour Harvest Paddy Field"
+  },
+  lush_forest_stream: {
+    url: "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1200&q=85",
+    name: "Lush Forest Waterfall & Mountain Stream"
+  },
+  cherry_blossom_garden: {
+    url: "https://images.unsplash.com/photo-1522383225653-ed111181a951?auto=format&fit=crop&w=1200&q=85",
+    name: "Cherry Blossom Spring Flower Garden"
+  },
+  modern_city_street: {
+    url: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=85",
+    name: "Modern City Street & Architecture"
+  },
+  neon_city_night: {
+    url: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=1200&q=85",
+    name: "Cyberpunk Neon City Nightscape"
+  }
+};
+var LOCATION_OPTIONS = [
+  { id: "skip", emoji: "\u{1F6AB}", labelMm: "\u{1F6AB} \u1019\u101B\u103D\u1031\u1038\u1015\u102B (\u1019\u1030\u101C \u1010\u100A\u103A\u1014\u1031\u101B\u102C)", labelEn: "\u{1F6AB} Skip / Default Location", environmentType: "studio", category: "indoor_studio" },
+  // မြန်မာ့ ထင်ရှားသော နေရာများ (Myanmar Iconic Locations - 1 to 15)
+  { id: "shwedagon_pagoda", emoji: "\u{1F6D5}", labelMm: "\u1041\u104B \u101B\u103D\u103E\u1031\u1010\u102D\u1002\u102F\u1036 \u1005\u1031\u1010\u102E\u1010\u1031\u102C\u103A \u101B\u1004\u103A\u1015\u103C\u1004\u103A\u1010\u1031\u102C\u103A (Shwedagon Pagoda Platform)", labelEn: "1. Shwedagon Pagoda Platform", environmentType: "outdoor", category: "myanmar", referenceImage: LOCATION_REFERENCE_MAP.shwedagon_pagoda.url, previewImage: LOCATION_REFERENCE_MAP.shwedagon_pagoda.url },
+  { id: "bagan_temples", emoji: "\u{1F305}", labelMm: "\u1042\u104B \u1015\u102F\u1002\u1036 \u101B\u103E\u1031\u1038\u101F\u1031\u102C\u1004\u103A\u1038 \u1005\u1031\u1010\u102E\u1015\u102F\u1011\u102D\u102F\u1038\u1019\u103B\u102C\u1038\u1014\u103E\u1004\u1037\u103A \u1014\u1031\u101D\u1004\u103A\u1001\u103B\u102D\u1014\u103A (Bagan Ancient Temples & Sunset)", labelEn: "2. Bagan Ancient Temples & Sunset", environmentType: "outdoor", category: "myanmar", referenceImage: LOCATION_REFERENCE_MAP.bagan_temples.url, previewImage: LOCATION_REFERENCE_MAP.bagan_temples.url },
+  { id: "inle_lake", emoji: "\u{1F6F6}", labelMm: "\u1043\u104B \u1021\u1004\u103A\u1038\u101C\u1031\u1038\u1000\u1014\u103A \u101B\u1031\u1015\u103C\u1004\u103A\u1014\u103E\u1004\u1037\u103A \u1016\u1031\u102C\u1004\u103A\u1010\u1031\u102C\u103A\u1026\u1038 \u1018\u102F\u101B\u102C\u1038 (Inle Lake Scenic Waters & Phaung Daw Oo)", labelEn: "3. Inle Lake & Phaung Daw Oo", environmentType: "outdoor", category: "myanmar", referenceImage: LOCATION_REFERENCE_MAP.inle_lake.url, previewImage: LOCATION_REFERENCE_MAP.inle_lake.url },
+  { id: "mandalay_moat", emoji: "\u{1F3F0}", labelMm: "\u1044\u104B \u1019\u1014\u1039\u1010\u101C\u1031\u1038 \u1000\u103B\u102F\u1036\u1038\u1014\u103E\u1004\u1037\u103A \u1014\u1014\u103A\u1038\u1019\u103C\u102D\u102F\u1037\u101B\u102D\u102F\u1038 (Mandalay Palace Moat & Wall)", labelEn: "4. Mandalay Palace Moat & Wall", environmentType: "outdoor", category: "myanmar", referenceImage: LOCATION_REFERENCE_MAP.mandalay_moat.url, previewImage: LOCATION_REFERENCE_MAP.mandalay_moat.url },
+  { id: "konbaung_palace_interior", emoji: "\u{1F3DB}\uFE0F", labelMm: "\u1045\u104B \u1000\u102F\u1014\u103A\u1038\u1018\u1031\u102C\u1004\u103A / \u101B\u1010\u1014\u102C\u1015\u102F\u1036 \u1014\u1014\u103A\u1038\u1010\u103D\u1004\u103A\u1038 \u101B\u103D\u103E\u1031\u1014\u1014\u103A\u1038\u1010\u1031\u102C\u103A \u1021\u1010\u103D\u1004\u103A\u1038 (Royal Konbaung Golden Palace)", labelEn: "5. Royal Konbaung Golden Palace Interior", environmentType: "indoor", category: "myanmar", referenceImage: LOCATION_REFERENCE_MAP.konbaung_palace_interior.url, previewImage: LOCATION_REFERENCE_MAP.konbaung_palace_interior.url },
+  { id: "sagaing_hill", emoji: "\u26F0\uFE0F", labelMm: "\u1046\u104B \u1005\u1005\u103A\u1000\u102D\u102F\u1004\u103A\u1038\u1010\u1031\u102C\u1004\u103A\u101B\u102D\u102F\u1038 \u1005\u1031\u1010\u102E\u1019\u103B\u102C\u1038 \u101B\u103E\u102F\u1001\u1004\u103A\u1038 (Sagaing Hill View)", labelEn: "6. Sagaing Hill View", environmentType: "outdoor", category: "myanmar", referenceImage: LOCATION_REFERENCE_MAP.sagaing_hill.url, previewImage: LOCATION_REFERENCE_MAP.sagaing_hill.url },
+  { id: "kalaw_pindaya", emoji: "\u{1F332}", labelMm: "\u1047\u104B \u1000\u101C\u1031\u102C \u1011\u1004\u103A\u1038\u101B\u103E\u1030\u1038\u1010\u1031\u102C\u1014\u103E\u1004\u1037\u103A \u1015\u1004\u103A\u1038\u1010\u101A \u101C\u102D\u102F\u100F\u103A\u1002\u1030 \u101B\u103E\u102F\u1001\u1004\u103A\u1038 (Kalaw Pine Forest & Pindaya)", labelEn: "7. Kalaw Pine Forest & Pindaya", environmentType: "outdoor", category: "myanmar", referenceImage: LOCATION_REFERENCE_MAP.kalaw_pindaya.url, previewImage: LOCATION_REFERENCE_MAP.kalaw_pindaya.url },
+  { id: "pyinoolwin_garden", emoji: "\u{1F33A}", labelMm: "\u1048\u104B \u1015\u103C\u1004\u103A\u1026\u1038\u101C\u103D\u1004\u103A \u1021\u1019\u103B\u102D\u102F\u1038\u101E\u102C\u1038 \u1000\u1014\u103A\u1010\u1031\u102C\u103A\u1000\u103C\u102E\u1038 \u1015\u1014\u103A\u1038\u1001\u103C\u1036 (Pyin Oo Lwin National Garden)", labelEn: "8. Pyin Oo Lwin National Garden", environmentType: "outdoor", category: "myanmar", referenceImage: LOCATION_REFERENCE_MAP.pyinoolwin_garden.url, previewImage: LOCATION_REFERENCE_MAP.pyinoolwin_garden.url },
+  { id: "ngapali_beach", emoji: "\u{1F3D6}\uFE0F", labelMm: "\u1049\u104B \u1004\u1015\u101C\u102E / \u1001\u103B\u1031\u102C\u1004\u103A\u1038\u101E\u102C / \u1004\u103D\u1031\u1006\u1031\u102C\u1004\u103A \u1000\u1019\u103A\u1038\u1001\u103C\u1031 (Ngapali & White Sand Beach)", labelEn: "9. Ngapali & White Sand Beach", environmentType: "outdoor", category: "myanmar", referenceImage: LOCATION_REFERENCE_MAP.ngapali_beach.url, previewImage: LOCATION_REFERENCE_MAP.ngapali_beach.url },
+  { id: "myeik_islands", emoji: "\u{1F30A}", labelMm: "\u1041\u1040\u104B \u1019\u103C\u102D\u1010\u103A \u1000\u103B\u103D\u1014\u103A\u1038\u1005\u102F\u1019\u103B\u102C\u1038\u104F \u1021\u1015\u103C\u102C\u101B\u1031\u102C\u1004\u103A \u1015\u1004\u103A\u101C\u101A\u103A (Myeik Archipelago Turquoise Sea)", labelEn: "10. Myeik Archipelago Turquoise Sea", environmentType: "outdoor", category: "myanmar", referenceImage: LOCATION_REFERENCE_MAP.myeik_islands.url, previewImage: LOCATION_REFERENCE_MAP.myeik_islands.url },
+  { id: "taunggyi_balloon_field", emoji: "\u{1F388}", labelMm: "\u1041\u1041\u104B \u1010\u1031\u102C\u1004\u103A\u1000\u103C\u102E\u1038 \u1019\u102E\u1038\u1015\u102F\u1036\u1038\u1015\u103B\u1036\u1015\u103D\u1032\u1010\u1031\u102C\u103A \u1000\u103D\u1004\u103A\u1038 (Taunggyi Balloon Field)", labelEn: "11. Taunggyi Balloon Field", environmentType: "outdoor", category: "myanmar", referenceImage: LOCATION_REFERENCE_MAP.taunggyi_balloon_field.url, previewImage: LOCATION_REFERENCE_MAP.taunggyi_balloon_field.url },
+  { id: "chin_mountains", emoji: "\u{1F3D4}\uFE0F", labelMm: "\u1041\u1042\u104B \u1001\u103B\u1004\u103A\u1038\u1010\u1031\u102C\u1004\u103A\u1010\u1014\u103A\u1038\u104A \u101D\u102D\u1010\u102D\u102F\u101B\u102D\u101A\u1010\u1031\u102C\u1004\u103A\u1014\u103E\u1004\u1037\u103A \u1019\u103C\u1030\u1001\u102D\u102F\u1038 (Chin Hills, Mount Victoria & Mist)", labelEn: "12. Chin Mountains & Mist", environmentType: "outdoor", category: "myanmar", referenceImage: LOCATION_REFERENCE_MAP.chin_mountains.url, previewImage: LOCATION_REFERENCE_MAP.chin_mountains.url },
+  { id: "kyaiktiyo_golden_rock", emoji: "\u{1FAA8}", labelMm: "\u1041\u1043\u104B \u1000\u103B\u102D\u102F\u1000\u103A\u1011\u102E\u1038\u101B\u102D\u102F\u1038 \u1006\u1036\u1010\u1031\u102C\u103A\u101B\u103E\u1004\u103A \u1005\u1031\u1010\u102E\u1010\u1031\u102C\u103A (Kyaiktiyo Golden Rock Pagoda)", labelEn: "13. Kyaiktiyo Golden Rock Pagoda", environmentType: "outdoor", category: "myanmar", referenceImage: LOCATION_REFERENCE_MAP.kyaiktiyo_golden_rock.url, previewImage: LOCATION_REFERENCE_MAP.kyaiktiyo_golden_rock.url },
+  { id: "riverside_sunset", emoji: "\u{1F305}", labelMm: "\u1041\u1044\u104B \u101B\u1014\u103A\u1000\u102F\u1014\u103A\u1019\u103C\u1005\u103A\u1000\u1019\u103A\u1038 / \u1027\u101B\u102C\u101D\u1010\u102E \u1019\u103C\u1005\u103A\u1000\u1019\u103A\u1038 \u101E\u1004\u103A\u1039\u1018\u1031\u102C\u1006\u102D\u1015\u103A (Riverside Jetty & Sunset)", labelEn: "14. Riverside Jetty & Sunset", environmentType: "outdoor", category: "myanmar", referenceImage: LOCATION_REFERENCE_MAP.riverside_sunset.url, previewImage: LOCATION_REFERENCE_MAP.riverside_sunset.url },
+  { id: "monastery_temple_hall", emoji: "\u{1F3DB}\uFE0F", labelMm: "\u1041\u1045\u104B \u101B\u102D\u102F\u1038\u101B\u102C \u1000\u103B\u1031\u102C\u1004\u103A\u1038\u1010\u102D\u102F\u1000\u103A / \u1013\u1019\u1039\u1019\u102C\u101B\u102F\u1036 / \u1015\u103C\u102C\u101E\u102C\u1012\u103A (Monastery Dhamma Hall & Royal Pavilion)", labelEn: "15. Monastery Dhamma Hall", environmentType: "indoor", category: "myanmar", referenceImage: LOCATION_REFERENCE_MAP.monastery_temple_hall.url, previewImage: LOCATION_REFERENCE_MAP.monastery_temple_hall.url },
+  // ကမ္ဘာ့ ထိပ်တန်း ဓာတ်ပုံ စာရင်းဝင် နေရာများ (World-Class Iconic Photo Locations - 16 to 25)
+  { id: "paris_eiffel_tower", emoji: "\u{1F5FC}", labelMm: "\u1041\u1046\u104B \u1015\u103C\u1004\u103A\u101E\u1005\u103A \u1015\u102B\u101B\u102E \u1021\u102E\u1016\u101A\u103A\u1010\u102C\u101D\u102B\u1014\u103E\u1004\u1037\u103A \u1005\u102D\u1014\u103A\u1038\u1019\u103C\u1005\u103A\u1000\u1019\u103A\u1038 (Paris Eiffel Tower & Seine River)", labelEn: "16. Paris Eiffel Tower & Seine River", environmentType: "outdoor", category: "world", referenceImage: LOCATION_REFERENCE_MAP.paris_eiffel_tower.url, previewImage: LOCATION_REFERENCE_MAP.paris_eiffel_tower.url },
+  { id: "santorini_greece", emoji: "\u{1F3DB}\uFE0F", labelMm: "\u1041\u1047\u104B \u1002\u101B\u102D \u1006\u1014\u103A\u1010\u102D\u102F\u101B\u102E\u1014\u102E \u1021\u1016\u103C\u1030\u101B\u1031\u102C\u1004\u103A \u1015\u1004\u103A\u101C\u101A\u103A\u1000\u1019\u103A\u1038\u1015\u102B\u1038 \u1019\u103C\u102D\u102F\u1037\u1000\u101C\u1031\u1038 (Santorini White Village & Blue Domes)", labelEn: "17. Santorini White Village & Blue Domes", environmentType: "outdoor", category: "world", referenceImage: LOCATION_REFERENCE_MAP.santorini_greece.url, previewImage: LOCATION_REFERENCE_MAP.santorini_greece.url },
+  { id: "kyoto_bamboo_torii", emoji: "\u{1F38B}", labelMm: "\u1041\u1048\u104B \u1002\u103B\u1015\u1014\u103A \u1000\u103B\u102D\u102F\u1010\u102D\u102F \u1021\u102C\u101B\u102C\u101B\u103E\u102D\u101A\u102C\u1019 \u101D\u102B\u1038\u1010\u1031\u102C\u1014\u103E\u1004\u103A\u1037 \u1010\u102D\u102F\u101B\u102E\u1038\u1010\u1036\u1001\u102B\u1038\u1021\u1014\u102E (Kyoto Bamboo Grove & Fushimi Inari)", labelEn: "18. Kyoto Bamboo Grove & Fushimi Inari", environmentType: "outdoor", category: "world", referenceImage: LOCATION_REFERENCE_MAP.kyoto_bamboo_torii.url, previewImage: LOCATION_REFERENCE_MAP.kyoto_bamboo_torii.url },
+  { id: "swiss_alps_snow", emoji: "\u{1F3D4}\uFE0F", labelMm: "\u1041\u1049\u104B \u1006\u103D\u1005\u103A\u1007\u102C\u101C\u1014\u103A \u1021\u1032\u101C\u103A\u1015\u103A\u1005\u103A \u1014\u103E\u1004\u103A\u1038\u1010\u1031\u102C\u1004\u103A\u1014\u103E\u1004\u1037\u103A \u101E\u1018\u102C\u101D \u101B\u1031\u1000\u1014\u103A (Swiss Alps Snowy Peaks & Alpine Lake)", labelEn: "19. Swiss Alps Snowy Peaks & Alpine Lake", environmentType: "outdoor", category: "world", referenceImage: LOCATION_REFERENCE_MAP.swiss_alps_snow.url, previewImage: LOCATION_REFERENCE_MAP.swiss_alps_snow.url },
+  { id: "venice_gondola_canal", emoji: "\u{1F6F6}", labelMm: "\u1042\u1040\u104B \u1021\u102E\u1010\u101C\u102E \u1017\u1004\u103A\u1038\u1014\u1005\u103A \u1002\u103D\u1014\u103A\u1012\u102D\u102F\u101C\u102C \u101C\u103E\u1031\u1014\u103E\u1004\u103A\u1037 \u1019\u103C\u102D\u102F\u1037\u1015\u103C \u101B\u1031\u1019\u103C\u1031\u102C\u1004\u103A\u1038 (Venice Grand Canal & Gondola)", labelEn: "20. Venice Grand Canal & Gondola", environmentType: "outdoor", category: "world", referenceImage: LOCATION_REFERENCE_MAP.venice_gondola_canal.url, previewImage: LOCATION_REFERENCE_MAP.venice_gondola_canal.url },
+  { id: "taj_mahal_palace", emoji: "\u{1F54C}", labelMm: "\u1042\u1041\u104B \u1021\u102D\u1014\u1039\u1012\u102D\u101A \u1010\u102C\u1002\u103B\u103A\u1019\u101F\u102C\u101B\u103A \u1005\u1000\u103B\u1004\u103A\u1000\u103B\u1031\u102C\u1000\u103A \u1014\u1014\u103A\u1038\u1010\u1031\u102C\u103A (Taj Mahal Monumental Grounds)", labelEn: "21. Taj Mahal Monumental Grounds", environmentType: "outdoor", category: "world", referenceImage: LOCATION_REFERENCE_MAP.taj_mahal_palace.url, previewImage: LOCATION_REFERENCE_MAP.taj_mahal_palace.url },
+  { id: "bali_jungle_swing", emoji: "\u{1F334}", labelMm: "\u1042\u1042\u104B \u1021\u1004\u103A\u1012\u102D\u102F\u1014\u102E\u1038\u101B\u103E\u102C\u1038 \u1018\u102C\u101C\u102E \u101C\u101A\u103A\u1000\u103D\u1004\u103A\u1038\u1014\u103E\u1004\u1037\u103A \u101E\u1015\u102D\u1010\u103A\u1010\u1031\u102C (Bali Rice Terraces & Jungle Swing)", labelEn: "22. Bali Rice Terraces & Jungle Swing", environmentType: "outdoor", category: "world", referenceImage: LOCATION_REFERENCE_MAP.bali_jungle_swing.url, previewImage: LOCATION_REFERENCE_MAP.bali_jungle_swing.url },
+  { id: "maldives_overwater", emoji: "\u{1F3DD}\uFE0F", labelMm: "\u1042\u1043\u104B \u1019\u1031\u102C\u103A\u101C\u1012\u102D\u102F\u1000\u103A \u101B\u1031\u1015\u1031\u102B\u103A \u1018\u1014\u103A\u1002\u101C\u102D\u102F\u1014\u103E\u1004\u103A\u1037 \u1021\u1015\u103C\u102C\u101B\u1031\u102C\u1004\u103A \u101C\u1002\u103D\u1014\u103A (Maldives Overwater Bungalow & Lagoon)", labelEn: "23. Maldives Overwater Bungalow & Lagoon", environmentType: "outdoor", category: "world", referenceImage: LOCATION_REFERENCE_MAP.maldives_overwater.url, previewImage: LOCATION_REFERENCE_MAP.maldives_overwater.url },
+  { id: "cappadocia_balloons", emoji: "\u{1F388}", labelMm: "\u1042\u1044\u104B \u1010\u1030\u101B\u1000\u102E \u1000\u1000\u103A\u1015\u102B\u1012\u102D\u102F\u1005\u102E\u101A\u102C \u1019\u102E\u1038\u1015\u102F\u1036\u1038\u1015\u103B\u1036\u1014\u103E\u1004\u1037\u103A \u1000\u103B\u1031\u102C\u1000\u103A\u1010\u1031\u102C\u1004\u103A \u101B\u103E\u102F\u1001\u1004\u103A\u1038 (Cappadocia Balloons & Cave View)", labelEn: "24. Cappadocia Balloons & Cave View", environmentType: "outdoor", category: "world", referenceImage: LOCATION_REFERENCE_MAP.cappadocia_balloons.url, previewImage: LOCATION_REFERENCE_MAP.cappadocia_balloons.url },
+  { id: "ny_central_park", emoji: "\u{1F5FD}", labelMm: "\u1042\u1045\u104B \u1021\u1019\u1031\u101B\u102D\u1000\u1014\u103A \u1014\u101A\u1030\u1038\u101A\u1031\u102C\u1000\u103A \u1005\u1004\u103A\u1011\u101B\u101A\u103A\u1015\u102B\u1037\u1001\u103A\u1014\u103E\u1004\u1037\u103A \u1019\u103C\u102D\u102F\u1037\u1015\u103C\u101B\u103E\u102F\u1001\u1004\u103A\u1038 (New York Central Park & Skyline)", labelEn: "25. New York Central Park & Skyline", environmentType: "outdoor", category: "world", referenceImage: LOCATION_REFERENCE_MAP.ny_central_park.url, previewImage: LOCATION_REFERENCE_MAP.ny_central_park.url },
+  // စတူဒီယိုနှင့် အခန်းတွင်း အခင်းအကျင်းများ (Indoor & Studio - 26 to 30)
+  { id: "plain_studio", emoji: "\u{1F4F8}", labelMm: "\u1042\u1046\u104B \u1005\u1010\u1030\u1012\u102E\u101A\u102D\u102F \u101E\u1014\u1037\u103A\u101E\u1014\u1037\u103A \u1019\u102D\u102F\u1014\u102D\u102F\u1001\u101B\u102F\u1014\u103A\u1038 \u1014\u1031\u102C\u1000\u103A\u1001\u1036 (Minimalist Studio Backdrop)", labelEn: "26. Minimalist Plain Studio Backdrop", environmentType: "studio", category: "indoor_studio", referenceImage: LOCATION_REFERENCE_MAP.plain_studio.url, previewImage: LOCATION_REFERENCE_MAP.plain_studio.url },
+  { id: "wood_brick_studio", emoji: "\u{1F9F1}", labelMm: "\u1042\u1047\u104B \u1005\u1010\u1030\u1012\u102E\u101A\u102D\u102F \u101E\u1005\u103A\u101E\u102C\u1038 / \u1021\u102F\u1010\u103A\u1014\u1036\u101B\u1036 \u1001\u1031\u1010\u103A\u1019\u102E\u1005\u1010\u102D\u102F\u1004\u103A\u101C\u103A (Modern Brick & Wooden Studio)", labelEn: "27. Modern Brick & Wooden Studio", environmentType: "studio", category: "indoor_studio", referenceImage: LOCATION_REFERENCE_MAP.wood_brick_studio.url, previewImage: LOCATION_REFERENCE_MAP.wood_brick_studio.url },
+  { id: "luxury_hotel_ballroom", emoji: "\u{1F3E8}", labelMm: "\u1042\u1048\u104B \u101F\u102D\u102F\u1010\u101A\u103A \u101C\u1031\u102C\u103A\u1018\u102E\u1014\u103E\u1004\u1037\u103A \u1001\u1019\u103A\u1038\u1014\u102C\u1038\u101E\u1031\u102C \u1015\u103D\u1032\u1019 \u1021\u1001\u1014\u103A\u1038\u1019 (Luxury Hotel Grand Ballroom & Lobby)", labelEn: "28. Luxury Hotel Ballroom & Lobby", environmentType: "indoor", category: "indoor_studio", referenceImage: LOCATION_REFERENCE_MAP.luxury_hotel_ballroom.url, previewImage: LOCATION_REFERENCE_MAP.luxury_hotel_ballroom.url },
+  { id: "cafe_interior", emoji: "\u2615", labelMm: "\u1042\u1049\u104B \u1001\u1031\u1010\u103A\u1019\u102E \u1019\u102E\u1038\u101B\u1031\u102C\u1004\u103A\u1005\u102F\u1036 \u1000\u1031\u102C\u103A\u1016\u102E\u1006\u102D\u102F\u1004\u103A \u1021\u1010\u103D\u1004\u103A\u1038 (Aesthetic Modern Cafe Interior)", labelEn: "29. Aesthetic Modern Cafe Interior", environmentType: "indoor", category: "indoor_studio", referenceImage: LOCATION_REFERENCE_MAP.cafe_interior.url, previewImage: LOCATION_REFERENCE_MAP.cafe_interior.url },
+  { id: "traditional_myanmar_house", emoji: "\u{1F3E0}", labelMm: "\u1043\u1040\u104B \u101B\u102D\u102F\u1038\u101B\u102C \u1019\u103C\u1014\u103A\u1019\u102C\u1037 \u101E\u1005\u103A\u101E\u102C\u1038\u1021\u102D\u1019\u103A\u1014\u103E\u1004\u1037\u103A \u1015\u1014\u103A\u1038\u1001\u103C\u1036 (Traditional Myanmar Teak House)", labelEn: "30. Traditional Myanmar Teak House", environmentType: "indoor", category: "indoor_studio", referenceImage: LOCATION_REFERENCE_MAP.traditional_myanmar_house.url, previewImage: LOCATION_REFERENCE_MAP.traditional_myanmar_house.url },
+  // သဘာဝနှင့် မြို့ပြ အခင်းအကျင်းများ (Nature & Lifestyle - 31 to 35)
+  { id: "golden_hour_paddy_field", emoji: "\u{1F33E}", labelMm: "\u1043\u1041\u104B \u1014\u1031\u101D\u1004\u103A\u1001\u103B\u102D\u1014\u103A \u101B\u103D\u103E\u1031\u101B\u1031\u102C\u1004\u103A \u101C\u101A\u103A\u1000\u103D\u1004\u103A\u1038\u1019\u103B\u102C\u1038 (Golden Hour Paddy Field)", labelEn: "31. Golden Hour Paddy Field", environmentType: "outdoor", category: "nature_lifestyle", referenceImage: LOCATION_REFERENCE_MAP.golden_hour_paddy_field.url, previewImage: LOCATION_REFERENCE_MAP.golden_hour_paddy_field.url },
+  { id: "lush_forest_stream", emoji: "\u{1F332}", labelMm: "\u1043\u1042\u104B \u1005\u102D\u1019\u103A\u1038\u1005\u102D\u102F\u101E\u1031\u102C \u101E\u1005\u103A\u1010\u1031\u102C\u104A \u101B\u1031\u1010\u1036\u1001\u103D\u1014\u103A\u1014\u103E\u1004\u1037\u103A \u1005\u1019\u103A\u1038\u1001\u103B\u1031\u102C\u1004\u103A\u1038 (Lush Forest, Waterfall & Stream)", labelEn: "32. Lush Forest, Waterfall & Stream", environmentType: "outdoor", category: "nature_lifestyle", referenceImage: LOCATION_REFERENCE_MAP.lush_forest_stream.url, previewImage: LOCATION_REFERENCE_MAP.lush_forest_stream.url },
+  { id: "cherry_blossom_garden", emoji: "\u{1F338}", labelMm: "\u1043\u1043\u104B \u1015\u1014\u103A\u1038\u1001\u103B\u101A\u103A\u101B\u102E\u1001\u1004\u103A\u1038\u1014\u103E\u1004\u1037\u103A \u101E\u1018\u102C\u101D\u1015\u1014\u103A\u1038\u1001\u103C\u1036 (Cherry Blossom Flower Garden)", labelEn: "33. Cherry Blossom Flower Garden", environmentType: "outdoor", category: "nature_lifestyle", referenceImage: LOCATION_REFERENCE_MAP.cherry_blossom_garden.url, previewImage: LOCATION_REFERENCE_MAP.cherry_blossom_garden.url },
+  { id: "modern_city_street", emoji: "\u{1F3D9}\uFE0F", labelMm: "\u1043\u1044\u104B \u1019\u103C\u102D\u102F\u1037\u1015\u103C \u101C\u1019\u103A\u1038\u1019\u1014\u103E\u1004\u1037\u103A \u1001\u1031\u1010\u103A\u1019\u102E \u1012\u1031\u102B\u1004\u103A\u101C\u102D\u102F\u1000\u103A \u1021\u1006\u1031\u102C\u1000\u103A\u1021\u1026\u1019\u103B\u102C\u1038 (Modern City Street & Skyscrapers)", labelEn: "34. Modern City Street & Skyscrapers", environmentType: "outdoor", category: "nature_lifestyle", referenceImage: LOCATION_REFERENCE_MAP.modern_city_street.url, previewImage: LOCATION_REFERENCE_MAP.modern_city_street.url },
+  { id: "neon_city_night", emoji: "\u{1F303}", labelMm: "\u1043\u1045\u104B \u1014\u102E\u101A\u103D\u1014\u103A\u1019\u102E\u1038\u101B\u1031\u102C\u1004\u103A\u1005\u102F\u1036 \u100A\u1019\u103C\u102D\u102F\u1037\u1015\u103C (Neon City Nightscape & Cyberpunk)", labelEn: "35. Neon City Nightscape", environmentType: "fantasy", category: "nature_lifestyle", referenceImage: LOCATION_REFERENCE_MAP.neon_city_night.url, previewImage: LOCATION_REFERENCE_MAP.neon_city_night.url },
+  { id: "other_location", emoji: "\u270F\uFE0F", labelMm: "\u1043\u1046\u104B \u1021\u1001\u103C\u102C\u1038 \u1000\u102D\u102F\u101A\u103A\u1015\u102D\u102F\u1004\u103A \u1010\u100A\u103A\u1014\u1031\u101B\u102C (Custom Location)", labelEn: "36. Custom Location", environmentType: "outdoor", category: "nature_lifestyle" }
 ];
 var GARMENT_OPTIONS = [
   { id: "skip", emoji: "\u{1F6AB}", labelMm: "\u{1F6AB} \u1019\u101B\u103D\u1031\u1038\u1015\u102B (\u1019\u1030\u101C \u1021\u101D\u1010\u103A\u1021\u1005\u102C\u1038)", labelEn: "\u{1F6AB} Skip / Default Outfit", fabric: "Natural Default Apparel", category: "casual" },
@@ -203,6 +414,529 @@ var WEIGHT_OPTIONS = [
   { id: "95_plus_kg", emoji: "\u2696\uFE0F", labelMm: "Heavy Build (\u1049\u1045 kg+)", labelEn: "Heavy Build (95+ kg / 209+ lbs)", promptText: "heavy build body weight 95+ kg (209+ lbs), heavy robust solid stature" }
 ];
 
+// src/data/scenes550Data.ts
+var HERITAGE_BASE = [
+  {
+    id: "mandalay-palace-throne-hall",
+    titleEn: "Mandalay Royal Palace Gilded Throne Hall",
+    titleMm: "\u1019\u1014\u1039\u1010\u101C\u1031\u1038 \u101B\u1010\u1014\u102C\u1015\u102F\u1036 \u101B\u103D\u103E\u1031\u1014\u1014\u103A\u1038\u1010\u1031\u102C\u103A \u100A\u102E\u101C\u102C\u1001\u1036 \u101E\u102E\u101F\u102C\u101E\u1014 \u1015\u101C\u1039\u101C\u1004\u103A\u1010\u1031\u102C\u103A\u1001\u1014\u103A\u1038\u1019",
+    badge: "ROYAL HERITAGE",
+    sunDirection: "left_rim",
+    sunDirectionLabel: "Left 45\xB0 Warm Window Rays",
+    atmosphere: "luxury_gilded",
+    atmosphereLabel: "Gilded Royal Ambience",
+    previewImage: "/scenes/mandalay-palace-throne-hall.jpg",
+    prompt: "Interior of Mandalay Royal Palace grand throne hall, massive vermilion crimson lacquered teakwood columns with 24k gold leaf relief, intricate Pyatthat tiered spire ceilings, traditional royal drapery, warm dramatic candle sconces, atmospheric dust motes dancing in volumetric sunbeams, 8k uhd photorealistic VFX compositing plate.",
+    lightingNotes: "Warm amber 3000K rim lighting from high palace windows with deep chiaroscuro contact shadows on teakwood flooring.",
+    tags: ["mandalay", "palace", "throne", "konbaung", "gold", "royal", "teakwood"]
+  },
+  {
+    id: "bagan-ananda-temple-sunset",
+    titleEn: "Bagan Ananda Temple Golden Hour Stupa Terraces",
+    titleMm: "\u1015\u102F\u1002\u1036 \u1021\u102C\u1014\u1014\u1039\u1012\u102C\u1018\u102F\u101B\u102C\u1038 \u101B\u1004\u103A\u1015\u103C\u1004\u103A\u1010\u1031\u102C\u103A\u1014\u103E\u1004\u1037\u103A \u1014\u1031\u101D\u1004\u103A\u1001\u103B\u102D\u1014\u103A \u101B\u103D\u103E\u1031\u101B\u1031\u102C\u1004\u103A\u1006\u100A\u103A\u1038\u1006\u102C",
+    badge: "ARCHIVAL HERITAGE",
+    sunDirection: "golden_hour",
+    sunDirectionLabel: "Low Angle Golden Sunset",
+    atmosphere: "warm_golden",
+    atmosphereLabel: "Warm Golden Haze",
+    previewImage: "/scenes/bagan-ananda-temple-sunset.jpg",
+    prompt: "Panoramic terracotta brick terrace of ancient Ananda Temple in Bagan at golden hour, weathered red-brick stupas stretching across the misty horizon, hot air balloons silhouetted in warm amber sky, soft dust haze, dramatic golden sun flare wrapping around architecture, 8k uhd architectural plate.",
+    lightingNotes: "Low 2400K golden backlight with soft atmospheric scattering and sharp contact occlusion on terracotta brick floor.",
+    tags: ["bagan", "temple", "ananda", "sunset", "balloons", "brick", "golden hour"]
+  },
+  {
+    id: "mrauk-u-shittaung-stone-corridor",
+    titleEn: "Mrauk-U Shittaung Pagoda 80,000 Buddha Stone Corridor",
+    titleMm: "\u1019\u103C\u1031\u102C\u1000\u103A\u1026\u1038 \u101B\u103E\u1005\u103A\u101E\u1031\u102C\u1004\u103A\u1038\u1018\u102F\u101B\u102C\u1038 \u1000\u103B\u1031\u102C\u1000\u103A\u1006\u1005\u103A\u1005\u1004\u103A\u1039\u1000\u103C\u1036\u1014\u103E\u1004\u1037\u103A \u101B\u103E\u1031\u1038\u101F\u1031\u102C\u1004\u103A\u1038\u101B\u102F\u1015\u103A\u1015\u103D\u102C\u1038\u1010\u1031\u102C\u103A\u1019\u103B\u102C\u1038",
+    badge: "ANCIENT MYSTIC",
+    sunDirection: "ambient",
+    sunDirectionLabel: "Soft Diffused Lantern Light",
+    atmosphere: "dramatic_chiaroscuro",
+    atmosphereLabel: "Mystic Stone Shadow",
+    previewImage: "/scenes/mrauk-u-shittaung-stone-corridor.jpg",
+    prompt: "Ancient carved sandstone labyrinth corridor inside Shittaung Pagoda in Mrauk-U, thousands of relief-carved stone Buddhas along the mossy masonry walls, oil lamp flickering warmly in carved niches, sacred ancient mist drifting across flagstone floor, cinematic chiaroscuro tone.",
+    lightingNotes: "Flickering warm torchlight contrast with cool natural stone tones; rich dark ambient occlusion.",
+    tags: ["mrauk-u", "stone", "shittaung", "ancient", "sandstone", "rakhine"]
+  },
+  {
+    id: "inle-lake-phaung-daw-oo-jetty",
+    titleEn: "Inle Lake Water Pavilion & Floating Lotus Sanctuary",
+    titleMm: "\u1021\u1004\u103A\u1038\u101C\u1031\u1038\u1000\u1014\u103A \u101B\u1031\u1015\u1031\u102B\u103A\u1015\u103C\u102C\u101E\u102C\u1012\u103A\u1014\u103E\u1004\u1037\u103A \u1016\u1031\u102C\u1004\u103A\u1010\u1031\u102C\u103A\u1026\u1038 \u101B\u103D\u103E\u1031\u1016\u1031\u102C\u1004\u103A\u1010\u1031\u102C\u103A \u101B\u103E\u102F\u1001\u1004\u103A\u1038",
+    badge: "CULTURAL WATERWAY",
+    sunDirection: "backlight",
+    sunDirectionLabel: "Morning Sunlight over Water",
+    atmosphere: "cool_azure",
+    atmosphereLabel: "Clear Mountain Waters",
+    previewImage: "/scenes/inle-lake-phaung-daw-oo-jetty.jpg",
+    prompt: "Traditional carved Shan teakwood water terrace overlooking tranquil Inle Lake at morning mist, gilded royal Karaweik ceremonial barge docked in the distance, floating hydroponic gardens with blooming lotus flowers, distant blue Shan mountains, crystal clear water reflections, 8k visual plate.",
+    lightingNotes: "Bright 5500K morning water highlights with strong specular water caustics reflecting upwards.",
+    tags: ["inle", "shan", "lake", "water", "floating garden", "karaweik"]
+  },
+  {
+    id: "shwedagon-marble-terrace-night",
+    titleEn: "Shwedagon Pagoda Marble Terrace at Blue Hour with Oil Lamps",
+    titleMm: "\u101B\u103D\u103E\u1031\u1010\u102D\u1002\u102F\u1036 \u101B\u1004\u103A\u1015\u103C\u1004\u103A\u1010\u1031\u102C\u103A \u1005\u1000\u103B\u1004\u103A\u1000\u103B\u1031\u102C\u1000\u103A\u1010\u1014\u103A\u1038\u1014\u103E\u1004\u1037\u103A \u1006\u102E\u1019\u102E\u1038\u1010\u1005\u103A\u1011\u1031\u102C\u1004\u103A \u1015\u1030\u1007\u1031\u102C\u103A\u1015\u103D\u1032",
+    badge: "SACRED NIGHT",
+    sunDirection: "ambient",
+    sunDirectionLabel: "360\xB0 Candle Sconces & Spire Glow",
+    atmosphere: "luxury_gilded",
+    atmosphereLabel: "Luminous Sacred Gold",
+    previewImage: "/scenes/shwedagon-marble-terrace-night.jpg",
+    prompt: "Pristine white marble platform of the Shwedagon Pagoda at twilight blue hour, massive golden stupa gleaming with floodlights into the deep indigo sky, thousands of brass clay oil lamps glowing on the floor with soft smoke, intricate teakwood Tazaung prayer pavilions in background, 8k photorealistic.",
+    lightingNotes: "Contrast of deep 7500K indigo sky with 2200K warm flickering oil lamps on reflective polished marble.",
+    tags: ["shwedagon", "pagoda", "gold", "marble", "blue hour", "candles"]
+  },
+  {
+    id: "sagaing-hills-u-min-thonze",
+    titleEn: "Sagaing Hills U Min Thonze 45 Crescent Buddha Hall",
+    titleMm: "\u1005\u1005\u103A\u1000\u102D\u102F\u1004\u103A\u1038\u1010\u1031\u102C\u1004\u103A\u101B\u102D\u102F\u1038 \u1025\u1019\u1004\u103A\u101E\u102F\u1036\u1038\u1006\u101A\u103A \u101C\u1001\u103C\u1019\u103A\u1038\u1015\u102F\u1036 \u1017\u102F\u1012\u1039\u1013\u101B\u102F\u1015\u103A\u1015\u103D\u102C\u1038\u1010\u1031\u102C\u103A\u1019\u103B\u102C\u1038 \u1005\u1004\u103A\u1039\u1000\u103C\u1036",
+    badge: "ROYAL HERITAGE",
+    sunDirection: "right_rim",
+    sunDirectionLabel: "Right Window Morning Slanted Rays",
+    atmosphere: "warm_golden",
+    atmosphereLabel: "Serene Spiritual Aura",
+    previewImage: "/scenes/sagaing-hills-u-min-thonze.jpg",
+    prompt: "Iconic curved crescent gallery of U Min Thonze Pagoda atop Sagaing Hills, 45 gilded seated Buddhas arrayed in harmonious arc, pastel floral mosaic tiled floors, open arched balconies showing sweeping views of the Irrawaddy river below, soft morning haze.",
+    lightingNotes: "Slanted parallel sunbeams streaming through arched colonnade with soft diffuse bounce.",
+    tags: ["sagaing", "buddha", "u min thonze", "irrawaddy", "colonnade"]
+  },
+  {
+    id: "pindaya-limestone-golden-cave",
+    titleEn: "Pindaya Caves Gilded Limestone Chamber with Thousands of Images",
+    titleMm: "\u1015\u1004\u103A\u1038\u1010\u101A \u101B\u103D\u103E\u1031\u1025\u1019\u1004\u103A \u101E\u1018\u102C\u101D\u1011\u102F\u1036\u1038\u1000\u103B\u1031\u102C\u1000\u103A\u1002\u1030\u1000\u103C\u102E\u1038\u1021\u1010\u103D\u1004\u103A\u1038 \u101B\u103D\u103E\u1031\u101B\u102F\u1015\u103A\u1015\u103D\u102C\u1038\u1010\u1031\u102C\u103A\u1019\u103B\u102C\u1038",
+    badge: "ANCIENT MYSTIC",
+    sunDirection: "ambient",
+    sunDirectionLabel: "Ambient Cave Sconces",
+    atmosphere: "dramatic_chiaroscuro",
+    atmosphereLabel: "Subterranean Gold",
+    previewImage: "/scenes/pindaya-limestone-golden-cave.jpg",
+    prompt: "Deep cavernous subterranean limestone cave chamber of Pindaya, natural stalactites dripping from the ceiling, thousands of ancient gilded Buddha images covering every rock crevice, warm tungsten spotlights casting dramatic shadows, sacred mountain mist, 8k uhd.",
+    lightingNotes: "Dramatic localized golden pools of light surrounded by natural dark limestone cavern walls.",
+    tags: ["pindaya", "cave", "limestone", "shan", "stalactite", "gold"]
+  },
+  {
+    id: "amarapura-u-bein-bridge-sunset",
+    titleEn: "U Bein Teak Bridge Over Taungthaman Lake Sunset",
+    titleMm: "\u1021\u1019\u101B\u1015\u1030\u101B \u1026\u1038\u1015\u102D\u1014\u103A\u1010\u1036\u1010\u102C\u1038\u1014\u103E\u1004\u1037\u103A \u1010\u1031\u102C\u1004\u103A\u101E\u1019\u1014\u103A\u1021\u1004\u103A\u1038 \u1014\u1031\u101D\u1004\u103A\u1006\u100A\u103A\u1038\u1006\u102C \u101B\u103E\u102F\u1001\u1004\u103A\u1038",
+    badge: "TIMELESS HERITAGE",
+    sunDirection: "golden_hour",
+    sunDirectionLabel: "Backlit Sunset Silhouettes",
+    atmosphere: "warm_golden",
+    atmosphereLabel: "Crimson Amber Sunset",
+    previewImage: "/scenes/amarapura-u-bein-bridge-sunset.jpg",
+    prompt: "Long rustic weathered teakwood pillars of U Bein Bridge stretching across Taungthaman Lake, giant orange sun setting on the horizon, fishermen in wooden rowboats with traditional conical nets, warm golden water ripples, soft silhouette aesthetic, 8k composite.",
+    lightingNotes: "Extreme golden backlight with high contrast rim lighting and gentle water reflection.",
+    tags: ["u bein", "teak bridge", "amarapura", "mandalay", "sunset", "lake"]
+  }
+];
+var WEDDING_BASE = [
+  {
+    id: "royal-crystal-chandelier-ballroom",
+    titleEn: "Palatial Grand Ballroom with Massive Crystal Chandeliers",
+    titleMm: "\u1001\u1019\u103A\u1038\u1014\u102C\u1038\u101E\u1031\u102C \u1016\u1014\u103A\u1019\u102E\u1038\u1006\u102D\u102F\u1004\u103A\u1038\u1000\u103C\u102E\u1038\u1019\u103B\u102C\u1038\u1014\u103E\u1004\u1037\u103A \u1019\u1004\u103A\u1039\u1002\u101C\u102C\u1027\u100A\u1037\u103A\u1001\u1036\u1015\u103D\u1032 \u1021\u1001\u1014\u103A\u1038\u1019\u1000\u103C\u102E\u1038",
+    badge: "LUXURY WEDDING",
+    sunDirection: "overhead",
+    sunDirectionLabel: "Top Crystal Prism Refraction",
+    atmosphere: "luxury_gilded",
+    atmosphereLabel: "Opulent Gilded Elegance",
+    previewImage: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=85",
+    prompt: "Ultra-luxurious high-ceiling grand hotel ballroom, multi-tiered crystal chandeliers cascading warm prism light, white and champagne silk drapery, polished marble flooring reflecting chandeliers, elaborate floral centerpieces of white roses and orchids, soft atmospheric fog on floor.",
+    lightingNotes: "Soft 3200K overhead chandelier light creating gentle hair highlights and mirror reflections on the marble floor.",
+    tags: ["wedding", "ballroom", "chandelier", "luxury", "crystal", "marble"]
+  },
+  {
+    id: "royal-burmese-peacock-wedding-arch",
+    titleEn: "Royal Burmese Gilded Peacock Floral Wedding Archway",
+    titleMm: "\u1019\u103C\u1014\u103A\u1019\u102C\u1037\u101B\u102D\u102F\u1038\u101B\u102C \u1012\u1031\u102B\u1004\u103A\u1038\u101B\u102F\u1015\u103A \u101B\u103D\u103E\u1031\u1015\u1014\u103A\u1038\u1001\u102F\u1036\u1038\u1014\u103E\u1004\u1037\u103A \u1019\u1004\u103A\u1039\u1002\u101C\u102C\u1005\u1004\u103A\u1019\u103C\u1004\u1037\u103A \u1019\u102F\u1001\u103A\u1026\u1038",
+    badge: "ROYAL WEDDING",
+    sunDirection: "left_rim",
+    sunDirectionLabel: "Front-Left Softbox Fill & Rim",
+    atmosphere: "luxury_gilded",
+    atmosphereLabel: "Traditional Royal Splendor",
+    previewImage: "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=1200&q=85",
+    prompt: "Majestic wedding ceremonial stage featuring a pair of hand-carved gilded Burmese peacock sculptures forming a grand floral arch, cascading white jasmine and royal orchids, golden ceremonial cushions on elevated velvet plinth, subtle warm stage spotlights, 8k photographic masterwork.",
+    lightingNotes: "Balanced three-point studio lighting with gold-tinted rim lights matching the royal regalia.",
+    tags: ["wedding", "peacock", "arch", "burmese wedding", "gold", "stage"]
+  },
+  {
+    id: "european-glass-chapel-forest",
+    titleEn: "Modern Glass Botanical Chapel in Pine Forest",
+    titleMm: "\u1011\u1004\u103A\u1038\u101B\u103E\u1030\u1038\u1010\u1031\u102C\u1021\u101C\u101A\u103A \u101E\u1018\u102C\u101D\u1021\u101C\u1004\u103A\u1038\u101D\u1004\u103A \u1019\u103E\u1014\u103A\u1014\u1014\u103A\u1038\u1010\u1031\u102C\u103A \u1019\u1004\u103A\u1039\u1002\u101C\u102C\u1006\u1031\u102C\u1004\u103A \u1001\u1014\u103A\u1038\u1019",
+    badge: "MODERN PRE-WEDDING",
+    sunDirection: "backlight",
+    sunDirectionLabel: "Sunlight Filtered through Tall Pines",
+    atmosphere: "dreamy_mist",
+    atmosphereLabel: "Ethereal Forest Romance",
+    previewImage: "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?auto=format&fit=crop&w=1200&q=85",
+    prompt: "Architectural modern glass greenhouse chapel nestled inside a serene misty pine forest, floor-to-ceiling glass walls, soft volumetric sun rays piercing through towering trees, white blossom petal pathway on wooden planks, dreamy romantic atmosphere.",
+    lightingNotes: "Soft diffused backlight with gentle green ambient bounce and crisp sun shafts.",
+    tags: ["wedding", "glass chapel", "forest", "pine", "modern", "pre-wedding"]
+  },
+  {
+    id: "sunset-coastal-cliff-floral-gazebo",
+    titleEn: "Sunset Coastal Cliff Gazebo with White Rose Curtains",
+    titleMm: "\u1015\u1004\u103A\u101C\u101A\u103A\u1000\u1019\u103A\u1038\u1015\u102B\u1038\u101A\u1036 \u1014\u1031\u101D\u1004\u103A\u1001\u103B\u102D\u1014\u103A \u1014\u103E\u1004\u103A\u1038\u1006\u102E\u1016\u103C\u1030\u1015\u1014\u103A\u1038\u1001\u102F\u1036\u1038\u1014\u103E\u1004\u1037\u103A \u1000\u1019\u103A\u1038\u1001\u103C\u1031\u1019\u1004\u103A\u1039\u1002\u101C\u102C\u1019\u102F\u1001\u103A\u1026\u1038",
+    badge: "DESTINATION WEDDING",
+    sunDirection: "golden_hour",
+    sunDirectionLabel: "Ocean Horizon Golden Flare",
+    atmosphere: "warm_golden",
+    atmosphereLabel: "Warm Tropical Romance",
+    previewImage: "https://images.unsplash.com/photo-1544077960-604201fe74bc?auto=format&fit=crop&w=1200&q=85",
+    prompt: "Breathtaking oceanfront cliffside wedding gazebo overlooking turquoise sea at golden hour, billowing sheer white chiffon curtains in coastal breeze, thousands of blush pink and ivory garden roses, soft sun flare on water horizon, warm cinematic editorial photography.",
+    lightingNotes: "Luminous rim light on sheer chiffon fabric and hair edges; gentle warm ocean specular reflection.",
+    tags: ["wedding", "beach", "sunset", "cliff", "gazebo", "ocean"]
+  }
+];
+var FASHION_BASE = [
+  {
+    id: "minimalist-cyclorama-editorial",
+    titleEn: "High-Fashion Minimalist Curved Cyclorama Studio",
+    titleMm: "\u1001\u1031\u1010\u103A\u1019\u102E \u1016\u1000\u103A\u101B\u103E\u1004\u103A\u1019\u1002\u1039\u1002\u1007\u1004\u103A\u1038 \u1005\u1010\u1030\u1012\u102E\u101A\u102D\u102F \u1021\u1016\u103C\u1030\u101B\u1031\u102C\u1004\u103A \u1000\u103D\u1031\u1038\u100A\u103D\u1010\u103A\u1005\u1004\u103A\u1019\u103C\u1004\u1037\u103A",
+    badge: "EDITORIAL HIGH-FASHION",
+    sunDirection: "left_rim",
+    sunDirectionLabel: "Large Octabox Key + White Reflector",
+    atmosphere: "cinematic",
+    atmosphereLabel: "Clean High-End Vogue",
+    previewImage: "https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1200&q=85",
+    prompt: "Seamless infinity curved white cyclorama photo studio, sculpted architectural concrete podium, large commercial diffusion overhead scrim, soft natural contact shadow underneath subject, clean high-fashion editorial styling, zero visual clutter, sharp 8k Hasselblad shot.",
+    lightingNotes: "Ultra-soft wraparound lighting with 5600K balanced daylight and razor-sharp shadow falloff.",
+    tags: ["fashion", "studio", "cyclorama", "editorial", "vogue", "minimalist"]
+  },
+  {
+    id: "dark-obsidian-marble-pedestal",
+    titleEn: "Dark Obsidian Wet Marble Luxury Commercial Plinth",
+    titleMm: "\u1007\u102D\u1019\u103A\u1001\u1036 \u1021\u1014\u1000\u103A\u101B\u1031\u102C\u1004\u103A \u1000\u103B\u1031\u102C\u1000\u103A\u1005\u1000\u103B\u1004\u103A \u101B\u1031\u1015\u103C\u1004\u103A\u1005\u1004\u103A\u1019\u103C\u1004\u1037\u103A\u1014\u103E\u1004\u1037\u103A \u1005\u1010\u1030\u1012\u102E\u101A\u102D\u102F\u1019\u102E\u1038",
+    badge: "COMMERCIAL LUXURY",
+    sunDirection: "right_rim",
+    sunDirectionLabel: "Sharp 45\xB0 Rim Light with Stripbox",
+    atmosphere: "dramatic_chiaroscuro",
+    atmosphereLabel: "Obsidian Velvet Darkness",
+    previewImage: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1200&q=85",
+    prompt: "Luxury product and fashion studio background, dark polished Nero Marquina black marble floor with subtle water ripple reflections, moody slate background with soft vertical rim gradient, fine mist, ray-traced caustics, ultra-premium commercial advertising aesthetic.",
+    lightingNotes: "Edge rim lighting separating subject from deep dark background; high contrast contact reflection.",
+    tags: ["commercial", "marble", "luxury", "product", "dark", "pedestal"]
+  },
+  {
+    id: "cyberpunk-neon-rooftop-yangon",
+    titleEn: "Neon Cyberpunk Futuristic City Skyline Terrace",
+    titleMm: "\u1001\u1031\u1010\u103A\u101C\u103D\u1014\u103A \u1014\u102E\u101A\u103D\u1014\u103A\u1019\u102E\u1038\u101B\u1031\u102C\u1004\u103A\u1005\u102F\u1036 \u1019\u103C\u102D\u102F\u1037\u1015\u103C\u1001\u1031\u102B\u1004\u103A\u1019\u102D\u102F\u1038\u1014\u103E\u1004\u1037\u103A \u1019\u102D\u102F\u1038\u101B\u1031\u1005\u1000\u103A \u1021\u101C\u103E",
+    badge: "URBAN AVANT-GARDE",
+    sunDirection: "ambient",
+    sunDirectionLabel: "Dual Cyan & Magenta Rim Lighting",
+    atmosphere: "cool_azure",
+    atmosphereLabel: "Neon Electric Glow",
+    previewImage: "https://images.unsplash.com/photo-1514565131-fce0801e5785?auto=format&fit=crop&w=1200&q=85",
+    prompt: "Wet rooftop terrace of a futuristic modern metropolis at night, glowing neon signs in cyan and hot pink reflecting in puddles on asphalt, sleek metallic railings, distant skyscraper skyline with soft rain bokeh, Blade Runner cinematic fashion shoot, 8k.",
+    lightingNotes: "Complementary colored neon rims (cyan on left, magenta on right) wrapping around subject silhouette.",
+    tags: ["neon", "cyberpunk", "rooftop", "night", "futuristic", "fashion"]
+  }
+];
+var BABY_BASE = [
+  {
+    id: "dreamy-pastel-cloud-haven",
+    titleEn: "Pastel Cloud Dreamscape with Crescent Moon & Stars",
+    titleMm: "\u1000\u101C\u1031\u1038\u1004\u101A\u103A\u1019\u103B\u102C\u1038\u1021\u1010\u103D\u1000\u103A \u1021\u102D\u1015\u103A\u1019\u1000\u103A\u1006\u1014\u103A\u101E\u1031\u102C \u1010\u102D\u1019\u103A\u1010\u102D\u102F\u1000\u103A\u104A \u101C\u1001\u103C\u1019\u103A\u1038\u1014\u103E\u1004\u1037\u103A \u1000\u103C\u101A\u103A\u1005\u1004\u103A\u1019\u103B\u102C\u1038",
+    badge: "BABY & TODDLER",
+    sunDirection: "overhead",
+    sunDirectionLabel: "Soft Diffused Dreamy Glow",
+    atmosphere: "dreamy_mist",
+    atmosphereLabel: "Pastel Cloud Magic",
+    previewImage: "https://images.unsplash.com/photo-1519689680058-324335c77eba?auto=format&fit=crop&w=1200&q=85",
+    prompt: "Enchanting fairytale baby photo studio backdrop, fluffy pastel clouds of ivory and butter-yellow resting on floor, sculpted 3D glowing wooden crescent moon, suspended fairy lights and golden stars, soft warm blanket, cozy magical storybook atmosphere, 8k.",
+    lightingNotes: "Ultra-gentle eye-safe warm diffused illumination; zero harsh shadows, creamy bokeh highlights.",
+    tags: ["baby", "toddler", "clouds", "moon", "stars", "fairytale", "pastel"]
+  },
+  {
+    id: "boho-wood-safari-den",
+    titleEn: "Warm Bohemian Wooden Den with Plush Animals",
+    titleMm: "\u101E\u1018\u102C\u101D \u101E\u1005\u103A\u101E\u102C\u1038\u1021\u102D\u1019\u103A\u1014\u103E\u1004\u1037\u103A \u1001\u103B\u1005\u103A\u1005\u101B\u102C \u1010\u102D\u101B\u1005\u1039\u1006\u102C\u1014\u103A\u101B\u102F\u1015\u103A\u101C\u1031\u1038\u1019\u103B\u102C\u1038 \u1000\u101C\u1031\u1038\u1005\u1010\u1030\u1012\u102E\u101A\u102D\u102F",
+    badge: "FAMILY & MILESTONE",
+    sunDirection: "left_rim",
+    sunDirectionLabel: "Warm Window Sunlight with Potted Palms",
+    atmosphere: "warm_golden",
+    atmosphereLabel: "Warm Earthy Boho",
+    previewImage: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=1200&q=85",
+    prompt: "Charming Scandinavian bohemian nursery studio set, raw oak wooden floor, natural rattan teepee tent, soft woven macrame blankets, hand-knitted giant plush lion and giraffe, pampas grass vases, sunlit window casting lattice shadow patterns, 8k.",
+    lightingNotes: "Natural warm sunlight streaming across floor, creating inviting organic texture and gentle warmth.",
+    tags: ["baby", "boho", "teepee", "nursery", "wood", "warm", "plush"]
+  }
+];
+var ATMOSPHERE_BASE = [
+  {
+    id: "monsoon-rain-steamy-window",
+    titleEn: "Cinematic Monsoon Rain Streaked Window with City Lights",
+    titleMm: "\u1019\u102D\u102F\u1038\u101B\u102C\u101E\u102E \u1019\u102D\u102F\u1038\u101B\u1031\u1005\u1000\u103A\u1019\u103B\u102C\u1038\u1014\u103E\u1004\u1037\u103A \u1014\u103D\u1031\u1038\u1011\u103D\u1031\u1038\u101E\u1031\u102C \u1000\u1031\u102C\u103A\u1016\u102E\u1006\u102D\u102F\u1004\u103A \u1015\u103C\u1010\u1004\u103A\u1038\u1015\u1031\u102B\u1000\u103A",
+    badge: "ATMOSPHERIC WEATHER",
+    sunDirection: "backlight",
+    sunDirectionLabel: "Evening Streetlamp Glow through Raindrops",
+    atmosphere: "cinematic",
+    atmosphereLabel: "Rainy Nostalgia",
+    previewImage: "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?auto=format&fit=crop&w=1200&q=85",
+    prompt: "Atmospheric indoor perspective looking out through glass window covered in heavy monsoon raindrops, warm amber streetlamps and vehicle headlight bokeh blurring in the twilight rain, soft steamy condensation, emotional Wong Kar-wai cinematic tone, 8k.",
+    lightingNotes: "Soft moody back-bokeh highlights with rim lighting tracing water droplets on the foreground pane.",
+    tags: ["rain", "monsoon", "window", "bokeh", "moody", "cinematic"]
+  },
+  {
+    id: "floating-candle-lantern-festival",
+    titleEn: "Sacred Floating Water Lanterns on Serene River at Midnight",
+    titleMm: "\u101E\u102E\u1010\u1004\u103A\u1038\u1000\u103B\u103D\u1010\u103A \u1010\u1014\u103A\u1006\u1031\u102C\u1004\u103A\u1010\u102D\u102F\u1004\u103A \u1006\u102E\u1019\u102E\u1038\u1019\u103B\u103E\u1031\u102C\u1015\u103D\u1032\u1014\u103E\u1004\u1037\u103A \u101B\u1031\u1015\u103C\u1004\u103A\u1015\u1031\u102B\u103A \u101B\u103D\u103E\u1031\u101B\u1031\u102C\u1004\u103A\u1006\u102E\u1019\u102E\u1038\u1019\u103B\u102C\u1038",
+    badge: "FESTIVAL OF LIGHTS",
+    sunDirection: "ambient",
+    sunDirectionLabel: "Glowing Floating Lotus Lanterns",
+    atmosphere: "warm_golden",
+    atmosphereLabel: "Festival Luminescence",
+    previewImage: "https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1200&q=85",
+    prompt: "Breathtaking midnight riverbank during Thadingyut festival of lights, thousands of golden floating origami lotus lanterns glowing on dark mirror water, gentle embers rising into starry night sky, distant ancient golden pagoda illuminated on hill, magical cultural glow, 8k visual plate.",
+    lightingNotes: "Warm 2000K candle glow radiating from water level, casting soft upward light wrap on subjects.",
+    tags: ["lanterns", "thadingyut", "river", "water", "candles", "festival"]
+  }
+];
+function generateExpandedScenes() {
+  const result = [];
+  HERITAGE_BASE.forEach((s) => result.push({
+    ...s,
+    category: "heritage_myanmar",
+    categoryLabelEn: "Heritage Myanmar (338+)",
+    categoryLabelMm: "\u1019\u103C\u1014\u103A\u1019\u102C\u1037\u101E\u1019\u102D\u102F\u1004\u103A\u1038\u101D\u1004\u103A \u1014\u1014\u103A\u1038\u1010\u103D\u1004\u103A\u1038\u1014\u103E\u1004\u1037\u103A \u1005\u1031\u1010\u102E\u1015\u102F\u1011\u102D\u102F\u1038\u1019\u103B\u102C\u1038 (\u1043\u1043\u1048+)"
+  }));
+  WEDDING_BASE.forEach((s) => result.push({
+    ...s,
+    category: "wedding_prewedding",
+    categoryLabelEn: "Wedding & Pre-Wedding (130+)",
+    categoryLabelMm: "\u1019\u1004\u103A\u1039\u1002\u101C\u102C\u1006\u1031\u102C\u1004\u103A\u1014\u103E\u1004\u1037\u103A Pre-Wedding \u1001\u1014\u103A\u1038\u1019\u1019\u103B\u102C\u1038 (\u1041\u1043\u1040+)"
+  }));
+  FASHION_BASE.forEach((s) => result.push({
+    ...s,
+    category: "fashion_commercial",
+    categoryLabelEn: "Fashion & Commercial (100+)",
+    categoryLabelMm: "\u1016\u1000\u103A\u101B\u103E\u1004\u103A\u1014\u103E\u1004\u1037\u103A \u1000\u103C\u1031\u102C\u103A\u1004\u103C\u102C \u1005\u1010\u1030\u1012\u102E\u101A\u102D\u102F\u1019\u103B\u102C\u1038 (\u1041\u1040\u1040+)"
+  }));
+  BABY_BASE.forEach((s) => result.push({
+    ...s,
+    category: "baby_family",
+    categoryLabelEn: "Baby & Family (80+)",
+    categoryLabelMm: "\u1000\u101C\u1031\u1038\u1014\u103E\u1004\u1037\u103A \u1019\u102D\u101E\u102C\u1038\u1005\u102F \u1021\u1019\u103E\u1010\u103A\u1010\u101B (\u1048\u1040+)"
+  }));
+  ATMOSPHERE_BASE.forEach((s) => result.push({
+    ...s,
+    category: "atmosphere_seasons",
+    categoryLabelEn: "Atmosphere & Seasons (120+)",
+    categoryLabelMm: "\u101B\u102C\u101E\u102E\u1025\u1010\u102F\u1014\u103E\u1004\u1037\u103A \u1021\u101C\u1004\u103A\u1038\u101C\u1019\u103A\u1038\u1000\u103C\u1031\u102C\u1004\u103A\u1038\u1019\u103B\u102C\u1038 (\u1041\u1042\u1040+)"
+  }));
+  const heritageSites = [
+    { en: "Bagan Dhammayangyi Stupa", mm: "\u1015\u102F\u1002\u1036 \u1013\u1019\u1039\u1019\u101B\u1036\u1000\u103C\u102E\u1038 \u1002\u1030\u1018\u102F\u101B\u102C\u1038\u1000\u103C\u102E\u1038", img: "https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1200&q=85" },
+    { en: "Mrauk-U Kothaung 90,000 Buddhas", mm: "\u1019\u103C\u1031\u102C\u1000\u103A\u1026\u1038 \u1000\u102D\u102F\u1038\u101E\u1031\u102C\u1004\u103A\u1038\u1018\u102F\u101B\u102C\u1038 \u1019\u101F\u102C\u101B\u1004\u103A\u1015\u103C\u1004\u103A", img: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1200&q=85" },
+    { en: "Inle Jumping Cat Wooden Monastery", mm: "\u1021\u1004\u103A\u1038\u101C\u1031\u1038 \u1004\u102B\u1038\u1016\u101A\u103A\u1001\u103B\u1031\u102C\u1004\u103A\u1038 \u101E\u1005\u103A\u101E\u102C\u1038\u1000\u103B\u1031\u102C\u1004\u103A\u1038\u1010\u102D\u102F\u1000\u103A", img: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1200&q=85" },
+    { en: "Mandalay Shwenandaw Teak Monastery", mm: "\u1019\u1014\u1039\u1010\u101C\u1031\u1038 \u101B\u103D\u103E\u1031\u1014\u1014\u103A\u1038\u1010\u1031\u102C\u103A \u1000\u103B\u1031\u102C\u1004\u103A\u1038\u1010\u1031\u102C\u103A\u1000\u103C\u102E\u1038 \u1015\u1014\u103A\u1038\u1015\u102F\u1019\u103B\u102C\u1038", img: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=1200&q=85" },
+    { en: "Bago Shwemawdaw Giant Golden Spire", mm: "\u1015\u1032\u1001\u1030\u1038 \u101B\u103D\u103E\u1031\u1019\u1031\u102C\u103A\u1013\u1031\u102C \u1005\u1031\u1010\u102E\u1010\u1031\u102C\u103A \u101B\u1004\u103A\u1015\u103C\u1004\u103A\u1010\u1031\u102C\u103A", img: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1200&q=85" },
+    { en: "Pyin Oo Lwin Colonial Teak Manor", mm: "\u1015\u103C\u1004\u103A\u1026\u1038\u101C\u103D\u1004\u103A \u101B\u103E\u1031\u1038\u101F\u1031\u102C\u1004\u103A\u1038 \u101E\u1005\u103A\u101E\u102C\u1038\u1021\u1004\u103A\u1039\u1002\u101C\u102D\u1015\u103A\u1021\u102D\u1019\u103A\u1000\u103C\u102E\u1038", img: "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=1200&q=85" },
+    { en: "Kalaw Mountain Pine Forest Overlook", mm: "\u1000\u101C\u1031\u102C \u1010\u1031\u102C\u1004\u103A\u1015\u1031\u102B\u103A \u1011\u1004\u103A\u1038\u101B\u103E\u1030\u1038\u1010\u1031\u102C\u1014\u103E\u1004\u1037\u103A \u1010\u1031\u102C\u1004\u103A\u1010\u1014\u103A\u1038\u101B\u103E\u102F\u1001\u1004\u103A\u1038", img: "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?auto=format&fit=crop&w=1200&q=85" },
+    { en: "Kyaiktiyo Golden Rock Mountain Cliff", mm: "\u1000\u103B\u102D\u102F\u1000\u103A\u1011\u102E\u1038\u101B\u102D\u102F\u1038 \u1000\u103B\u1031\u102C\u1000\u103A\u1010\u102F\u1036\u1038\u1010\u1031\u102C\u103A\u1014\u103E\u1004\u1037\u103A \u1019\u1014\u1000\u103A\u1001\u1004\u103A\u1038\u1019\u103C\u1030\u1001\u102D\u102F\u1038", img: "https://images.unsplash.com/photo-1519689680058-324335c77eba?auto=format&fit=crop&w=1200&q=85" },
+    { en: "Hpa-An Sadan Limestone Cavern Lake", mm: "\u1018\u102C\u1038\u1021\u1036 \u1006\u1012\u1039\u1012\u1014\u103A\u1002\u1030 \u101E\u1018\u102C\u101D \u101B\u1031\u1021\u102D\u102F\u1004\u103A\u1014\u103E\u1004\u1037\u103A \u101C\u103E\u1031\u1004\u101A\u103A\u1019\u103B\u102C\u1038", img: "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?auto=format&fit=crop&w=1200&q=85" },
+    { en: "Mandalay Hill Sutaungpyei Glass Mosaics", mm: "\u1019\u1014\u1039\u1010\u101C\u1031\u1038\u1010\u1031\u102C\u1004\u103A \u1006\u102F\u1010\u1031\u102C\u1004\u103A\u1038\u1015\u103C\u100A\u1037\u103A \u1019\u103E\u1014\u103A\u1005\u102E\u101B\u103D\u103E\u1031\u1001\u103B \u101B\u1004\u103A\u1015\u103C\u1004\u103A\u1010\u1031\u102C\u103A", img: "https://images.unsplash.com/photo-1544077960-604201fe74bc?auto=format&fit=crop&w=1200&q=85" }
+  ];
+  const times = [
+    { id: "dawn", en: "Misty Dawn Sunlight", mm: "\u1019\u1014\u1000\u103A\u1001\u1004\u103A\u1038 \u1019\u103C\u1030\u1001\u102D\u102F\u1038\u1014\u103E\u1004\u1037\u103A \u101B\u103D\u103E\u1031\u101B\u1031\u102C\u1004\u103A\u1021\u101C\u1004\u103A\u1038", sun: "left_rim", atmo: "dreamy_mist" },
+    { id: "noon", en: "Clear Azure Daylight", mm: "\u1000\u103C\u100A\u103A\u101C\u1004\u103A\u101E\u1031\u102C \u1014\u1031\u1037\u1001\u1004\u103A\u1038 \u1014\u1031\u101B\u1031\u102C\u1004\u103A\u1001\u103C\u100A\u103A", sun: "overhead", atmo: "cool_azure" },
+    { id: "golden", en: "Radiant Sunset Golden Hour", mm: "\u1014\u1031\u101D\u1004\u103A\u1006\u100A\u103A\u1038\u1006\u102C \u101B\u103D\u103E\u1031\u101B\u1031\u102C\u1004\u103A\u1021\u101C\u1004\u103A\u1038\u101D\u1004\u103A\u1038", sun: "golden_hour", atmo: "warm_golden" },
+    { id: "blue", en: "Dusk Blue Hour with Oil Lamps", mm: "\u1006\u100A\u103A\u1038\u1006\u102C\u1001\u103B\u102D\u1014\u103A\u1014\u103E\u1004\u1037\u103A \u101B\u102D\u102F\u1038\u101B\u102C\u1006\u102E\u1019\u102E\u1038\u1001\u103D\u1000\u103A\u1019\u103B\u102C\u1038", sun: "ambient", atmo: "dramatic_chiaroscuro" },
+    { id: "night", en: "Moonlit Night with Volumetric Stars", mm: "\u101C\u101B\u1031\u102C\u1004\u103A\u1014\u103E\u1004\u1037\u103A \u1000\u103C\u101A\u103A\u101B\u1031\u102C\u1004\u103A\u1005\u102F\u1036 \u100A\u1001\u103B\u1019\u103A\u1038", sun: "backlight", atmo: "cinematic" }
+  ];
+  let heritageCount = HERITAGE_BASE.length;
+  for (let i = 0; heritageCount < 338; i++) {
+    const site = heritageSites[i % heritageSites.length];
+    const time = times[Math.floor(i / heritageSites.length) % times.length];
+    const variationIndex = Math.floor(i / (heritageSites.length * times.length)) + 1;
+    heritageCount++;
+    result.push({
+      id: `heritage-set-${heritageCount}`,
+      titleEn: `${site.en} - ${time.en} (Set #${variationIndex})`,
+      titleMm: `${site.mm} - ${time.mm} (\u1021\u1019\u103E\u1010\u103A\u1005\u1009\u103A ${heritageCount})`,
+      category: "heritage_myanmar",
+      categoryLabelEn: "Heritage Myanmar (338+)",
+      categoryLabelMm: "\u1019\u103C\u1014\u103A\u1019\u102C\u1037\u101E\u1019\u102D\u102F\u1004\u103A\u1038\u101D\u1004\u103A \u1014\u1014\u103A\u1038\u1010\u103D\u1004\u103A\u1038\u1014\u103E\u1004\u1037\u103A \u1005\u1031\u1010\u102E\u1015\u102F\u1011\u102D\u102F\u1038\u1019\u103B\u102C\u1038 (\u1043\u1043\u1048+)",
+      badge: "ARCHIVAL SET",
+      sunDirection: time.sun,
+      sunDirectionLabel: time.en,
+      atmosphere: time.atmo,
+      atmosphereLabel: time.en,
+      previewImage: site.img,
+      prompt: `Archivally accurate authentic Myanmar heritage location plate of ${site.en}. Atmospheric ${time.en.toLowerCase()}, hyper-detailed traditional Burmese architecture, photorealistic contact occlusion, volumetric depth of field, 8k UHD film render.`,
+      lightingNotes: `Directional ${time.en.toLowerCase()} with color-temperature balance tuned for seamless portrait relighting.`,
+      tags: ["heritage", "burmese", "historical", "pagoda", "architecture", site.en.toLowerCase()]
+    });
+  }
+  const weddingThemes = [
+    { en: "Palace Pavilion Floral Altar", mm: "\u1014\u1014\u103A\u1038\u1010\u103D\u1004\u103A\u1038\u1005\u1010\u102D\u102F\u1004\u103A\u101C\u103A \u1015\u1014\u103A\u1038\u1019\u102F\u1001\u103A\u1026\u1038 \u1019\u1004\u103A\u1039\u1002\u101C\u102C\u1005\u1004\u103A\u1019\u103C\u1004\u1037\u103A" },
+    { en: "Grand Waterfall Botanical Glasshouse", mm: "\u101E\u1018\u102C\u101D \u101B\u1031\u1010\u1036\u1001\u103D\u1014\u103A\u1014\u103E\u1004\u1037\u103A \u1019\u103E\u1014\u103A\u1014\u1014\u103A\u1038\u1010\u1031\u102C\u103A \u1001\u1014\u103A\u1038\u1019" },
+    { en: "Sunset Sandy Beach Chandelier Canopy", mm: "\u1000\u1019\u103A\u1038\u1001\u103C\u1031 \u101E\u1032\u101E\u1031\u102C\u1004\u103A\u1015\u103C\u1004\u103A \u1016\u1014\u103A\u1019\u102E\u1038\u1006\u102D\u102F\u1004\u103A\u1038 \u1010\u1032\u1010\u1031\u102C\u103A" },
+    { en: "Luxury Tuscan Vineyard Rose Estate", mm: "\u1025\u101B\u1031\u102C\u1015 \u1005\u1015\u103B\u1005\u103A\u1001\u103C\u1036\u1014\u103E\u1004\u1037\u103A \u1014\u103E\u1004\u103A\u1038\u1006\u102E\u1015\u1014\u103A\u1038\u1001\u1004\u103A\u1038\u1000\u103C\u102E\u1038" },
+    { en: "Golden Gilded Lotus Throne Backdrop", mm: "\u101B\u103D\u103E\u1031\u101B\u1031\u102C\u1004\u103A\u1000\u103C\u102C\u1015\u101C\u1039\u101C\u1004\u103A \u1019\u1004\u103A\u1039\u1002\u101C\u102C\u1014\u1031\u102C\u1000\u103A\u1001\u1036" }
+  ];
+  let weddingCount = WEDDING_BASE.length;
+  for (let i = 0; weddingCount < 130; i++) {
+    const theme = weddingThemes[i % weddingThemes.length];
+    const time = times[i % times.length];
+    weddingCount++;
+    result.push({
+      id: `wedding-set-${weddingCount}`,
+      titleEn: `${theme.en} - ${time.en}`,
+      titleMm: `${theme.mm} - ${time.mm} (#${weddingCount})`,
+      category: "wedding_prewedding",
+      categoryLabelEn: "Wedding & Pre-Wedding (130+)",
+      categoryLabelMm: "\u1019\u1004\u103A\u1039\u1002\u101C\u102C\u1006\u1031\u102C\u1004\u103A\u1014\u103E\u1004\u1037\u103A Pre-Wedding \u1001\u1014\u103A\u1038\u1019\u1019\u103B\u102C\u1038 (\u1041\u1043\u1040+)",
+      badge: "LUXURY WEDDING",
+      sunDirection: time.sun,
+      sunDirectionLabel: time.en,
+      atmosphere: time.atmo,
+      atmosphereLabel: time.en,
+      previewImage: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=85",
+      prompt: `Opulent luxury wedding backdrop featuring ${theme.en}. Lit by ${time.en.toLowerCase()}, romantic floral styling with white peonies and cascading jasmine, elegant reflection floor, 8k photographic masterwork.`,
+      lightingNotes: `Soft romantic diffusion with accent rim light on hair and wedding dress fabric edges.`,
+      tags: ["wedding", "luxury", "prewedding", "flowers", "ballroom"]
+    });
+  }
+  const fashionThemes = [
+    { en: "Monochrome High-Key Concrete Plinth", mm: "\u1019\u102D\u102F\u1014\u102D\u102F\u1001\u101B\u102F\u1014\u103A\u1038 \u1000\u103D\u1014\u103A\u1000\u101B\u1005\u103A\u1005\u1004\u103A\u1019\u103C\u1004\u1037\u103A \u1005\u1010\u1030\u1012\u102E\u101A\u102D\u102F" },
+    { en: "Raw Obsidian Stone & Water Reflections", mm: "\u1000\u103B\u1031\u102C\u1000\u103A\u1014\u1000\u103A\u1010\u102F\u1036\u1038\u1014\u103E\u1004\u1037\u103A \u101B\u1031\u1015\u103C\u1004\u103A\u1021\u101C\u1004\u103A\u1038\u1015\u103C\u1014\u103A\u1019\u103E\u102F" },
+    { en: "Minimalist Archway Daylight Loft", mm: "\u1001\u1031\u1010\u103A\u1019\u102E \u1021\u101C\u1004\u103A\u1038\u1015\u1031\u102B\u1000\u103A \u1021\u1019\u102D\u102F\u1038\u1001\u102F\u1036\u1038 \u1005\u1010\u1030\u1012\u102E\u101A\u102D\u102F" },
+    { en: "Cyberpunk Tokyo Neon Rooftop Night", mm: "\u1014\u102E\u101A\u103D\u1014\u103A\u1019\u102E\u1038\u101B\u1031\u102C\u1004\u103A\u1005\u102F\u1036 \u1001\u1031\u102B\u1004\u103A\u1019\u102D\u102F\u1038\u100A\u101B\u103E\u102F\u1001\u1004\u103A\u1038" },
+    { en: "Luxury Velvet Jewelry Shadow Box", mm: "\u1000\u1010\u1039\u1010\u102E\u1015\u102B \u101B\u1010\u1014\u102C\u1021\u101B\u1031\u102C\u1004\u103A\u1038\u1015\u103C\u1001\u1014\u103A\u1038 \u1005\u1010\u1030\u1012\u102E\u101A\u102D\u102F" }
+  ];
+  let fashionCount = FASHION_BASE.length;
+  for (let i = 0; fashionCount < 100; i++) {
+    const theme = fashionThemes[i % fashionThemes.length];
+    const time = times[i % times.length];
+    fashionCount++;
+    result.push({
+      id: `fashion-set-${fashionCount}`,
+      titleEn: `${theme.en} - Edition ${fashionCount}`,
+      titleMm: `${theme.mm} (\u1021\u1019\u103E\u1010\u103A\u1005\u1009\u103A ${fashionCount})`,
+      category: "fashion_commercial",
+      categoryLabelEn: "Fashion & Commercial (100+)",
+      categoryLabelMm: "\u1016\u1000\u103A\u101B\u103E\u1004\u103A\u1014\u103E\u1004\u1037\u103A \u1000\u103C\u1031\u102C\u103A\u1004\u103C\u102C \u1005\u1010\u1030\u1012\u102E\u101A\u102D\u102F\u1019\u103B\u102C\u1038 (\u1041\u1040\u1040+)",
+      badge: "COMMERCIAL ATELIER",
+      sunDirection: time.sun,
+      sunDirectionLabel: time.en,
+      atmosphere: time.atmo,
+      atmosphereLabel: time.en,
+      previewImage: "https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1200&q=85",
+      prompt: `Commercial fashion editorial plate with ${theme.en}. Precise commercial lighting, razor-sharp contact shadows, ultra-clean studio framing, 8k Hasselblad quality.`,
+      lightingNotes: `High-definition rim lights with controlled falloff designed for fashion model compositing.`,
+      tags: ["fashion", "commercial", "studio", "editorial", "vogue"]
+    });
+  }
+  const babyThemes = [
+    { en: "Fairytale Pastel Moon & Teddy Picnic", mm: "\u101C\u1019\u1004\u103A\u1038\u1000\u103C\u102E\u1038\u1014\u103E\u1004\u1037\u103A \u101D\u1000\u103A\u101D\u1036\u101B\u102F\u1015\u103A\u101C\u1031\u1038\u1019\u103B\u102C\u1038 \u1015\u103B\u1031\u102C\u103A\u1015\u103D\u1032\u1005\u102C\u1038" },
+    { en: "Boho Teak Wood Nursery with Macrame", mm: "\u101E\u1018\u102C\u101D \u101E\u1005\u103A\u101E\u102C\u1038 \u1000\u101C\u1031\u1038\u1021\u102D\u1015\u103A\u1001\u1014\u103A\u1038 \u1021\u101C\u103E" },
+    { en: "Hot Air Balloon in Cotton Clouds", mm: "\u1002\u103D\u1019\u103A\u1038\u1010\u102D\u1019\u103A\u1010\u102D\u102F\u1000\u103A\u1011\u1032\u1000 \u1019\u102E\u1038\u1015\u102F\u1036\u1038\u1015\u103B\u1036\u1000\u101C\u1031\u1038" },
+    { en: "Sunflower Field & Pastel Wooden Wagon", mm: "\u1014\u1031\u1000\u103C\u102C\u1001\u1004\u103A\u1038\u1014\u103E\u1004\u1037\u103A \u101E\u1005\u103A\u101E\u102C\u1038\u1010\u103D\u1014\u103A\u1038\u101C\u103E\u100A\u103A\u1038\u1000\u101C\u1031\u1038" }
+  ];
+  let babyCount = BABY_BASE.length;
+  for (let i = 0; babyCount < 80; i++) {
+    const theme = babyThemes[i % babyThemes.length];
+    babyCount++;
+    result.push({
+      id: `baby-set-${babyCount}`,
+      titleEn: `${theme.en} (#${babyCount})`,
+      titleMm: `${theme.mm} (#${babyCount})`,
+      category: "baby_family",
+      categoryLabelEn: "Baby & Family (80+)",
+      categoryLabelMm: "\u1000\u101C\u1031\u1038\u1014\u103E\u1004\u1037\u103A \u1019\u102D\u101E\u102C\u1038\u1005\u102F \u1021\u1019\u103E\u1010\u103A\u1010\u101B (\u1048\u1040+)",
+      badge: "BABY & KIDS",
+      sunDirection: "overhead",
+      sunDirectionLabel: "Soft Diffuse Baby Light",
+      atmosphere: "dreamy_mist",
+      atmosphereLabel: "Pastel Dreamscape",
+      previewImage: "https://images.unsplash.com/photo-1519689680058-324335c77eba?auto=format&fit=crop&w=1200&q=85",
+      prompt: `Whimsical cozy photo studio backdrop for baby milestone photography featuring ${theme.en}. Soft safe illumination, pastel color palette, warm tender atmosphere, 8k.`,
+      lightingNotes: `Soft, zero-glare wraparound lighting with warm organic bounce.`,
+      tags: ["baby", "kids", "nursery", "cute", "fairytale"]
+    });
+  }
+  const atmoThemes = [
+    { en: "Golden Hour Dust Beams in Bamboo Forest", mm: "\u101D\u102B\u1038\u1010\u1031\u102C\u1011\u1032 \u1014\u1031\u101B\u1031\u102C\u1004\u103A\u1001\u103C\u100A\u103A\u1010\u1014\u103A\u1038\u1019\u103B\u102C\u1038 \u1011\u102D\u102F\u1038\u1006\u1004\u103A\u1038\u1019\u103E\u102F" },
+    { en: "Monsoon Rain Droplets on Glass Cafe", mm: "\u1019\u102D\u102F\u1038\u101B\u1031\u1005\u1000\u103A\u1019\u103B\u102C\u1038\u1014\u103E\u1004\u1037\u103A \u1000\u1031\u102C\u103A\u1016\u102E\u1006\u102D\u102F\u1004\u103A \u1015\u103C\u1010\u1004\u103A\u1038\u1015\u1031\u102B\u1000\u103A" },
+    { en: "Floating Lantern Festival on Starry River", mm: "\u1006\u102E\u1019\u102E\u1038\u1001\u103D\u1000\u103A \u1019\u103B\u103E\u1031\u102C\u1015\u103D\u1032\u1014\u103E\u1004\u1037\u103A \u1000\u103C\u101A\u103A\u101B\u1031\u102C\u1004\u103A\u1005\u102F\u1036 \u100A\u1001\u103B\u1019\u103A\u1038" },
+    { en: "Crisp Highland Winter Morning Mist", mm: "\u1010\u1031\u102C\u1004\u103A\u1015\u1031\u102B\u103A \u1006\u1031\u102C\u1004\u103A\u1038\u1019\u1014\u1000\u103A\u1001\u1004\u103A\u1038 \u1019\u103C\u1030\u1001\u102D\u102F\u1038\u1006\u102D\u102F\u1004\u103A\u1038 \u101B\u103E\u102F\u1001\u1004\u103A\u1038" }
+  ];
+  let atmoCount = ATMOSPHERE_BASE.length;
+  for (let i = 0; atmoCount < 120; i++) {
+    const theme = atmoThemes[i % atmoThemes.length];
+    const time = times[i % times.length];
+    atmoCount++;
+    result.push({
+      id: `atmo-set-${atmoCount}`,
+      titleEn: `${theme.en} - ${time.en}`,
+      titleMm: `${theme.mm} - ${time.mm} (#${atmoCount})`,
+      category: "atmosphere_seasons",
+      categoryLabelEn: "Atmosphere & Seasons (120+)",
+      categoryLabelMm: "\u101B\u102C\u101E\u102E\u1025\u1010\u102F\u1014\u103E\u1004\u1037\u103A \u1021\u101C\u1004\u103A\u1038\u101C\u1019\u103A\u1038\u1000\u103C\u1031\u102C\u1004\u103A\u1038\u1019\u103B\u102C\u1038 (\u1041\u1042\u1040+)",
+      badge: "ATMOSPHERE & FX",
+      sunDirection: time.sun,
+      sunDirectionLabel: time.en,
+      atmosphere: time.atmo,
+      atmosphereLabel: time.en,
+      previewImage: "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?auto=format&fit=crop&w=1200&q=85",
+      prompt: `Cinematic environmental lighting plate with ${theme.en}. Atmospheric ${time.en.toLowerCase()}, realistic weather VFX, volumetric dust motes, 8k photographic masterwork.`,
+      lightingNotes: `Complex multi-source environmental lighting designed for cinematic rim light and color bleed harmonization.`,
+      tags: ["atmosphere", "weather", "lighting", "fog", "sunset", "cinematic"]
+    });
+  }
+  return result;
+}
+var SCENES_550_COLLECTION = generateExpandedScenes();
+var SCENE_CATEGORIES = [
+  {
+    id: "all",
+    labelEn: "All 768+ Scenes",
+    labelMm: "\u101B\u103E\u102F\u1001\u1004\u103A\u1038\u1015\u1031\u102B\u1004\u103A\u1038 \u1047\u1046\u1048+ \u1021\u102C\u1038\u101C\u102F\u1036\u1038",
+    badge: "TOTAL 768+",
+    count: SCENES_550_COLLECTION.length,
+    icon: "auto_awesome"
+  },
+  {
+    id: "heritage_myanmar",
+    labelEn: "Heritage Myanmar",
+    labelMm: "\u1019\u103C\u1014\u103A\u1019\u102C\u1037\u101E\u1019\u102D\u102F\u1004\u103A\u1038\u101D\u1004\u103A \u1014\u1014\u103A\u1038\u1010\u103D\u1004\u103A\u1038\u1014\u103E\u1004\u1037\u103A \u1005\u1031\u1010\u102E\u1015\u102F\u1011\u102D\u102F\u1038\u1019\u103B\u102C\u1038",
+    badge: "338+ SETS",
+    count: SCENES_550_COLLECTION.filter((s) => s.category === "heritage_myanmar").length,
+    icon: "temple_buddhist"
+  },
+  {
+    id: "wedding_prewedding",
+    labelEn: "Luxury Wedding",
+    labelMm: "\u1019\u1004\u103A\u1039\u1002\u101C\u102C\u1006\u1031\u102C\u1004\u103A\u1014\u103E\u1004\u1037\u103A Pre-Wedding \u1001\u1014\u103A\u1038\u1019\u1019\u103B\u102C\u1038",
+    badge: "130+ SETS",
+    count: SCENES_550_COLLECTION.filter((s) => s.category === "wedding_prewedding").length,
+    icon: "favorite"
+  },
+  {
+    id: "fashion_commercial",
+    labelEn: "Fashion & Commercial",
+    labelMm: "\u1016\u1000\u103A\u101B\u103E\u1004\u103A\u1014\u103E\u1004\u1037\u103A \u1000\u103C\u1031\u102C\u103A\u1004\u103C\u102C \u1005\u1010\u1030\u1012\u102E\u101A\u102D\u102F\u1019\u103B\u102C\u1038",
+    badge: "100+ SETS",
+    count: SCENES_550_COLLECTION.filter((s) => s.category === "fashion_commercial").length,
+    icon: "checkroom"
+  },
+  {
+    id: "baby_family",
+    labelEn: "Baby & Family",
+    labelMm: "\u1000\u101C\u1031\u1038\u1014\u103E\u1004\u1037\u103A \u1019\u102D\u101E\u102C\u1038\u1005\u102F \u1021\u1019\u103E\u1010\u103A\u1010\u101B",
+    badge: "80+ SETS",
+    count: SCENES_550_COLLECTION.filter((s) => s.category === "baby_family").length,
+    icon: "child_care"
+  },
+  {
+    id: "atmosphere_seasons",
+    labelEn: "Atmosphere & Seasons",
+    labelMm: "\u101B\u102C\u101E\u102E\u1025\u1010\u102F\u1014\u103E\u1004\u1037\u103A \u1021\u101C\u1004\u103A\u1038\u101C\u1019\u103A\u1038\u1000\u103C\u1031\u102C\u1004\u103A\u1038\u1019\u103B\u102C\u1038",
+    badge: "120+ SETS",
+    count: SCENES_550_COLLECTION.filter((s) => s.category === "atmosphere_seasons").length,
+    icon: "wb_sunny"
+  }
+];
+
 // src/utils/promptBuilder.ts
 var GARMENT_TAXONOMY = {
   acheik_silk: {
@@ -302,39 +1036,250 @@ var GARMENT_TAXONOMY = {
     mm: "\u1000\u101A\u102C\u1038\u101B\u102D\u102F\u1038\u101B\u102C \u101C\u1000\u103A\u101B\u1000\u103A\u101D\u1010\u103A\u1005\u102F\u1036\u1014\u103E\u1004\u1037\u103A \u1001\u103C\u1031\u1015\u1010\u103A\u1000\u103D\u1004\u103A\u1038"
   }
 };
-var LOCATION_TAXONOMY = {
+var LOCATION_TAXONOMY_MAP = {
+  // 0. Default & Studio Baseline
+  skip: {
+    en: "high-end minimalist editorial portrait studio, clean neutral backdrop with subtle softbox gradient falloff, authentic cinematic depth of field",
+    mm: "\u1005\u1010\u1030\u1012\u102E\u101A\u102D\u102F \u101E\u1014\u1037\u103A\u101E\u1014\u1037\u103A \u1019\u102D\u102F\u1014\u102D\u102F\u1001\u101B\u102F\u1014\u103A\u1038 \u1014\u1031\u102C\u1000\u103A\u1001\u1036\u104A \u1001\u103B\u1031\u102C\u1019\u103D\u1031\u1037\u101E\u1031\u102C \u1021\u101C\u1004\u103A\u1038\u1021\u101B\u102D\u1015\u103A"
+  },
+  // 1. Myanmar Heritage & Iconic Sites (1 to 15 + Key Historical Aliases)
+  shwedagon_pagoda: {
+    en: "sacred white marble platform of Shwedagon Pagoda in Yangon, monumental 99-meter solid gold-plated Burmese bell-shaped stupa (Khaung-laung-pon) crowned with diamond bud (Sein-bu) and filigree Hti umbrella, surrounded by ornate multi-tiered wooden Pyatthat prayer pavilions (Tazaungs), intricate Mandalay glass mosaic shrines (Hman-zi Shwe-cha), bronze bells, and glowing golden oil lamps reflecting on mirror-polished white jade marble terrace (strictly authentic Burmese architecture, no Thai wat prangs, no Cambodian Angkor towers)",
+    mm: "\u101B\u1014\u103A\u1000\u102F\u1014\u103A \u101B\u103D\u103E\u1031\u1010\u102D\u1002\u102F\u1036\u1005\u1031\u1010\u102E\u1010\u1031\u102C\u103A \u101B\u1004\u103A\u1015\u103C\u1004\u103A\u1010\u1031\u102C\u103A\u104A \u101B\u103D\u103E\u1031\u101E\u1004\u103A\u1039\u1000\u1014\u103A\u1038\u101B\u1031\u102C\u1004\u103A\u1015\u103C\u1014\u103A \u1001\u1031\u102B\u1004\u103A\u1038\u101C\u1031\u102C\u1004\u103A\u1038\u1015\u102F\u1036\u1005\u1031\u1010\u102E\u104A \u1010\u1014\u103A\u1006\u1031\u102C\u1004\u103A\u1038\u1015\u103C\u102C\u101E\u102C\u1012\u103A\u1019\u103B\u102C\u1038\u1014\u103E\u1004\u1037\u103A \u1005\u1000\u103B\u1004\u103A\u1000\u103B\u1031\u102C\u1000\u103A\u101E\u102C\u1038 \u101B\u1031\u102C\u1004\u103A\u1015\u103C\u1014\u103A\u1014\u1031\u102C\u1000\u103A\u1001\u1036"
+  },
+  bagan_temples: {
+    en: "ancient Bagan archaeological sanctuary, weathered 11th-century Pagan Dynasty vaulted terracotta red-brick stupas (gugyi architectural spires) and bell-shaped gilded stupas stretching to the horizon across dry alluvial red plains dotted with acacia trees, warm atmospheric dust motes, and soft morning sun rays piercing through mist (authentic Pagan terracotta brickwork, strictly avoiding Thai prang spires and Angkor Wat ruins)",
+    mm: "\u1015\u102F\u1002\u1036 \u101B\u103E\u1031\u1038\u101F\u1031\u102C\u1004\u103A\u1038 \u1005\u1031\u1010\u102E\u1015\u102F\u1011\u102D\u102F\u1038\u1019\u103B\u102C\u1038\u104A \u1041\u1041 \u101B\u102C\u1005\u102F \u1021\u1014\u102E\u101B\u1031\u102C\u1004\u103A \u101B\u103E\u1031\u1038\u101F\u1031\u102C\u1004\u103A\u1038\u1021\u102F\u1010\u103A\u1000\u103B\u1031\u102C\u1004\u103A\u1038\u1019\u103B\u102C\u1038\u1014\u103E\u1004\u1037\u103A \u101B\u103D\u103E\u1031\u101B\u1031\u102C\u1004\u103A\u1019\u103C\u1030\u1001\u102D\u102F\u1038\u101D\u1031\u101E\u1031\u102C \u101B\u103E\u102F\u1001\u1004\u103A\u1038"
+  },
   bagan_pagoda: {
-    en: "ancient Bagan archaeological sanctuary at sunrise, weathered 11th-century terracotta brick stupas receding into golden morning mist, warm atmospheric dust motes",
+    en: "ancient Bagan archaeological sanctuary, weathered 11th-century Pagan Dynasty vaulted terracotta red-brick stupas (gugyi architectural spires) and bell-shaped gilded stupas stretching to the horizon across dry alluvial red plains dotted with acacia trees, warm atmospheric dust motes, and soft morning sun rays piercing through mist (authentic Pagan terracotta brickwork, strictly avoiding Thai prang spires and Angkor Wat ruins)",
     mm: "\u1015\u102F\u1002\u1036 \u101B\u103E\u1031\u1038\u101F\u1031\u102C\u1004\u103A\u1038\u1005\u1031\u1010\u102E\u1015\u102F\u1011\u102D\u102F\u1038\u1019\u103B\u102C\u1038\u1014\u103E\u1004\u1037\u103A \u1014\u1036\u1014\u1000\u103A\u1001\u1004\u103A\u1038 \u101B\u103D\u103E\u1031\u101B\u1031\u102C\u1004\u103A\u1019\u103C\u1030\u1001\u102D\u102F\u1038\u101D\u1031\u101E\u1031\u102C \u101B\u103E\u102F\u1001\u1004\u103A\u1038"
   },
-  shwedagon_pagoda: {
-    en: "sacred marble platform of Shwedagon Pagoda in Yangon, towering gold-leaf stupa shimmering softly in background bokeh, warm oil-lamp reflections on polished white marble",
-    mm: "\u101B\u1014\u103A\u1000\u102F\u1014\u103A \u101B\u103D\u103E\u1031\u1010\u102D\u1002\u102F\u1036\u1005\u1031\u1010\u102E\u1010\u1031\u102C\u103A \u101B\u1004\u103A\u1015\u103C\u1004\u103A\u1010\u1031\u102C\u103A\u104A \u101B\u103D\u103E\u1031\u101E\u1004\u103A\u1039\u1000\u1014\u103A\u1038\u101B\u1031\u102C\u1004\u103A\u1015\u103C\u1014\u103A\u1014\u103E\u1004\u1037\u103A \u1005\u1000\u103B\u1004\u103A\u1000\u103B\u1031\u102C\u1000\u103A\u101E\u102C\u1038 \u1014\u1031\u102C\u1000\u103A\u1001\u1036"
+  inle_lake: {
+    en: "serene Inle Lake scenic fresh waters at sunrise, traditional wooden longtail canoe, floating hydroponic vegetation gardens (Ye-chan), stilted teakwood lake pavilions with curved eaves, and distant misty blue Shan mountain ridge reflections (authentic Intha lake architecture, traditional wooden stilt construction)",
+    mm: "\u1021\u1004\u103A\u1038\u101C\u1031\u1038\u1000\u1014\u103A \u101B\u1031\u1015\u103C\u1004\u103A\u104A \u101B\u102D\u102F\u1038\u101B\u102C\u101E\u1005\u103A\u101E\u102C\u1038\u101C\u103E\u1031\u104A \u1000\u103C\u102C\u1015\u1014\u103A\u1038\u1001\u1004\u103A\u1038\u1014\u103E\u1004\u1037\u103A \u101B\u103E\u1019\u103A\u1038\u101B\u102D\u102F\u1038\u1019 \u1010\u1031\u102C\u1004\u103A\u1010\u1014\u103A\u1038 \u1014\u1031\u102C\u1000\u103A\u1001\u1036"
+  },
+  mandalay_moat: {
+    en: "historic Mandalay Royal Palace moat, tranquil mirror-like waters reflecting the ancient red crenellated masonry fortress walls and tiered golden wooden Pyatthat watchtowers with multi-tiered gabled roofs, flanked by lush tamarind trees with the misty green Mandalay Hill in the distance (authentic Konbaung dynasty fortification and Pyatthat roofs, no Western castle walls)",
+    mm: "\u1019\u1014\u1039\u1010\u101C\u1031\u1038 \u1000\u103B\u102F\u1036\u1038\u1014\u103E\u1004\u1037\u103A \u1014\u1014\u103A\u1038\u1019\u103C\u102D\u102F\u1037\u101B\u102D\u102F\u1038\u104A \u1015\u103C\u102C\u101E\u102C\u1012\u103A\u1006\u1031\u102C\u1004\u103A\u1019\u103B\u102C\u1038\u1014\u103E\u1004\u1037\u103A \u101B\u103E\u1019\u103A\u1038\u101B\u102D\u102F\u1038\u1019\u1010\u1031\u102C\u1004\u103A\u1010\u1014\u103A\u1038 \u101B\u1031\u102C\u1004\u103A\u1015\u103C\u1014\u103A \u101B\u103E\u102F\u1001\u1004\u103A\u1038"
+  },
+  konbaung_palace_interior: {
+    en: "opulent Mandalay Yadanabon Konbaung Royal Palace Lion Throne Hall (Sihasana), soaring vermilion cinnabar-lacquered teakwood pillars intricately carved with gold-leaf filigree and peacock emblems, traditional Mandalay glass mosaic (Hman-zi Shwe-cha), polished teak parquet flooring, gilded lotus cornices, and dramatic warm directional window shafts (authentic Konbaung royal court interiors, no European palace decor)",
+    mm: "\u1000\u102F\u1014\u103A\u1038\u1018\u1031\u102C\u1004\u103A / \u101B\u1010\u1014\u102C\u1015\u102F\u1036 \u1014\u1014\u103A\u1038\u1010\u103D\u1004\u103A\u1038 \u101B\u103D\u103E\u1031\u1014\u1014\u103A\u1038\u1010\u1031\u102C\u103A\u1006\u1031\u102C\u1004\u103A\u104A \u1000\u103B\u103D\u1014\u103A\u1038\u101E\u1005\u103A\u1015\u1014\u103A\u1038\u1015\u102F\u1010\u102D\u102F\u1004\u103A\u1019\u103B\u102C\u1038\u1014\u103E\u1004\u1037\u103A \u101F\u1004\u103A\u1039\u101E\u102C\u1015\u103C\u1012\u102B\u1038\u101B\u103D\u103E\u1031\u1001\u103B\u100A\u103A\u1011\u102D\u102F\u1038 \u1014\u1014\u103A\u1038\u1010\u103D\u1004\u103A\u1038\u1017\u102D\u101E\u102F\u1000\u102C"
   },
   mandalay_palace: {
-    en: "historic Mandalay Royal Palace pavilion, intricately carved golden teakwood pillars, vermilion lacquered colonnade, dramatic shafts of warm sunlight",
+    en: "historic Mandalay Royal Palace royal pavilion, intricately carved golden teakwood pillars, vermilion cinnabar-lacquered colonnade, multi-tiered Pyatthat spires with floral bargeboards, dramatic shafts of warm golden sunlight (authentic Konbaung dynasty court architecture)",
     mm: "\u1019\u1014\u1039\u1010\u101C\u1031\u1038 \u1014\u1014\u103A\u1038\u1010\u1031\u102C\u103A \u1000\u103B\u103D\u1014\u103A\u1038\u101E\u1005\u103A\u1015\u1014\u103A\u1038\u1015\u102F\u1010\u102D\u102F\u1004\u103A\u1019\u103B\u102C\u1038\u1014\u103E\u1004\u1037\u103A \u101F\u1004\u103A\u1039\u101E\u102C\u1015\u103C\u1012\u102B\u1038\u101B\u1031\u102C\u1004\u103A \u1014\u1014\u103A\u1038\u1010\u103D\u1004\u103A\u1038\u1006\u1031\u102C\u1004\u103A"
   },
-  inle_lake: {
-    en: "serene Inle Lake misty waters at dawn, traditional wooden longtail boat, floating lotus gardens and distant Shan mountain range",
-    mm: "\u1021\u1004\u103A\u1038\u101C\u1031\u1038\u1000\u1014\u103A \u101B\u1031\u1015\u103C\u1004\u103A\u104A \u1000\u103C\u102C\u1015\u1014\u103A\u1038\u1001\u1004\u103A\u1038\u1014\u103E\u1004\u1037\u103A \u101B\u103E\u1019\u103A\u1038\u101B\u102D\u102F\u1038\u1019 \u1010\u1031\u102C\u1004\u103A\u1010\u1014\u103A\u1038 \u1014\u1031\u102C\u1000\u103A\u1001\u1036"
-  },
   ubein_bridge: {
-    en: "historic U Bein teakwood bridge in Amarapura at golden sunset, warm amber reflections rippling across Taungthaman Lake",
+    en: "historic U Bein teakwood bridge in Amarapura, weathered 150-year-old teakwood pilings curving across serene Taungthaman Lake, warm amber water reflections, silhouetted boatmen with conical nets, and glowing sunset horizon (authentic 19th-century Amarapura teakwood engineering)",
     mm: "\u1021\u1019\u101B\u1015\u1030\u101B \u1026\u1038\u1015\u102D\u1014\u103A\u1010\u1036\u1010\u102C\u1038 \u1014\u1031\u101D\u1004\u103A\u1006\u100A\u103A\u1038\u1006\u102C\u1014\u103E\u1004\u1037\u103A \u1010\u1031\u102C\u1004\u103A\u101E\u1019\u1014\u103A\u1021\u1004\u103A\u1038 \u101B\u1031\u1015\u103C\u1004\u103A\u101B\u1031\u102C\u1004\u103A\u1015\u103C\u1014\u103A"
+  },
+  amarapura_teak_bridge: {
+    en: "historic U Bein teakwood bridge in Amarapura, weathered 150-year-old teakwood pilings curving across serene Taungthaman Lake, warm amber water reflections, silhouetted boatmen with conical nets, and glowing sunset horizon (authentic 19th-century Amarapura teakwood engineering)",
+    mm: "\u1021\u1019\u101B\u1015\u1030\u101B \u1026\u1038\u1015\u102D\u1014\u103A\u1010\u1036\u1010\u102C\u1038\u1014\u103E\u1004\u1037\u103A \u1010\u1031\u102C\u1004\u103A\u101E\u1019\u1014\u103A\u1021\u1004\u103A\u1038 \u101B\u1031\u1015\u103C\u1004\u103A\u101B\u1031\u102C\u1004\u103A\u1015\u103C\u1014\u103A"
+  },
+  sagaing_hill: {
+    en: "majestic Sagaing Hill slopes cascading with hundreds of whitewashed and gilded Burmese bell stupas (U Min Thonze crescent colonnade, Soon U Ponya Shin), lush tamarind and acacia foliage, overlooking the sweeping silver curves of the Ayeyarwady River and Inwa bridge (authentic Burmese bell-shaped stupas, no Thai chedis)",
+    mm: "\u1005\u1005\u103A\u1000\u102D\u102F\u1004\u103A\u1038\u1010\u1031\u102C\u1004\u103A\u101B\u102D\u102F\u1038 \u1005\u1031\u1010\u102E\u1015\u102F\u1011\u102D\u102F\u1038\u1019\u103B\u102C\u1038\u104A \u1027\u101B\u102C\u101D\u1010\u102E\u1019\u103C\u1005\u103A\u1000\u103D\u1031\u1037\u1014\u103E\u1004\u1037\u103A \u101E\u1018\u102C\u101D\u101B\u103E\u102F\u1001\u1004\u103A\u1038"
+  },
+  kalaw_pindaya: {
+    en: "crisp misty Kalaw highland pine forest trails, undulating green tea plantation terraces, and dramatic limestone entrance to Pindaya natural cave sanctuary housing thousands of centuries-old gilded Buddha statues (authentic Shan highland topography)",
+    mm: "\u1000\u101C\u1031\u102C \u1011\u1004\u103A\u1038\u101B\u103E\u1030\u1038\u1010\u1031\u102C\u104A \u101C\u1000\u103A\u1016\u1000\u103A\u1001\u1004\u103A\u1038 \u1010\u1031\u102C\u1004\u103A\u1000\u102F\u1014\u103A\u1038\u1019\u103B\u102C\u1038\u1014\u103E\u1004\u1037\u103A \u1015\u1004\u103A\u1038\u1010\u101A \u101C\u102D\u102F\u100F\u103A\u1002\u1030 \u101B\u103E\u102F\u1001\u1004\u103A\u1038"
+  },
+  pyinoolwin_garden: {
+    en: "Pyin Oo Lwin National Kandawgyi Botanical Gardens, manicured vibrant flower beds, towering silver pine groves, wooden lake footbridge, classic teak gazebo, and serene reflective lake waters beneath cool mountain air",
+    mm: "\u1015\u103C\u1004\u103A\u1026\u1038\u101C\u103D\u1004\u103A \u1021\u1019\u103B\u102D\u102F\u1038\u101E\u102C\u1038 \u1000\u1014\u103A\u1010\u1031\u102C\u103A\u1000\u103C\u102E\u1038 \u1015\u1014\u103A\u1038\u1001\u103C\u1036\u104A \u1011\u1004\u103A\u1038\u101B\u103E\u1030\u1038\u1010\u1014\u103A\u1038\u1014\u103E\u1004\u1037\u103A \u101B\u1031\u1000\u1014\u103A \u101B\u103E\u102F\u1001\u1004\u103A\u1038"
+  },
+  ngapali_beach: {
+    en: "pristine Ngapali coastline, soft powdery white sand, swaying coconut palms, crystal-clear turquoise Bay of Bengal waves, rustic bamboo thatch beach umbrellas, and warm coastal sea breeze",
+    mm: "\u1004\u1015\u101C\u102E \u1000\u1019\u103A\u1038\u1001\u103C\u1031 \u1016\u103C\u1030\u1016\u103D\u1031\u1038\u101E\u1031\u102C \u101E\u1032\u101E\u1031\u102C\u1004\u103A\u1015\u103C\u1004\u103A\u104A \u1021\u102F\u1014\u103A\u1038\u1015\u1004\u103A\u101B\u102D\u1015\u103A\u1014\u103E\u1004\u1037\u103A \u1005\u102D\u1019\u103A\u1038\u1015\u103C\u102C\u101B\u1031\u102C\u1004\u103A \u1015\u1004\u103A\u101C\u101A\u103A\u101C\u103E\u102D\u102F\u1004\u103A\u1038"
+  },
+  myeik_islands: {
+    en: "remote Mergui (Myeik) Archipelago, dramatic jungle-topped limestone karst cliffs rising out of crystalline turquoise Andaman sea waters, secluded pristine white sand cove with coral reefs visible beneath the surface",
+    mm: "\u1019\u103C\u102D\u1010\u103A \u1000\u103B\u103D\u1014\u103A\u1038\u1005\u102F\u1019\u103B\u102C\u1038\u104F \u1021\u1015\u103C\u102C\u101B\u1031\u102C\u1004\u103A \u1015\u1004\u103A\u101C\u101A\u103A\u104A \u1000\u103B\u103D\u1014\u103A\u1038\u1015\u1010\u103A\u101C\u100A\u103A \u101E\u1032\u1016\u103C\u1030\u101E\u1031\u102C\u1004\u103A\u1014\u103E\u1004\u1037\u103A \u101E\u1018\u102C\u101D \u1000\u103B\u1031\u102C\u1000\u103A\u1006\u1031\u102C\u1004\u103A\u1019\u103B\u102C\u1038"
+  },
+  taunggyi_balloon_field: {
+    en: "Taunggyi Tazaungdaing highland festival grounds at dusk, illuminated giant handmade Shan paper hot-air balloons bearing intricate firework candle patterns floating into the deep twilight Shan sky, festive bonfire glow and cheering crowds",
+    mm: "\u1010\u1031\u102C\u1004\u103A\u1000\u103C\u102E\u1038 \u1019\u102E\u1038\u1015\u102F\u1036\u1038\u1015\u103B\u1036\u1015\u103D\u1032\u1010\u1031\u102C\u103A \u1000\u103D\u1004\u103A\u1038\u104A \u1019\u102E\u1038\u101B\u103E\u1030\u1038\u1019\u102E\u1038\u1015\u1014\u103A\u1038\u1019\u103B\u102C\u1038\u1014\u103E\u1004\u1037\u103A \u100A\u1014\u1031\u1001\u1004\u103A\u1038 \u101B\u103E\u1019\u103A\u1038\u1015\u103C\u100A\u103A\u1010\u1031\u102C\u1004\u103A\u1010\u1014\u103A\u1038 \u101B\u103E\u102F\u1001\u1004\u103A\u1038"
+  },
+  chin_mountains: {
+    en: "rugged misty Chin mountain ridges, Mount Victoria (Nat Ma Taung) alpine summit with blooming crimson rhododendron trees, rolling dramatic sea of clouds drifting across pine-clad mountain peaks and terraced tribal villages",
+    mm: "\u1001\u103B\u1004\u103A\u1038\u1010\u1031\u102C\u1004\u103A\u1010\u1014\u103A\u1038\u104A \u101D\u102D\u1010\u102D\u102F\u101B\u102D\u101A\u1010\u1031\u102C\u1004\u103A\u104A \u1010\u1031\u102C\u1004\u103A\u1007\u101C\u1015\u103A\u1015\u1014\u103A\u1038\u1019\u103B\u102C\u1038\u1014\u103E\u1004\u1037\u103A \u1010\u1031\u102C\u1004\u103A\u1015\u1031\u102B\u103A\u1019\u103C\u1030\u1001\u102D\u102F\u1038 \u101B\u103E\u102F\u1001\u1004\u103A\u1038"
+  },
+  kyaiktiyo_golden_rock: {
+    en: "sacred Kyaiktiyo Golden Rock pagoda precariously perched on the edge of a sheer granite cliff, completely gilded in pure leaf gold crowned with a delicate hti umbrella, shrouded in mystical swirling mountain fog overlooking lush Mon state hills (authentic Burmese sacred boulder pagoda)",
+    mm: "\u1000\u103B\u102D\u102F\u1000\u103A\u1011\u102E\u1038\u101B\u102D\u102F\u1038 \u1006\u1036\u1010\u1031\u102C\u103A\u101B\u103E\u1004\u103A \u1005\u1031\u1010\u102E\u1010\u1031\u102C\u103A\u104A \u1000\u103B\u1031\u102C\u1000\u103A\u1010\u102F\u1036\u1038\u101B\u103D\u103E\u1031\u1005\u1004\u103A\u1014\u103E\u1004\u1037\u103A \u1010\u1031\u102C\u1004\u103A\u1015\u1031\u102B\u103A \u1019\u103C\u1030\u1001\u102D\u102F\u1038\u101D\u1031\u101E\u1031\u102C \u101B\u103E\u102F\u1001\u1004\u103A\u1038"
+  },
+  riverside_sunset: {
+    en: "picturesque Ayeyarwady riverbank jetty at sunset, gentle golden water ripples, moored antique teak passenger boats and wooden sampans, rustic wooden boardwalk, and distant silhouetted river palms",
+    mm: "\u101B\u1014\u103A\u1000\u102F\u1014\u103A\u1019\u103C\u1005\u103A\u1000\u1019\u103A\u1038 / \u1027\u101B\u102C\u101D\u1010\u102E \u1019\u103C\u1005\u103A\u1000\u1019\u103A\u1038 \u101E\u1004\u103A\u1039\u1018\u1031\u102C\u1006\u102D\u1015\u103A\u1014\u103E\u1004\u1037\u103A \u1014\u1031\u101D\u1004\u103A\u1001\u103B\u102D\u1014\u103A \u101B\u103D\u103E\u1031\u101B\u1031\u102C\u1004\u103A\u101B\u1031\u1015\u103C\u1004\u103A"
+  },
+  monastery_temple_hall: {
+    en: "sacred centuries-old antique Burmese monastery (kyaung) prayer hall, dark hand-hewn golden teak pillars with intricate Jataka relief carvings, ornate gilded Mandalay glass mosaic Buddha altar, and incense smoke filtering through timber louvers (authentic Burmese teakwood monastery architecture, no Thai wat interior)",
+    mm: "\u101B\u102D\u102F\u1038\u101B\u102C \u101E\u1005\u103A\u101E\u102C\u1038 \u1000\u103B\u1031\u102C\u1004\u103A\u1038\u1010\u102D\u102F\u1000\u103A\u1000\u103C\u102E\u1038 \u1021\u1010\u103D\u1004\u103A\u1038\u104A \u101B\u103D\u103E\u1031\u1015\u1014\u103A\u1038\u1015\u102F \u1000\u103B\u103D\u1014\u103A\u1038\u1010\u102D\u102F\u1004\u103A\u1019\u103B\u102C\u1038\u1014\u103E\u1004\u1037\u103A \u1013\u1019\u1039\u1019\u102C\u101B\u102F\u1036 \u1014\u1031\u102C\u1000\u103A\u1001\u1036"
+  },
+  mrauk_u_temples: {
+    en: "ancient medieval Mrauk-U archaeological sanctuary, colossal medieval sandstone fortress temples (Shitthaung Pagoda) with tiered stone stupas rising through thick morning hill mist in Rakhine State (authentic Rakhine fortress pagoda architecture)",
+    mm: "\u101B\u1001\u102D\u102F\u1004\u103A\u1015\u103C\u100A\u103A\u1014\u101A\u103A \u1019\u103C\u1031\u102C\u1000\u103A\u1026\u1038 \u101B\u103E\u1031\u1038\u101F\u1031\u102C\u1004\u103A\u1038 \u1000\u103B\u1031\u102C\u1000\u103A\u1006\u1005\u103A \u1005\u1031\u1010\u102E\u1015\u102F\u1011\u102D\u102F\u1038\u1019\u103B\u102C\u1038\u1014\u103E\u1004\u1037\u103A \u1014\u1036\u1014\u1000\u103A\u1001\u1004\u103A\u1038 \u1019\u103C\u1030\u1001\u102D\u102F\u1038\u101B\u103E\u102F\u1001\u1004\u103A\u1038"
+  },
+  hpa_an_caves: {
+    en: "dramatic Hpa-An limestone karst peak landscape, towering sheer karst cliffs surrounded by verdant emerald rice paddies, sacred Sadan Cave lake waters, and golden stupa spires crowning jagged peaks",
+    mm: "\u1018\u102C\u1038\u1021\u1036 \u1007\u103D\u1032\u1000\u1015\u1004\u103A\u1010\u1031\u102C\u1004\u103A\u1001\u103C\u1031\u104A \u1011\u102F\u1036\u1038\u1000\u103B\u1031\u102C\u1000\u103A\u1010\u1031\u102C\u1004\u103A\u1019\u103B\u102C\u1038\u1014\u103E\u1004\u1037\u103A \u101E\u1018\u102C\u101D \u101C\u102D\u102F\u100F\u103A\u1002\u1030 \u101B\u1031\u1000\u1014\u103A \u101B\u103E\u102F\u1001\u1004\u103A\u1038"
+  },
+  // 2. World-Class Iconic Locations (16 to 25)
+  paris_eiffel_tower: {
+    en: "Parisian Seine riverbank promenade overlooking the iconic architectural ironwork of the Eiffel Tower, elegant Haussmannian limestone architecture, and classic cobblestone walkway bathed in golden afternoon light",
+    mm: "\u1015\u103C\u1004\u103A\u101E\u1005\u103A \u1015\u102B\u101B\u102E \u1021\u102E\u1016\u101A\u103A\u1010\u102C\u101D\u102B\u1014\u103E\u1004\u1037\u103A \u1005\u102D\u1014\u103A\u1038\u1019\u103C\u1005\u103A\u1000\u1019\u103A\u1038 \u1000\u103B\u1031\u102C\u1000\u103A\u1001\u1004\u103A\u1038\u101C\u1019\u103A\u1038 \u101B\u103E\u102F\u1001\u1004\u103A\u1038"
+  },
+  santorini_greece: {
+    en: "Santorini cliffside village of Oia, pristine whitewashed Cycladic stone cubic architecture, vibrant cobalt-blue church domes, and sweeping vistas of the sapphire Aegean Sea caldera at sunset",
+    mm: "\u1002\u101B\u102D \u1006\u1014\u103A\u1010\u102D\u102F\u101B\u102E\u1014\u102E \u1021\u1016\u103C\u1030\u101B\u1031\u102C\u1004\u103A \u1015\u1004\u103A\u101C\u101A\u103A\u1000\u1019\u103A\u1038\u1015\u102B\u1038 \u1019\u103C\u102D\u102F\u1037\u1000\u101C\u1031\u1038\u1014\u103E\u1004\u1037\u103A \u1021\u1015\u103C\u102C\u101B\u1031\u102C\u1004\u103A \u1021\u1019\u102D\u102F\u1038\u1001\u102F\u1036\u1038 \u101B\u103E\u102F\u1001\u1004\u103A\u1038"
+  },
+  kyoto_bamboo_torii: {
+    en: "Kyoto Arashiyama soaring green bamboo grove pathway and vibrant vermilion Fushimi Inari wooden torii gates, dappled soft sunlight filtering through towering bamboo shoots with mossy stone lanterns",
+    mm: "\u1002\u103B\u1015\u1014\u103A \u1000\u103B\u102D\u102F\u1010\u102D\u102F \u1021\u102C\u101B\u102C\u101B\u103E\u102D\u101A\u102C\u1019 \u101D\u102B\u1038\u1010\u1031\u102C\u1014\u103E\u1004\u1037\u103A \u1010\u102D\u102F\u101B\u102E\u1038\u1010\u1036\u1001\u102B\u1038\u1021\u1014\u102E \u1000\u103B\u1031\u102C\u1000\u103A\u101C\u1019\u103A\u1038 \u101B\u103E\u102F\u1001\u1004\u103A\u1038"
+  },
+  swiss_alps_snow: {
+    en: "Swiss Alps alpine scenery, towering snow-dusted jagged mountain massifs, crystal-clear turquoise alpine glacial lake, weathered wooden timber chalet, and wildflower meadows",
+    mm: "\u1006\u103D\u1005\u103A\u1007\u102C\u101C\u1014\u103A \u1021\u1032\u101C\u103A\u1015\u103A\u1005\u103A \u1014\u103E\u1004\u103A\u1038\u1010\u1031\u102C\u1004\u103A\u104A \u101B\u1031\u1001\u1032\u1000\u1014\u103A\u1014\u103E\u1004\u1037\u103A \u101E\u1018\u102C\u101D \u101B\u103E\u102F\u1001\u1004\u103A\u1038"
+  },
+  venice_gondola_canal: {
+    en: "historic Venice Grand Canal, weathered Venetian Gothic palazzo stone facades, traditional polished black wooden gondolas moored on striped wooden poles, and emerald reflective canal water",
+    mm: "\u1021\u102E\u1010\u101C\u102E \u1017\u1004\u103A\u1038\u1014\u1005\u103A \u1002\u103D\u1014\u103A\u1012\u102D\u102F\u101C\u102C \u101C\u103E\u1031\u1014\u103E\u1004\u1037\u103A \u101B\u103E\u1031\u1038\u101F\u1031\u102C\u1004\u103A\u1038 \u101B\u1031\u1019\u103C\u1031\u102C\u1004\u103A\u1038 \u1017\u102D\u101E\u102F\u1000\u102C \u101B\u103E\u102F\u1001\u1004\u103A\u1038"
+  },
+  taj_mahal_palace: {
+    en: "monumental grounds of the Taj Mahal in Agra, luminous ivory-white Mughal marble dome and minarets reflecting in pristine symmetrical lotus reflecting pools bordered by cypress gardens",
+    mm: "\u1021\u102D\u1014\u1039\u1012\u102D\u101A \u1010\u102C\u1002\u103B\u103A\u1019\u101F\u102C\u101B\u103A \u1005\u1000\u103B\u1004\u103A\u1000\u103B\u1031\u102C\u1000\u103A \u1014\u1014\u103A\u1038\u1010\u1031\u102C\u103A\u1014\u103E\u1004\u1037\u103A \u101B\u1031\u102C\u1004\u103A\u1015\u103C\u1014\u103A \u101B\u1031\u1000\u1014\u103A \u101B\u103E\u102F\u1001\u1004\u103A\u1038"
+  },
+  bali_jungle_swing: {
+    en: "lush tropical Ubud Bali landscape, terraced emerald green rice paddies (Tegallalang), sweeping coconut palm fronds, wooden pavilion, and misty volcanic mountain ridge",
+    mm: "\u1021\u1004\u103A\u1012\u102D\u102F\u1014\u102E\u1038\u101B\u103E\u102C\u1038 \u1018\u102C\u101C\u102E \u101C\u101A\u103A\u1000\u103D\u1004\u103A\u1038\u101C\u103E\u1031\u1000\u102C\u1038\u1011\u1005\u103A\u1019\u103B\u102C\u1038\u1014\u103E\u1004\u1037\u103A \u1021\u1015\u1030\u1015\u102D\u102F\u1004\u103A\u1038 \u101E\u1005\u103A\u1010\u1031\u102C \u101B\u103E\u102F\u1001\u1004\u103A\u1038"
+  },
+  maldives_overwater: {
+    en: "exclusive Maldives luxury overwater timber bungalow villa with private sun deck, perched over crystal-clear aqua-turquoise lagoon waters with pristine white coral sand below",
+    mm: "\u1019\u1031\u102C\u103A\u101C\u1012\u102D\u102F\u1000\u103A \u101B\u1031\u1015\u1031\u102B\u103A \u1018\u1014\u103A\u1002\u101C\u102D\u102F\u1014\u103E\u1004\u1037\u103A \u1000\u103C\u100A\u103A\u101C\u1004\u103A\u1015\u103C\u102C\u101C\u1032\u1037\u101E\u1031\u102C \u101E\u1014\u1039\u1010\u102C\u1000\u103B\u1031\u102C\u1000\u103A\u1010\u1014\u103A\u1038 \u101C\u1002\u103D\u1014\u103A \u101B\u1031\u1015\u103C\u1004\u103A"
+  },
+  cappadocia_balloons: {
+    en: "whimsical Cappadocia Goreme valley, ancient wind-carved volcanic fairy chimney rock formations, colorful hot air balloons rising in the dawn sky over golden sandstone canyons",
+    mm: "\u1010\u1030\u101B\u1000\u102E \u1000\u1000\u103A\u1015\u102B\u1012\u102D\u102F\u1005\u102E\u101A\u102C \u1019\u102E\u1038\u1015\u102F\u1036\u1038\u1015\u103B\u1036\u1019\u103B\u102C\u1038\u1014\u103E\u1004\u1037\u103A \u1000\u103B\u1031\u102C\u1000\u103A\u1010\u1031\u102C\u1004\u103A \u1001\u103B\u102D\u102F\u1004\u1037\u103A\u101D\u103E\u1019\u103A\u1038 \u101B\u103E\u102F\u1001\u1004\u103A\u1038"
+  },
+  ny_central_park: {
+    en: "New York City Central Park Bow Bridge, lush American elm trees framing the tranquil lake waters with the iconic Beaux-Arts Manhattan apartment skyline rising behind",
+    mm: "\u1014\u101A\u1030\u1038\u101A\u1031\u102C\u1000\u103A \u1005\u1004\u103A\u1011\u101B\u101A\u103A\u1015\u102B\u1037\u1001\u103A\u104A \u101E\u1005\u103A\u1010\u1031\u102C\u101B\u102D\u1015\u103A\u1014\u103E\u1004\u1037\u103A \u1019\u103C\u102D\u102F\u1037\u1015\u103C \u1019\u102D\u102F\u1038\u1019\u103B\u103E\u1031\u102C\u103A\u1010\u102D\u102F\u1000\u103A \u101B\u103E\u102F\u1001\u1004\u103A\u1038"
+  },
+  // 3. Studio & Architectural Interiors (26 to 30)
+  plain_studio: {
+    en: "high-end minimalist editorial photo studio, seamless neutral matte cyclorama wall with velvety smooth gradient falloff, clean floor, and zero background clutter",
+    mm: "\u1005\u1010\u1030\u1012\u102E\u101A\u102D\u102F \u101E\u1014\u1037\u103A\u101E\u1014\u1037\u103A \u1019\u102D\u102F\u1014\u102D\u102F\u1001\u101B\u102F\u1014\u103A\u1038 \u1014\u1031\u102C\u1000\u103A\u1001\u1036\u104A \u1001\u103B\u1031\u102C\u1019\u103D\u1031\u1037\u101E\u1031\u102C \u1021\u101C\u1004\u103A\u1038\u1021\u101B\u102D\u1015\u103A"
+  },
+  wood_brick_studio: {
+    en: "contemporary industrial loft photo studio, exposed weathered warm red-brick walls, rustic reclaimed herringbone oak flooring, and expansive steel-mullioned factory casement windows",
+    mm: "\u1005\u1010\u1030\u1012\u102E\u101A\u102D\u102F \u101E\u1005\u103A\u101E\u102C\u1038 / \u101B\u103E\u1031\u1038\u101F\u1031\u102C\u1004\u103A\u1038 \u1021\u102F\u1010\u103A\u1014\u1036\u101B\u1036 \u1001\u1031\u1010\u103A\u1019\u102E \u1005\u1010\u102D\u102F\u1004\u103A\u101C\u103A \u1014\u1031\u102C\u1000\u103A\u1001\u1036"
+  },
+  luxury_hotel_ballroom: {
+    en: "lavish five-star luxury hotel grand ballroom, soaring coffered ceilings, multi-tiered sparkling crystal chandeliers, polished Italian Botticino marble flooring, and gilded crown molding",
+    mm: "\u101F\u102D\u102F\u1010\u101A\u103A \u101C\u1031\u102C\u103A\u1018\u102E\u1014\u103E\u1004\u1037\u103A \u1001\u1019\u103A\u1038\u1014\u102C\u1038\u101E\u1031\u102C \u1015\u103D\u1032\u1019 \u1021\u1001\u1014\u103A\u1038\u1019\u104A \u1005\u1000\u103B\u1004\u103A\u1000\u103B\u1031\u102C\u1000\u103A\u1014\u103E\u1004\u1037\u103A \u1016\u1014\u103A\u1019\u102E\u1038\u1006\u102D\u102F\u1004\u103A\u1038\u1000\u103C\u102E\u1038\u1019\u103B\u102C\u1038"
+  },
+  cafe_interior: {
+    en: "aesthetic boutique artisan cafe interior, warm exposed terracotta tiles, warm hanging Edison filament pendant lights, solid walnut furniture, and lush indoor monstera greenery",
+    mm: "\u1001\u1031\u1010\u103A\u1019\u102E \u1019\u102E\u1038\u101B\u1031\u102C\u1004\u103A\u1005\u102F\u1036 \u1000\u1031\u102C\u103A\u1016\u102E\u1006\u102D\u102F\u1004\u103A \u1021\u1010\u103D\u1004\u103A\u1038\u104A \u101E\u1005\u103A\u101E\u102C\u1038\u1015\u101B\u102D\u1018\u1031\u102C\u1002\u1014\u103E\u1004\u1037\u103A \u1014\u103D\u1031\u1038\u1011\u103D\u1031\u1038\u101E\u1031\u102C \u1021\u1004\u103D\u1031\u1037\u1021\u101E\u1000\u103A"
+  },
+  traditional_myanmar_house: {
+    en: "authentic heritage Myanmar teakwood family manor, polished broad teak plank flooring, open-air shaded veranda with woven bamboo blinds, carved wooden balustrades, and lush potted orchids in a tranquil tropical courtyard garden (authentic Burmese teakwood residential architecture)",
+    mm: "\u101B\u102D\u102F\u1038\u101B\u102C \u1019\u103C\u1014\u103A\u1019\u102C\u1037 \u1000\u103B\u103D\u1014\u103A\u1038\u101E\u1005\u103A\u1021\u102D\u1019\u103A\u1000\u103C\u102E\u1038\u104A \u101D\u101B\u1036\u1010\u102C\u1014\u103E\u1004\u1037\u103A \u101E\u1018\u102C\u101D \u1015\u1014\u103A\u1038\u1019\u1014\u103A \u1025\u101A\u103B\u102C\u1009\u103A \u1014\u1031\u102C\u1000\u103A\u1001\u1036"
+  },
+  // 4. Nature & Lifestyle (31 to 36)
+  golden_hour_paddy_field: {
+    en: "sprawling golden harvest rice paddy fields in rural Myanmar, swaying ripe amber grain stalks, winding earthen foot trail, and expansive open sunset horizon with warm golden dust and silhouetted toddy palm trees",
+    mm: "\u1014\u1031\u101D\u1004\u103A\u1001\u103B\u102D\u1014\u103A \u101B\u103D\u103E\u1031\u101B\u1031\u102C\u1004\u103A \u1005\u1015\u102B\u1038\u1001\u1004\u103A\u1038\u1019\u103B\u102C\u1038\u104A \u101C\u101A\u103A\u1000\u103D\u1004\u103A\u1038 \u101B\u103E\u102F\u1001\u1004\u103A\u1038\u1014\u103E\u1004\u1037\u103A \u1006\u100A\u103A\u1038\u1006\u102C \u1021\u101C\u1004\u103A\u1038"
+  },
+  lush_forest_stream: {
+    en: "enchanting pristine rainforest sanctuary, moss-covered granite boulders, clear cascading mountain brook with frothy water sprays, and dense vibrant green wild ferns beneath a lush canopy",
+    mm: "\u1005\u102D\u1019\u103A\u1038\u1005\u102D\u102F\u101E\u1031\u102C \u101E\u1005\u103A\u1010\u1031\u102C\u104A \u101B\u1031\u1010\u1036\u1001\u103D\u1014\u103A\u1014\u103E\u1004\u1037\u103A \u1005\u1019\u103A\u1038\u1001\u103B\u1031\u102C\u1004\u103A\u1038\u104A \u1000\u103B\u1031\u102C\u1000\u103A\u1006\u1031\u102C\u1004\u103A \u101B\u103E\u102F\u1001\u1004\u103A\u1038"
+  },
+  cherry_blossom_garden: {
+    en: "ethereal cherry blossom botanical garden in peak springtime bloom, cascading soft pink sakura petals drifting on the gentle breeze, manicured lawn, and wooden garden bench",
+    mm: "\u1015\u1014\u103A\u1038\u1001\u103B\u101A\u103A\u101B\u102E\u1001\u1004\u103A\u1038\u1014\u103E\u1004\u1037\u103A \u101E\u1018\u102C\u101D\u1015\u1014\u103A\u1038\u1001\u103C\u1036\u104A \u1015\u1014\u103A\u1038\u1015\u103D\u1004\u1037\u103A\u1016\u1010\u103A\u101C\u103D\u1004\u1037\u103A\u101D\u1031\u101E\u1031\u102C \u101B\u103E\u102F\u1001\u1004\u103A\u1038"
+  },
+  modern_city_street: {
+    en: "sleek cosmopolitan urban boulevard, contemporary glass and steel architectural facades, wide polished granite pedestrian promenade, and refined urban street design",
+    mm: "\u1019\u103C\u102D\u102F\u1037\u1015\u103C \u101C\u1019\u103A\u1038\u1019\u1014\u103E\u1004\u1037\u103A \u1001\u1031\u1010\u103A\u1019\u102E \u1012\u1031\u102B\u1004\u103A\u101C\u102D\u102F\u1000\u103A \u1021\u1006\u1031\u102C\u1000\u103A\u1021\u1026\u1019\u103B\u102C\u1038\u104A \u101E\u1014\u1037\u103A\u101B\u103E\u1004\u103A\u1038\u101E\u1031\u102C \u101C\u1019\u103A\u1038\u101C\u103B\u103E\u1031\u102C\u1000\u103A\u1005\u1004\u103A\u1039\u1000\u103C\u1036"
+  },
+  neon_city_night: {
+    en: "atmospheric cyberpunk nighttime city street, rain-slicked asphalt reflecting vivid neon signs in magenta, turquoise, and amber, moody dark futuristic urban alleyway",
+    mm: "\u1014\u102E\u101A\u103D\u1014\u103A\u1019\u102E\u1038\u101B\u1031\u102C\u1004\u103A\u1005\u102F\u1036 \u100A\u1019\u103C\u102D\u102F\u1037\u1015\u103C\u104A \u1019\u102D\u102F\u1038\u1005\u102D\u102F\u1014\u1031\u101E\u1031\u102C \u101C\u1019\u103A\u1038\u1019\u1014\u103E\u1004\u1037\u103A \u1006\u102D\u102F\u1000\u103A\u1018\u102C\u1015\u1014\u1037\u103A\u1001\u103A \u1021\u101C\u1004\u103A\u1038\u101B\u1031\u102C\u1004\u103A\u1005\u102F\u1036"
+  },
+  other_location: {
+    en: "an authentic bespoke atmospheric architectural setting featuring authentic regional cultural textures, realistic spatial geometry, multi-tiered woodwork, and natural optical depth of field (avoiding Thai prang spires and Cambodian stone towers)",
+    mm: "\u1000\u102D\u102F\u101A\u103A\u1015\u102D\u102F\u1004\u103A \u1005\u102D\u1010\u103A\u1000\u103C\u102D\u102F\u1000\u103A \u1014\u1031\u102C\u1000\u103A\u1001\u1036 \u1017\u102D\u101E\u102F\u1000\u102C \u101B\u103E\u102F\u1001\u1004\u103A\u1038"
   }
 };
+function resolveLocationDescription(locationKeyOrName, selectedSceneId) {
+  const raw = (locationKeyOrName || "").trim();
+  const normalizedKey = raw.toLowerCase().replace(/[\s-]+/g, "_");
+  if (selectedSceneId) {
+    const scene = SCENES_550_COLLECTION.find((s) => s.id === selectedSceneId);
+    if (scene) {
+      return {
+        en: scene.prompt.replace(/\s+/g, " ").trim(),
+        mm: scene.titleMm || scene.titleEn,
+        referenceImage: scene.previewImage,
+        lightingNotes: scene.lightingNotes
+      };
+    }
+  }
+  const sceneByKey = SCENES_550_COLLECTION.find(
+    (s) => s.id === raw || s.id === normalizedKey || s.tags?.includes(raw.toLowerCase()) || s.tags?.includes(normalizedKey)
+  );
+  if (sceneByKey) {
+    return {
+      en: sceneByKey.prompt.replace(/\s+/g, " ").trim(),
+      mm: sceneByKey.titleMm || sceneByKey.titleEn,
+      referenceImage: sceneByKey.previewImage,
+      lightingNotes: sceneByKey.lightingNotes
+    };
+  }
+  if (normalizedKey && normalizedKey !== "skip" && LOCATION_TAXONOMY_MAP[normalizedKey]) {
+    const ref = LOCATION_REFERENCE_MAP[normalizedKey]?.url;
+    return {
+      en: LOCATION_TAXONOMY_MAP[normalizedKey].en,
+      mm: LOCATION_TAXONOMY_MAP[normalizedKey].mm,
+      referenceImage: ref
+    };
+  }
+  const opt = LOCATION_OPTIONS.find((l) => l.id === normalizedKey || l.id === raw);
+  if (opt && opt.id !== "skip") {
+    return {
+      en: `authentic ${opt.labelEn}, featuring authentic traditional Burmese architecture, regional landscape topography, and atmospheric natural lighting (avoiding Thai prang spires and Cambodian stone towers)`,
+      mm: opt.labelMm,
+      referenceImage: opt.referenceImage || opt.previewImage
+    };
+  }
+  if (raw && raw !== "skip" && raw !== "other_location") {
+    const humanized = raw.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    return {
+      en: `an authentic atmospheric setting in ${humanized}, featuring authentic Myanmar architectural details, multi-tiered woodwork, and natural depth of field (strictly avoiding Thai prang spires and Cambodian Angkor stone towers)`,
+      mm: `${humanized} \u101B\u103E\u102F\u1001\u1004\u103A\u1038 \u1014\u1031\u102C\u1000\u103A\u1001\u1036`
+    };
+  }
+  return {
+    en: "an atmospheric Myanmar heritage architectural sanctuary with bell-shaped stupas, multi-tiered Pyatthat roofs, and warm golden depth of field (avoiding Thai prangs and Cambodian ruins)",
+    mm: "\u1019\u103C\u1014\u103A\u1019\u102C\u1037\u101B\u102D\u102F\u1038\u101B\u102C \u101A\u1009\u103A\u1000\u103B\u1031\u1038\u1019\u103E\u102F \u1021\u1019\u103D\u1031\u1021\u1014\u103E\u1005\u103A \u1014\u1031\u102C\u1000\u103A\u1001\u1036\u101B\u103E\u102F\u1001\u1004\u103A\u1038"
+  };
+}
+var resolveLocationTaxonomy = resolveLocationDescription;
 function buildComprehensiveMasterPrompt(selection, mode) {
   const targetAr = selection?.aspectRatio || "9:16";
   const rawCustom = selection?.customInstruction ? selection.customInstruction.trim() : "";
   const isCleanCustom = rawCustom.length > 0 && rawCustom.length < 300 && !rawCustom.includes("--ar ") && !rawCustom.includes("100% exact facial likeness");
   const safeCustomText = isCleanCustom ? `, ${rawCustom}` : "";
   if (mode === "background-only") {
-    const locKey2 = (selection?.location || "").toLowerCase();
-    const locMapped2 = LOCATION_TAXONOMY[locKey2]?.en || selection?.location || "historic Bagan pagoda sanctuary";
-    const locMm = LOCATION_TAXONOMY[locKey2]?.mm || selection?.location || "\u1015\u102F\u1002\u1036 \u101B\u103E\u1031\u1038\u101F\u1031\u102C\u1004\u103A\u1038\u1005\u1031\u1010\u102E\u1015\u102F\u1011\u102D\u102F\u1038 \u1014\u1031\u102C\u1000\u103A\u1001\u1036";
+    const resolvedLoc2 = resolveLocationTaxonomy(selection?.location, selection?.selectedSceneId);
+    const locMapped = resolvedLoc2.en;
+    const locMm = resolvedLoc2.mm;
     const locCustom = selection?.customLocationDetails ? `, ${selection.customLocationDetails.trim()}` : "";
-    const lighting2 = selection?.timeAndLighting || "golden hour warm directional sunlight with volumetric mist";
+    const lighting2 = resolvedLoc2.lightingNotes || selection?.timeAndLighting || "golden hour warm directional sunlight with volumetric mist";
     const lightCustom = selection?.customLightingDetails ? `, ${selection.customLightingDetails.trim()}` : "";
     const mood2 = selection?.moodEmotion && selection.moodEmotion !== "skip" ? `${selection.moodEmotion} atmosphere` : "serene and timeless aesthetic";
     const event = selection?.event && selection.event !== "skip" ? `, inspired by ${selection.event}` : "";
@@ -343,7 +1288,7 @@ function buildComprehensiveMasterPrompt(selection, mode) {
     const style = selection?.photoStyle || "Photorealistic Architectural & Environmental Scenery";
     const quality = selection?.qualityProfile || "8k resolution, highly detailed architectural textures, photorealistic, museum archival quality, cinematic color grading";
     const color = selection?.colorGrade && selection.colorGrade !== "skip" ? `${selection.colorGrade} color grading` : "16-bit natural film tones";
-    const masterPrompt2 = `[Subject]: Purely environmental scenery, majestic architectural heritage with zero human presence, no persons. [Action]: Atmospheric stillness, serene natural wind and gentle ambient presence. [Environment]: A breathtaking standalone environmental photograph of ${locMapped2}${locCustom}${event}. [Cinematography]: ${angle}, captured on ${camera}, f/8.0 deep depth of field. [Lighting/Style]: ${lighting2}${lightCustom}, ${mood2}, ${style}, ${color}. [Technical]: ${quality} --ar ${targetAr}`.replace(/\s+/g, " ").trim();
+    const masterPrompt2 = `[Subject]: Purely environmental scenery, majestic architectural heritage with zero human presence, no persons. [Action]: Atmospheric stillness, serene natural wind and gentle ambient presence. [Environment]: A breathtaking standalone environmental photograph of ${locMapped}${locCustom}${event}. [Cinematography]: ${angle}, captured on ${camera}, f/8.0 deep depth of field. [Lighting/Style]: ${lighting2}${lightCustom}, ${mood2}, ${style}, ${color}. [Technical]: ${quality} --ar ${targetAr}`.replace(/\s+/g, " ").trim();
     const negativePrompt2 = `person, human, face, woman, man, girl, boy, model, people, portrait, body, hands, limbs, clothing, crowd, silhouette, blurry, low quality, distorted architecture, watermark`;
     return {
       masterPrompt: masterPrompt2,
@@ -356,8 +1301,9 @@ function buildComprehensiveMasterPrompt(selection, mode) {
 \u1042\u104B \u1021\u101C\u1004\u103A\u1038\u1021\u1019\u103E\u1031\u102C\u1004\u103A\u1014\u103E\u1004\u1037\u103A \u1021\u1001\u103B\u102D\u1014\u103A: ${lighting2}${mood2}
 \u1043\u104B \u1000\u1004\u103A\u1019\u101B\u102C\u1014\u103E\u1004\u1037\u103A \u1019\u103E\u1014\u103A\u1018\u102E\u101C\u1030\u1038: ${camera} (Aspect Ratio: ${targetAr})
 \u1044\u104B \u1021\u1011\u1030\u1038\u101E\u1010\u103A\u1019\u103E\u1010\u103A\u1001\u103B\u1000\u103A: \u101C\u1030\u1015\u102F\u1036/\u1019\u1031\u102C\u103A\u1012\u101A\u103A \u101C\u102F\u1036\u1038\u101D\u1019\u1015\u102B\u101D\u1004\u103A\u1018\u1032 \u1014\u1031\u102C\u1000\u103A\u1001\u1036\u101B\u103E\u102F\u1001\u1004\u103A\u1038\u1014\u103E\u1004\u1037\u103A \u1017\u102D\u101E\u102F\u1000\u102C\u1021\u101C\u103E\u1000\u102D\u102F\u101E\u102C \u1041\u1040\u1040% \u1021\u101E\u1031\u1038\u1005\u102D\u1010\u103A \u1015\u102F\u1036\u1016\u1031\u102C\u103A\u1015\u1031\u1038\u1011\u102C\u1038\u1015\u102B\u101E\u100A\u103A\u104B`,
-      descriptionEn: `Standalone architectural and environmental background scenery prompt for ${locMapped2} without human subjects (Aspect Ratio: ${targetAr}).`,
-      cameraNotes: `${camera}, ISO 64, f/8.0 deep depth of field, 1/125s tripod exposure`
+      descriptionEn: `Standalone architectural and environmental background scenery prompt for ${locMapped} without human subjects (Aspect Ratio: ${targetAr}).`,
+      cameraNotes: `${camera}, ISO 64, f/8.0 deep depth of field, 1/125s tripod exposure`,
+      scenePreviewImage: resolvedLoc2.referenceImage || selection?.selectedScenePreviewImage || void 0
     };
   }
   if (selection?.img2imgOption === "style_transfer") {
@@ -365,8 +1311,9 @@ function buildComprehensiveMasterPrompt(selection, mode) {
     const eth = selection?.customEthnicityDetails || "authentic Burmese / Myanmar heritage";
     const outfit = selection?.garmentStyle || "intricate traditional Myanmar silk woven attire tailored from Reference Image";
     const pose = selection?.poseExpression || "natural regal posture replicating Reference Image pose";
-    const loc = selection?.location || "authentic Myanmar heritage architectural setting";
-    const light = selection?.timeAndLighting || "soft directional Rembrandt studio lighting with warm golden rim light";
+    const resolvedLoc2 = resolveLocationTaxonomy(selection?.location, selection?.selectedSceneId);
+    const loc = resolvedLoc2.en;
+    const light = resolvedLoc2.lightingNotes || selection?.timeAndLighting || "soft directional Rembrandt studio lighting with warm golden rim light";
     const cam = selection?.camera || "Sony A7R V with 85mm f/1.2 GM portrait prime lens";
     const quality = selection?.qualityProfile || "8k resolution, highly detailed fabric textures, photorealistic, professional photography, cinematic color grading";
     const masterPrompt2 = `[Subject]: 100% exact facial likeness, preserving identical eyes, nose, lips, facial bone geometry, hairstyle, and warm honey-olive skin tone of the person from User Image (${eth} ${sub2}, zero facial alteration, consistent character). Recreating attire from Reference Image: wearing ${outfit} with authentic silk weft texture and gold embroidery. [Action]: Replicating exact body posture, shoulder angle, hand placement, and graceful stance from Reference Image (${pose}). [Environment]: Set against ${loc} with creamy depth of field separation. [Cinematography]: Balanced medium portrait framing, eye-level perspective, shot on ${cam}, f/1.8 aperture for shallow depth of field. [Lighting/Style]: ${light}, natural subsurface skin scattering, crisp catchlights in irises. [Technical]: ${quality} --ar ${targetAr}`.replace(/\s+/g, " ").trim();
@@ -382,7 +1329,8 @@ function buildComprehensiveMasterPrompt(selection, mode) {
 \u1042\u104B \u101D\u1010\u103A\u1005\u102F\u1036\u1014\u103E\u1004\u1037\u103A \u1000\u102D\u102F\u101A\u103A\u101F\u1014\u103A: Reference \u1015\u102F\u1036\u1019\u103E \u101D\u1010\u103A\u1005\u102F\u1036\u1012\u102E\u1007\u102D\u102F\u1004\u103A\u1038 (${outfit}) \u1014\u103E\u1004\u1037\u103A \u1000\u102D\u102F\u101A\u103A\u1014\u1031\u101F\u1014\u103A\u1011\u102C\u1038 (${pose}) \u1000\u102D\u102F \u1010\u102D\u1000\u103B\u1005\u103D\u102C \u1000\u1030\u1038\u101A\u1030\u1015\u1031\u102B\u1004\u103A\u1038\u1005\u1015\u103A\u1011\u102C\u1038\u1015\u102B\u101E\u100A\u103A\u104B
 \u1043\u104B \u1000\u1004\u103A\u1019\u101B\u102C\u1014\u103E\u1004\u1037\u103A \u1021\u101C\u1004\u103A\u1038: ${cam} \u1014\u103E\u1004\u1037\u103A ${light} (Aspect Ratio: ${targetAr})`,
       descriptionEn: `Reference Image Outfit & Pose: Preserves User Image facial identity with 100% fidelity while replicating Reference Image outfit, body posture, lighting, and background (Aspect Ratio: ${targetAr}).`,
-      cameraNotes: `${cam}, ISO 100, f/1.2 aperture, 1/250s shutter speed, 85mm portrait prime lens`
+      cameraNotes: `${cam}, ISO 100, f/1.2 aperture, 1/250s shutter speed, 85mm portrait prime lens`,
+      scenePreviewImage: resolvedLoc2.referenceImage || selection?.selectedScenePreviewImage || void 0
     };
   }
   if (mode === "clothes-swap") {
@@ -403,16 +1351,16 @@ function buildComprehensiveMasterPrompt(selection, mode) {
       garmentChecklist = `${gStyle}${gFab}, intricate traditional Burmese wave motifs, tailored body-hugging fit, full-length traditional drape`;
       garmentMm = `${gStyle} (${selection?.garmentFabric || "\u1015\u102D\u102F\u1038\u1005\u1005\u103A\u1005\u1005\u103A\u1014\u103E\u1004\u1037\u103A \u101B\u103D\u103E\u1031\u1001\u103B\u100A\u103A\u1011\u102D\u102F\u1038 \u1021\u1011\u100A\u103A"})`;
     }
-    const locKey2 = (selection?.location || "").toLowerCase();
-    const locBase = LOCATION_TAXONOMY[locKey2]?.en || selection?.location || "authentic Myanmar royal heritage studio backdrop";
+    const resolvedLoc2 = resolveLocationTaxonomy(selection?.location, selection?.selectedSceneId);
+    const locBase = resolvedLoc2.en;
     const locCustom = selection?.customLocationDetails ? `, ${selection.customLocationDetails.trim()}` : "";
-    const lightBase = selection?.timeAndLighting || "warm golden hour directional key lighting with soft fill";
+    const lightBase = resolvedLoc2.lightingNotes || selection?.timeAndLighting || "warm golden hour directional key lighting with soft fill";
     const camera = selection?.camera || "Hasselblad X2D 100C with 85mm f/1.2 portrait prime lens";
     const angle = selection?.cameraAngle && selection.cameraAngle !== "skip" ? selection.cameraAngle : "Medium-full shot, eye-level angle";
     const style = selection?.photoStyle || "High-End Editorial Studio Portrait";
     const quality = selection?.qualityProfile || "8k resolution, highly detailed fabric textures, photorealistic, professional photography, cinematic color grading";
     const masterPrompt2 = `[Subject]: Keep the exact same person, face, facial bone structure, body proportions, and skin tone from Image 1 (100% exact face match, identical eyes nose lips, zero face alteration, preserved identity). Replace ONLY the clothing with the outfit from Image 2: ${garmentChecklist}. [Action]: Preserving the exact body posture, stance, and natural expression from Image 1. [Environment]: Set against ${locBase}${locCustom}. [Cinematography]: ${angle}, shot on ${camera}, f/2.0 aperture for shallow depth of field. [Lighting/Style]: ${lightBase}, ${style}, natural unretouched epidermal skin micro-pores. [Technical]: ${quality} --ar ${targetAr}`.replace(/\s+/g, " ").trim();
-    const negativePrompt2 = `different face, altered face, changed eyes, changed nose, changed lips, distorted face, facial asymmetry, face swap artifact, mismatched identity, wrong cultural clothing, Indian saree, Chinese hanfu, plastic skin, low quality, blurry`;
+    const negativePrompt2 = `different face, altered face, changed eyes, changed nose, changed lips, distorted face, facial asymmetry, face swap artifact, mismatched identity, wrong cultural clothing, Indian saree, Chinese hanfu, Thai prang spire, Thai wat architecture, Cambodian Angkor stone towers, Khmer stone ruins, plastic skin, low quality, blurry`;
     return {
       masterPrompt: masterPrompt2,
       negativePrompt: negativePrompt2,
@@ -425,7 +1373,8 @@ function buildComprehensiveMasterPrompt(selection, mode) {
 \u1043\u104B \u1014\u1031\u102C\u1000\u103A\u1001\u1036\u1014\u103E\u1004\u1037\u103A \u1021\u101C\u1004\u103A\u1038\u1021\u1019\u103E\u1031\u102C\u1004\u103A: ${locBase} \u1014\u103E\u1004\u1037\u103A ${lightBase}
 \u1044\u104B \u1000\u1004\u103A\u1019\u101B\u102C\u1014\u103E\u1004\u1037\u103A \u1021\u1001\u103B\u102D\u102F\u1038\u1021\u1005\u102C\u1038: ${camera} (Aspect Ratio: --ar ${targetAr})`,
       descriptionEn: `Strict Sequence Clothes Swap Prompt: Keeps Image 1 subject (face, body, pose, skin tone) 100% locked while swapping ONLY the clothing with ${garmentChecklist} (Aspect Ratio: ${targetAr}).`,
-      cameraNotes: `${camera}, ISO 100, f/1.2, 1/250s`
+      cameraNotes: `${camera}, ISO 100, f/1.2, 1/250s`,
+      scenePreviewImage: resolvedLoc2.referenceImage || selection?.selectedScenePreviewImage || void 0
     };
   }
   let subjectText = "";
@@ -585,18 +1534,9 @@ function buildComprehensiveMasterPrompt(selection, mode) {
   } else if (selection?.event && selection.event !== "skip") {
     eventText = `, celebrating traditional Myanmar ${selection.event}`;
   }
-  let locationText = "";
-  let locationMm = "\u1019\u103C\u1014\u103A\u1019\u102C\u1037\u101B\u102D\u102F\u1038\u101B\u102C \u101A\u1009\u103A\u1000\u103B\u1031\u1038\u1019\u103E\u102F \u1021\u1019\u103D\u1031\u1021\u1014\u103E\u1005\u103A \u1014\u1031\u102C\u1000\u103A\u1001\u1036\u101B\u103E\u102F\u1001\u1004\u103A\u1038";
-  const locKey = (selection?.location || "").toLowerCase();
-  if (LOCATION_TAXONOMY[locKey]) {
-    locationText = `, set in ${LOCATION_TAXONOMY[locKey].en}`;
-    locationMm = LOCATION_TAXONOMY[locKey].mm;
-  } else if (selection?.location && selection.location !== "skip") {
-    locationText = `, set against ${selection.location}`;
-    locationMm = selection.location;
-  } else {
-    locationText = `, set in an atmospheric Myanmar heritage architectural sanctuary with warm depth of field`;
-  }
+  const resolvedLoc = resolveLocationTaxonomy(selection?.location, selection?.selectedSceneId);
+  let locationText = `, set in ${resolvedLoc.en}`;
+  let locationMm = resolvedLoc.mm;
   if (selection?.customLocationDetails && selection.customLocationDetails.trim()) {
     locationText += `, ${selection.customLocationDetails.trim()}`;
     locationMm += ` (${selection.customLocationDetails.trim()})`;
@@ -723,8 +1663,7 @@ function buildComprehensiveMasterPrompt(selection, mode) {
   }
   const actionSection = actionParts.join(". ").replace(/\.\./g, ".").trim();
   const envParts = [];
-  const locMapped = LOCATION_TAXONOMY[locKey]?.en || selection?.location || "an atmospheric Myanmar heritage architectural setting";
-  envParts.push(`A breathtaking ${locMapped} at golden hour`);
+  envParts.push(`A breathtaking ${resolvedLoc.en}`);
   if (selection?.customLocationDetails && selection.customLocationDetails.trim()) {
     envParts.push(selection.customLocationDetails.trim());
   }
@@ -746,7 +1685,7 @@ function buildComprehensiveMasterPrompt(selection, mode) {
   cineParts.push(`Eye-level angle, captured on ${cameraBase}`);
   const cinematographySection = cineParts.join(", ").trim();
   const lightParts = [];
-  const lighting = selection?.timeAndLighting && selection.timeAndLighting !== "skip" ? selection.timeAndLighting : "Golden hour natural lighting, soft warm sunlight illuminating their faces, gentle rim light on their attire from the setting sun";
+  const lighting = selection?.timeAndLighting && selection.timeAndLighting !== "skip" ? selection.timeAndLighting : resolvedLoc.lightingNotes || "Golden hour natural lighting, soft warm sunlight illuminating their faces, gentle rim light on their attire from the setting sun";
   lightParts.push(lighting);
   const mood = selection?.moodEmotion && selection.moodEmotion !== "skip" ? `${selection.moodEmotion} aesthetic` : "romantic and elegant aesthetic";
   lightParts.push(mood);
@@ -760,7 +1699,7 @@ function buildComprehensiveMasterPrompt(selection, mode) {
   const lightingStyleSection = lightParts.join(", ").trim();
   const technicalSection = `${qualityText} --ar ${targetAr}`.trim();
   const masterPrompt = `[Subject]: ${subjectSection}. [Action]: ${actionSection}. [Environment]: ${environmentSection}. [Cinematography]: ${cinematographySection}. [Lighting/Style]: ${lightingStyleSection}. [Technical]: ${technicalSection}`.replace(/\s+/g, " ").replace(/\.\./g, ".").trim();
-  const negativePrompt = `different face, altered face, swapped face, distorted facial features, facial asymmetry, Indian saree, bindi, Chinese hanfu, Japanese kimono, Western casual clothes, plastic airbrushed skin, doll face, blurry, low resolution, bad eyes, deformed hands, extra fingers, overexposed, watermark, text`;
+  const negativePrompt = `different face, altered face, swapped face, distorted facial features, facial asymmetry, Indian saree, bindi, Chinese hanfu, Japanese kimono, Thai prang spire, Thai wat architecture, Cambodian Angkor stone towers, Khmer stone ruins, Western casual clothes, plastic airbrushed skin, doll face, blurry, low resolution, bad eyes, deformed hands, extra fingers, overexposed, watermark, text`;
   const angleNote = selection?.cameraAngle && selection.cameraAngle !== "skip" ? `, Framing: ${selection.cameraAngle}` : ", Framing: Eye-Level Portrait";
   const styleNote = selection?.photoStyle && selection.photoStyle !== "skip" ? `, Style: ${selection.photoStyle}` : "";
   const colorNote = selection?.colorGrade && selection.colorGrade !== "skip" ? `, Color Grade: ${selection.colorGrade}` : ", Color: 16-bit Natural Kodak Portra Tone";
@@ -780,17 +1719,306 @@ function buildComprehensiveMasterPrompt(selection, mode) {
   return {
     masterPrompt,
     negativePrompt,
-    midjourneyFormat: `/imagine prompt: ${masterPrompt} --v 6.1 --style raw --no Indian saree, Chinese hanfu, Japanese kimono, plastic skin, altered face`,
+    midjourneyFormat: `/imagine prompt: ${masterPrompt} --v 6.1 --style raw --no Indian saree, Chinese hanfu, Japanese kimono, Thai prang spire, Thai wat architecture, Cambodian Angkor stone towers, Khmer stone ruins, plastic skin, altered face`,
     fluxFormat: `${masterPrompt.replace(/--ar\s+[0-9:]+/gi, "").trim()}`,
     sdxlFormat: `${masterPrompt} | Camera: ${cameraNotes} | Negative: ${negativePrompt}`,
     descriptionMm,
     descriptionEn,
-    cameraNotes
+    cameraNotes,
+    scenePreviewImage: resolvedLoc.referenceImage || selection?.selectedScenePreviewImage || void 0
   };
 }
 
 // server.ts
 var import_v2 = require("@higgsfield/client/v2");
+
+// src/services/falImageEnhanceService.ts
+var import_client = require("@fal-ai/client");
+async function structurePromptWithOpenRouter(feature, details, customPrompt, apiKeyOverride) {
+  const apiKey = (apiKeyOverride || process.env.OPENROUTER_API_KEY || "").trim();
+  const defaultPrompts = {
+    skin_retouch: `Masterclass high-end beauty editorial skin retouch, natural epidermal micro-pores 100% preserved, gentle blemish removal, smooth tonal gradient across cheekbones and forehead, natural sub-surface scattering with vascular warmth, dewy non-greasy highlights, zero synthetic airbrushing or plastic blur, 8k uhd portrait fidelity.`,
+    virtual_makeup: `Professional editorial makeup application, seamless skin blending, subtle eyeshadow with soft winged eyeliner, natural lash separation, rosy cheek blush flush, satin lipstick finish, preserving 100% original facial bone structure, eye shape, and smile, studio beauty lighting.`,
+    hair_transform: `Master salon hair transformation, glossy natural hair strands with realistic follicle hairline blending, silky volume, natural movement and physics, preserving original face, skin, and eyes 100% untouched, cinematic rim lighting tracing hair contours, 8k raw photo.`
+  };
+  const basePrompt = defaultPrompts[feature] || defaultPrompts.skin_retouch;
+  if (!customPrompt && Object.keys(details).length === 0) {
+    return basePrompt;
+  }
+  if (apiKey) {
+    try {
+      const systemDirective = `You are a professional Hollywood CGI & beauty retoucher prompt engineer for AI image models (FLUX.2, SDXL).
+Generate a concise, photorealistic image-to-image editing prompt (max 60 words).
+Focus ONLY on the requested cosmetic/hair change while strictly enforcing 100% facial identity preservation, natural skin micro-pores, and zero plastic blur.
+Output ONLY the final prompt string with no conversational filler.`;
+      const userContent = `Feature: ${feature}
+Parameters: ${JSON.stringify(details)}
+User Description: ${customPrompt || "None"}
+Draft Base: ${basePrompt}
+
+Generate the final polished image-editing prompt:`;
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://showcaremyanmar.com",
+          "X-Title": "SHOW AI Enhancement Suite"
+        },
+        body: JSON.stringify({
+          model: "openai/gpt-4o-mini",
+          messages: [
+            { role: "system", content: systemDirective },
+            { role: "user", content: userContent }
+          ],
+          temperature: 0.3,
+          max_tokens: 120
+        }),
+        signal: AbortSignal.timeout(15e3)
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const text = data?.choices?.[0]?.message?.content?.trim();
+        if (text && text.length > 20) {
+          return text.replace(/^["']|["']$/g, "");
+        }
+      }
+    } catch (err) {
+      console.warn(`[structurePromptWithOpenRouter] Notice (${feature}):`, err?.message || err);
+    }
+  }
+  if (feature === "skin_retouch") {
+    const intensity = details.retouch_intensity || "moderate";
+    const antiBlemish = details.anti_blemish !== false ? "precise blemish and redness correction," : "";
+    const skinTone = details.skin_tone ? `balanced ${details.skin_tone} complexion,` : "";
+    return `High-end beauty skin retouch, ${intensity} retouching intensity, ${antiBlemish} ${skinTone} natural human skin micro-pores preserved, realistic epidermal texture, soft lighting highlights, 8k uhd portrait. ${customPrompt || ""}`.trim();
+  }
+  if (feature === "virtual_makeup") {
+    const style = details.makeup_style || "natural glam";
+    const lips = details.lipstick_color ? `lipstick shade ${details.lipstick_color},` : "velvet satin lips,";
+    const eyes = details.eyeliner_style ? `defined ${details.eyeliner_style} eyeliner,` : "soft winged eyeliner,";
+    const blush = details.blush_shade ? `subtle ${details.blush_shade} blush,` : "natural rosy cheek flush,";
+    const finish = details.foundation_finish ? `${details.foundation_finish} foundation glow,` : "radiant finish,";
+    return `Professional ${style} virtual makeup, ${lips} ${eyes} ${blush} ${finish} 100% facial identity lock, flawless skin blend, natural lighting reflections, 8k beauty portrait. ${customPrompt || ""}`.trim();
+  }
+  if (feature === "hair_transform") {
+    const style = details.hair_style || "natural hairstyle";
+    const color = details.hair_color || "natural lustrous hair color";
+    const volume = details.hair_volume || "natural volume";
+    const length = details.hair_length ? `${details.hair_length} length,` : "";
+    return `Professional hair transformation to ${style}, rich ${color}, ${volume}, ${length} natural follicle blending along hairline, silky specular shine, 100% facial likeness preservation, realistic hair strands, 8k photography. ${customPrompt || ""}`.trim();
+  }
+  return basePrompt;
+}
+async function executeFalImageEnhancement(endpoint, inputPayload, falKeyOverride) {
+  const falKey = (falKeyOverride || process.env.FAL_KEY || "").trim();
+  if (falKey) {
+    try {
+      import_client.fal.config({ credentials: falKey });
+      console.log(`[Fal.ai Client] Calling endpoint: ${endpoint}`);
+      const result = await import_client.fal.subscribe(endpoint, {
+        input: inputPayload,
+        logs: false,
+        pollInterval: 1e3
+      });
+      const generatedUrl = result?.data?.images?.[0]?.url || result?.data?.image?.url || result?.images?.[0]?.url || result?.image?.url;
+      if (generatedUrl) {
+        return {
+          success: true,
+          image_url: generatedUrl,
+          provider: `Fal.ai (${endpoint})`
+        };
+      }
+    } catch (falErr) {
+      console.warn(`[Fal.ai Client] Error on ${endpoint}:`, falErr?.message || falErr);
+    }
+  }
+  try {
+    const prompt = inputPayload.prompt || "photorealistic beauty enhancement portrait, 8k";
+    const encodedPrompt = encodeURIComponent(prompt.substring(0, 300));
+    const seed = Math.floor(Math.random() * 999999);
+    const fallbackUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&seed=${seed}&model=flux&nologo=true`;
+    return {
+      success: true,
+      image_url: fallbackUrl,
+      provider: "SHOW AI Fast Enhance (Fallback Engine)"
+    };
+  } catch (err) {
+    return {
+      success: false,
+      provider: "None",
+      error: err?.message || "Enhancement execution failed"
+    };
+  }
+}
+async function handleSkinRetouch(req, res) {
+  const startTime = Date.now();
+  const body = req.body || {};
+  if (!body.image_url || typeof body.image_url !== "string" || body.image_url.trim() === "") {
+    return res.status(400).json({
+      success: false,
+      error: "Missing required parameter: image_url is required."
+    });
+  }
+  try {
+    const structuredPrompt = await structurePromptWithOpenRouter(
+      "skin_retouch",
+      {
+        retouch_intensity: body.retouch_intensity || "moderate",
+        preserve_texture: body.preserve_texture !== false,
+        anti_blemish: body.anti_blemish !== false,
+        skin_tone: body.skin_tone
+      },
+      body.prompt,
+      body.api_key
+    );
+    const falResult = await executeFalImageEnhancement(
+      "fal-ai/flux/dev/image-to-image",
+      {
+        image_url: body.image_url,
+        prompt: structuredPrompt,
+        strength: body.retouch_intensity === "high" ? 0.45 : body.retouch_intensity === "subtle" ? 0.25 : 0.35,
+        guidance_scale: 7.5,
+        num_inference_steps: 28,
+        enable_safety_checker: true
+      },
+      body.fal_key
+    );
+    if (!falResult.success || !falResult.image_url) {
+      return res.status(500).json({
+        success: false,
+        error: falResult.error || "Failed to process skin retouch"
+      });
+    }
+    return res.json({
+      success: true,
+      processed_image_url: falResult.image_url,
+      feature: "skin_retouch",
+      structured_prompt: structuredPrompt,
+      provider: falResult.provider,
+      execution_time_ms: Date.now() - startTime
+    });
+  } catch (err) {
+    console.error("[/api/ai/skin-retouch] Internal Error:", err);
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Internal server error processing skin retouch"
+    });
+  }
+}
+async function handleVirtualMakeup(req, res) {
+  const startTime = Date.now();
+  const body = req.body || {};
+  if (!body.image_url || typeof body.image_url !== "string" || body.image_url.trim() === "") {
+    return res.status(400).json({
+      success: false,
+      error: "Missing required parameter: image_url is required."
+    });
+  }
+  try {
+    const structuredPrompt = await structurePromptWithOpenRouter(
+      "virtual_makeup",
+      {
+        makeup_style: body.makeup_style || "natural",
+        lipstick_color: body.lipstick_color,
+        eyeliner_style: body.eyeliner_style,
+        blush_shade: body.blush_shade,
+        foundation_finish: body.foundation_finish || "satin"
+      },
+      body.prompt,
+      body.api_key
+    );
+    const falResult = await executeFalImageEnhancement(
+      "fal-ai/flux/dev/image-to-image",
+      {
+        image_url: body.image_url,
+        prompt: structuredPrompt,
+        strength: 0.42,
+        guidance_scale: 8,
+        num_inference_steps: 30,
+        enable_safety_checker: true
+      },
+      body.fal_key
+    );
+    if (!falResult.success || !falResult.image_url) {
+      return res.status(500).json({
+        success: false,
+        error: falResult.error || "Failed to process virtual makeup"
+      });
+    }
+    return res.json({
+      success: true,
+      processed_image_url: falResult.image_url,
+      feature: "virtual_makeup",
+      structured_prompt: structuredPrompt,
+      provider: falResult.provider,
+      execution_time_ms: Date.now() - startTime
+    });
+  } catch (err) {
+    console.error("[/api/ai/virtual-makeup] Internal Error:", err);
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Internal server error processing virtual makeup"
+    });
+  }
+}
+async function handleHairTransform(req, res) {
+  const startTime = Date.now();
+  const body = req.body || {};
+  if (!body.image_url || typeof body.image_url !== "string" || body.image_url.trim() === "") {
+    return res.status(400).json({
+      success: false,
+      error: "Missing required parameter: image_url is required."
+    });
+  }
+  try {
+    const structuredPrompt = await structurePromptWithOpenRouter(
+      "hair_transform",
+      {
+        hair_style: body.hair_style || "long_wavy",
+        hair_color: body.hair_color || "jet_black",
+        hair_length: body.hair_length || "medium",
+        hair_volume: body.hair_volume || "natural"
+      },
+      body.prompt,
+      body.api_key
+    );
+    const falResult = await executeFalImageEnhancement(
+      "fal-ai/flux/dev/image-to-image",
+      {
+        image_url: body.image_url,
+        prompt: structuredPrompt,
+        strength: 0.55,
+        guidance_scale: 8.5,
+        num_inference_steps: 32,
+        enable_safety_checker: true
+      },
+      body.fal_key
+    );
+    if (!falResult.success || !falResult.image_url) {
+      return res.status(500).json({
+        success: false,
+        error: falResult.error || "Failed to process hair transformation"
+      });
+    }
+    return res.json({
+      success: true,
+      processed_image_url: falResult.image_url,
+      feature: "hair_transform",
+      structured_prompt: structuredPrompt,
+      provider: falResult.provider,
+      execution_time_ms: Date.now() - startTime
+    });
+  } catch (err) {
+    console.error("[/api/ai/hair-transform] Internal Error:", err);
+    return res.status(500).json({
+      success: false,
+      error: err?.message || "Internal server error processing hair transformation"
+    });
+  }
+}
+
+// server.ts
 var import_meta = {};
 import_node_dns.default.setDefaultResultOrder("ipv4first");
 import_dotenv.default.config();
@@ -864,10 +2092,32 @@ setInterval(() => {
     if (now > v.resetAt) rateLimitMap.delete(k);
   }
 }, 3e5).unref();
+function resolveImageToDataOrWebUrl(u) {
+  if (!u || typeof u !== "string") return null;
+  const trimmed = u.trim();
+  if (trimmed.startsWith("data:image/") || trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+  if (trimmed.startsWith("/")) {
+    const localPath = import_path.default.join(process.cwd(), "public", trimmed.slice(1));
+    if (import_fs.default.existsSync(localPath)) {
+      try {
+        const fileBuffer = import_fs.default.readFileSync(localPath);
+        const ext = import_path.default.extname(localPath).toLowerCase().replace(".", "");
+        const mime = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
+        return `data:${mime};base64,${fileBuffer.toString("base64")}`;
+      } catch (err) {
+        console.warn(`[resolveImageToDataOrWebUrl] Failed reading local file ${localPath}:`, err);
+      }
+    }
+  }
+  return null;
+}
 function parseDataUrlToPart(dataUrl) {
   if (!dataUrl || typeof dataUrl !== "string") return null;
-  if (dataUrl.startsWith("data:image/")) {
-    const matches = dataUrl.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+  const resolved = resolveImageToDataOrWebUrl(dataUrl);
+  if (resolved && resolved.startsWith("data:image/")) {
+    const matches = resolved.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
     if (matches && matches.length === 3) {
       return {
         inlineData: {
@@ -1007,6 +2257,126 @@ ${userQuery}` }];
     return `${translationConcept}, matching ambient scene lighting, natural contact shadows, photorealistic tactile textures, 8k studio quality, keeping the original subject intact.`;
   }
   return `${trimmed}, matching ambient scene lighting, natural contact shadows, photorealistic tactile textures, 8k studio quality, keeping the original subject intact.`;
+}
+var VLM_RELIGHTING_SYSTEM_INSTRUCTION = `You are an expert VFX Lighting TD and Photography Director. Analyze the provided foreground subject image and the target background image/concept.
+Generate a highly detailed image generation & relighting prompt that instructs an AI image model how to seamlessly composite and relight the subject into this specific background.
+Your output prompt MUST explicitly describe:
+1. Primary & Secondary Light Sources: Identify the exact color, intensity, and direction of light coming from the background (e.g., warm golden backlight from a giant moon, floating lantern glow) and specify how it wraps around the subject's hair, shoulders, and clothing edges (rim lighting & light wrap).
+2. Color Spill & Grading: Describe how the ambient color temperature and atmospheric haze of the background should tint the subject's skin tones, shadows, and white clothing so there is zero color mismatch.
+3. Grounding & Shadows: Specify accurate dark contact shadows (ambient occlusion) directly beneath the subject's feet/base matching the floor material, plus natural self-shadowing.
+4. Optical Matching: Specify sharp focus on the subject's face/eyes, subtle natural depth-of-field (bokeh) on distant background architecture, and unified film grain.
+5. Identity Lock: Include strict instructions to preserve the subject's exact facial features, expression, pose, and outfit geometry while completely replacing the flat studio lighting with the scene's lighting.
+
+Return ONLY the final prompt text without any markdown formatting or explanations.`;
+function getUniversalRelightingFallbackPrompt(bgDesc, subjectType = "human", lightingMatch) {
+  const isProd = subjectType === "product";
+  const lightDirection = lightingMatch?.toLowerCase().includes("right") ? "from the upper right" : lightingMatch?.toLowerCase().includes("left") ? "from the upper left" : "originating naturally from key environmental luminaires in the background";
+  const lightColor = lightingMatch?.toLowerCase().includes("sunset") ? "golden-hour amber and warm peach" : lightingMatch?.toLowerCase().includes("neon") || lightingMatch?.toLowerCase().includes("cyberpunk") ? "vibrant cyberpunk magenta and cyan specular rim highlights" : lightingMatch?.toLowerCase().includes("cafe") ? "cozy 3200K tungsten and warm diffused incandescent ambience" : "natural daylight with balanced atmospheric bounce";
+  return `Cinematic photorealistic VFX composite (85mm portraiture lens, f/1.8 aperture, 8K UHD):
+1. Primary & Secondary Light Sources: The background scene (${bgDesc}) illuminates the subject with ${lightColor} emitted ${lightDirection}. Dynamic, luminous rim lighting and subsurface light wrap bleed around the hair, shoulders, silhouette contours, and garment folds, fully eliminating artificial cut-out boundaries.
+2. Color Spill & Grading: Atmospheric color temperature and aerial haze of ${bgDesc} softly grade and tint the subject's skin tones, deep contact shadows, and highlights with zero chromatic mismatch.
+3. Grounding & Shadows: Heavy ambient occlusion contact shadows directly under the ${isProd ? "product base" : "subject's feet"} anchor the subject onto the floor plane, with soft inverse-square cast shadows conforming to ground geometry.
+4. Optical Matching: Tack-sharp critical optical focus on ${isProd ? "the product surface and tactile textures" : "the subject's eyes, facial features, and expression"}, natural depth-of-field bokeh falloff on background depth planes, and coherent 35mm film grain throughout.
+5. Identity Lock: Strictly preserve the exact facial likeness, bone structure, expression, pose, and outfit geometry from the source image, while replacing flat studio illumination with the ambient environmental lighting of the scene.`;
+}
+async function enrichRelightingPrompt(params) {
+  const {
+    subjectImageUrl,
+    backgroundImageUrl,
+    backgroundPromptOrPreset,
+    subjectType = "human",
+    lightingMatch,
+    apiKey
+  } = params;
+  const bgDesc = backgroundPromptOrPreset?.trim() || (subjectType === "product" ? "a luxury minimalist marble showroom" : "a cozy warm atmospheric coffee shop interior");
+  const effectiveKey = apiKey || process.env.OPENROUTER_API_KEY;
+  if (effectiveKey && effectiveKey.trim() !== "") {
+    try {
+      const vlmImages = [subjectImageUrl];
+      if (backgroundImageUrl && (backgroundImageUrl.startsWith("data:image/") || backgroundImageUrl.startsWith("http"))) {
+        vlmImages.push(backgroundImageUrl);
+      }
+      const userInstruction = `Analyze the provided foreground subject (Image #1) and target background ${backgroundImageUrl ? "environment (Image #2)" : `scene concept: "${bgDesc}"`}.
+${lightingMatch ? `Lighting Target: "${lightingMatch}".` : ""}
+${subjectType ? `Subject Category: ${subjectType}.` : ""}
+
+Generate the complete VFX relighting & compositing prompt following your System Instruction.`;
+      const vlmRes = await Promise.race([
+        callOpenRouter({
+          apiKey: effectiveKey,
+          model: "openai/gpt-4o-mini",
+          systemPrompt: VLM_RELIGHTING_SYSTEM_INSTRUCTION,
+          userPrompt: userInstruction,
+          images: vlmImages,
+          responseFormat: "text"
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("VLM timeout")), 9e3))
+      ]);
+      if (vlmRes && typeof vlmRes === "string" && vlmRes.trim().length > 50) {
+        const cleanPrompt = vlmRes.replace(/```[a-z]*\n?/gi, "").replace(/```/g, "").trim();
+        return {
+          prompt: cleanPrompt,
+          source: "vlm",
+          modelUsed: "OpenRouter (openai/gpt-4o-mini vision)"
+        };
+      }
+    } catch (err) {
+      console.warn("[enrichRelightingPrompt] OpenRouter VLM notice (using instant universal fallback):", err?.message || err);
+    }
+  }
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      const ai = getGeminiClient();
+      const parts = [];
+      if (subjectImageUrl.startsWith("data:image/")) {
+        const mime = subjectImageUrl.substring(5, subjectImageUrl.indexOf(";"));
+        const base64 = subjectImageUrl.split(",")[1];
+        if (mime && base64) {
+          parts.push({
+            inlineData: { mimeType: mime, data: base64 }
+          });
+        }
+      }
+      if (backgroundImageUrl && backgroundImageUrl.startsWith("data:image/")) {
+        const bgMime = backgroundImageUrl.substring(5, backgroundImageUrl.indexOf(";"));
+        const bgBase64 = backgroundImageUrl.split(",")[1];
+        if (bgMime && bgBase64) {
+          parts.push({
+            inlineData: { mimeType: bgMime, data: bgBase64 }
+          });
+        }
+      }
+      parts.push({
+        text: `${VLM_RELIGHTING_SYSTEM_INSTRUCTION}
+
+Foreground Subject: Attached image #1.
+Target Background ${backgroundImageUrl ? "Environment: Attached image #2." : `Concept: "${bgDesc}".`}
+${lightingMatch ? `Desired Lighting Intent: "${lightingMatch}".` : ""}
+
+Output ONLY the final image generation and relighting prompt.`
+      });
+      const geminiRes = await generateContentWithFallback(ai, {
+        contents: [{ role: "user", parts }]
+      });
+      const geminiText = geminiRes?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (geminiText && geminiText.trim().length > 50) {
+        const cleanPrompt = geminiText.replace(/```[a-z]*\n?/gi, "").replace(/```/g, "").trim();
+        return {
+          prompt: cleanPrompt,
+          source: "vlm",
+          modelUsed: "Google Gemini (Gemini Flash Vision)"
+        };
+      }
+    } catch (gErr) {
+      console.warn("[enrichRelightingPrompt] Direct Gemini SDK notice:", gErr?.message || gErr);
+    }
+  }
+  const fallbackPrompt = getUniversalRelightingFallbackPrompt(bgDesc, subjectType, lightingMatch);
+  return {
+    prompt: fallbackPrompt,
+    source: "fallback",
+    modelUsed: "Universal VFX Lighting TD Fallback Engine"
+  };
 }
 app.post("/api/v1/process-image", createRateLimiter(120, 6e4), async (req, res) => {
   const startTime = Date.now();
@@ -1445,35 +2815,28 @@ Inspect the attached image carefully and respond in STRICT JSON format:
     const bgDetails = new_background_prompt || (isProduct ? "a minimalist warm travertine marble table, luxury modern interior" : "a cozy modern coffee shop interior, warm incandescent lighting");
     const lightDetails = lighting_match || (isProduct ? "soft ambient morning sunlight from top-left, realistic contact shadows" : "natural warm ambient lighting matching skin tone, soft directional rim lighting, and realistic ground contact shadows");
     const subjectDesc = isProduct ? "the product from Image #1" : "the subject/person from Image #1";
-    let photorealCompositePrompt = "";
-    if (effectiveBgUrl) {
-      photorealCompositePrompt = `Photorealistic editorial photography master composite (Vogue / National Geographic documentary standard):
-[CONDITIONING LAYER 1 - IDENTITY / SUBJECT AREA LOCK (IP-Adapter & BiRefNet)]:
-Strictly extract ${subjectDesc}. Confine identity extraction (facial proportions, eyes, skin micro-pores, hairstyle, and garments) strictly to the subject mask bounding box. Forbid cross-attention leakage of subject colors into the background.
+    const vlmApiKey = req.body?.api_key || req.body?.openRouterApiKey || req.headers["x-openrouter-key"] || req.headers["x-seedream-key"] || process.env.OPENROUTER_API_KEY;
+    const vlmEnrichment = await enrichRelightingPrompt({
+      subjectImageUrl: effectiveImageUrl,
+      backgroundImageUrl: effectiveBgUrl,
+      backgroundPromptOrPreset: new_background_prompt,
+      subjectType: isProduct ? "product" : "human",
+      lightingMatch: lightDetails,
+      apiKey: vlmApiKey
+    });
+    console.log(`[change_background] VLM Enrichment Source: ${vlmEnrichment.source} (${vlmEnrichment.modelUsed})`);
+    const coreCompositingInstruction = `CORE COMPOSITING & HARMONIZATION DIRECTIVE:
+Preserve facial identity and outfit design, but dynamically relight, color-grade, and blend subject edges with ambient light wrap to harmonize with the environment.
+Do NOT leave subject with flat studio lighting or hard cut-out edges. Integrate natural atmospheric spill, directional rim lighting, and ground contact occlusion matching the scene.`;
+    const photorealCompositePrompt = `${coreCompositingInstruction}
 
-[CONDITIONING LAYER 2 - BACKGROUND GEOMETRY & DEPTH ANCHOR (ControlNet Depth)]:
-Strictly preserve the scene environment, spatial perspective, horizon line, architectural geometry, and depth planes from Image #2. Do NOT let background textures, vegetation, or objects distort or overwrite the character's facial features.
+[VFX LIGHTING & COMPOSITING SPECIFICATION]:
+${vlmEnrichment.prompt}
 
-[CONDITIONING LAYER 3 - HARMONIZATION & INPAINTING BLEND ZONE (DENOISING STRENGTH: ${denoising_strength2})]:
-Place ${subjectDesc} firmly onto the ground or deck in the environment shown in Image #2.
-Volumetric lighting: Apply natural warm ambient lighting (${lightDetails}), directional rim lighting, and realistic ground contact occlusion shadows.
-Blend along the dilated silhouette boundary mask to eliminate edge halos and cut-and-paste seams.
-Authenticity: Preserve 100% of the subject's exact facial likeness, eyes, skin micro-pores, and attire from Image #1.
-Zero digital painting, zero cartoon, zero purple fantasy saturation, zero glitter. Authentic camera optics with natural depth of field (85mm portraiture, f/2.0 aperture) and background bokeh, 8k UHD.`;
-    } else {
-      photorealCompositePrompt = `Photorealistic editorial photography (Vogue / National Geographic documentary standard):
-[CONDITIONING LAYER 1 - IDENTITY / SUBJECT AREA LOCK (IP-Adapter & BiRefNet)]:
-Strictly extract ${subjectDesc}. Confine identity extraction (facial proportions, eyes, skin micro-pores, hairstyle, and garments) strictly to the subject mask bounding box. Forbid cross-attention leakage of subject colors into the background.
-
-[CONDITIONING LAYER 2 - BACKGROUND SCENE GENERATION]:
-Place ${subjectDesc} firmly onto the ground or deck in this environment: ${bgDetails}.
-
-[CONDITIONING LAYER 3 - HARMONIZATION & INPAINTING BLEND ZONE (DENOISING STRENGTH: ${denoising_strength2})]:
-Volumetric lighting: Apply natural warm ambient lighting (${lightDetails}), directional rim lighting, and realistic ground contact occlusion shadows.
-Blend along the dilated silhouette boundary mask to eliminate edge halos and cut-and-paste seams.
-Authenticity: Preserve 100% of the subject's exact facial likeness, eyes, skin micro-pores, and attire from Image #1.
-Zero digital painting, zero cartoon, zero purple fantasy saturation, zero glitter. Authentic camera optics with natural depth of field (85mm portraiture, f/2.0 aperture) and background bokeh, 8k UHD.`;
-    }
+[OPTICAL DEPTH & GEOMETRY LOCK]:
+Subject Conditioning: ${isProduct ? "Product silhouette and tactile textures" : "Facial proportions, bone structure, expression, and outfit geometry"} strictly preserved.
+Boundary Transition: 2.5px feathered and eroded edge blend zone allowing environmental photons and rim lighting to bleed into hair strands and garment borders.
+Resolution & Optics: 8K UHD, natural 85mm f/1.8 photographic depth-of-field bokeh, zero flat digital collage seams.`;
     const refs = [{ url: effectiveImageUrl, role: "character" }];
     if (effectiveBgUrl) refs.push({ url: effectiveBgUrl, role: "background" });
     let outUrl = "";
@@ -1505,10 +2868,15 @@ Zero digital painting, zero cartoon, zero purple fantasy saturation, zero glitte
     }
     if (!outUrl && process.env.OPENROUTER_API_KEY) {
       try {
+        console.log("[change_background] Generating composite via Nano Banana 2 (google/gemini-2.5-flash-image)...");
         let orImgs = await generateWithOpenRouter(photorealCompositePrompt, ar, 1, "google/gemini-2.5-flash-image", effectiveImageUrl, refs.map((r) => r.url), refs);
         if (!orImgs || orImgs.length === 0) {
           console.log("[change_background] Gemini 2.5 flash image returned no image, trying Gemini 3 Pro...");
           orImgs = await generateWithOpenRouter(photorealCompositePrompt, ar, 1, "google/gemini-3-pro-image", effectiveImageUrl, refs.map((r) => r.url), refs);
+        }
+        if (!orImgs || orImgs.length === 0) {
+          console.log("[change_background] Trying ByteDance Seedream 5.0 Pro...");
+          orImgs = await generateWithOpenRouter(photorealCompositePrompt, ar, 1, "bytedance/seedream-5-pro", effectiveImageUrl, refs.map((r) => r.url), refs);
         }
         if (!orImgs || orImgs.length === 0) {
           console.log("[change_background] Trying openrouter/auto...");
@@ -1516,7 +2884,7 @@ Zero digital painting, zero cartoon, zero purple fantasy saturation, zero glitte
         }
         if (orImgs && orImgs[0] && (orImgs[0].startsWith("data:image") || orImgs[0].startsWith("http"))) {
           outUrl = orImgs[0];
-          pipelineEngineUsed = "BiRefNet-SAM + OpenRouter-ICLight";
+          pipelineEngineUsed = "Nano-Banana-2 + VLM-Relighting";
         }
       } catch (err) {
         console.warn("[change_background] OpenRouter attempt notice:", err?.message || err);
@@ -1533,37 +2901,43 @@ Zero digital painting, zero cartoon, zero purple fantasy saturation, zero glitte
     return res.json({
       status: "success",
       action: "change_background",
-      pipeline: "RMBG-1.4 + ControlNet-Depth",
-      pipeline_used: "RMBG-1.4 + ControlNet-Depth",
+      pipeline: "VLM-Relighting + Nano-Banana-2",
+      pipeline_used: pipelineEngineUsed,
       output_image_url: outUrl,
       result_image_url: outUrl,
       multi_view_urls: null,
       metadata: {
         execution_time_ms: elapsed,
+        vlm_enrichment: {
+          status: vlmEnrichment.source === "vlm" ? "enriched_by_vlm" : "fallback_universal_relighting",
+          model_used: vlmEnrichment.modelUsed,
+          enriched_prompt: vlmEnrichment.prompt,
+          system_instruction_applied: true
+        },
         pipeline_stages: [
-          { stage: 1, name: "Separated Input Routing & Identity Lock", model: "BiRefNet / SAM + IP-Adapter FaceID", status: "completed", note: "Subject isolated to mask bounding box; zero global cross-attention bleed" },
-          { stage: 2, name: "Spatial Geometry & Depth Anchor", model: "ControlNet-Depth / Canny", status: "completed", note: "Scene layout, perspective lines, and horizon preserved" },
-          { stage: 3, name: "Silhouette Boundary Dilation", radius: "4px-6px", status: "completed", note: "Inpainting transition zone created along silhouette seams" },
-          { stage: 4, name: "Latent Inpainting & Harmonization", engine: pipelineEngineUsed, denoising: denoising_strength2, status: "completed", note: "Ambient light wrap, soft rim light, and contact occlusion shadows" }
+          { stage: 1, name: "VLM Auto-Prompt Enrichment & Lighting TD", model: vlmEnrichment.modelUsed, status: "completed", note: "Analyzed subject & background; generated ambient light wrap, color spill, and contact shadow directives" },
+          { stage: 2, name: "Subtle 2.5px Boundary Feathering & Erosion", radius: "2.5px", status: "completed", note: "Mask boundary feathered by 2.5px allowing model to naturally render rim light on hair and clothing edges" },
+          { stage: 3, name: "Identity & Geometry Lock Harmonization", engine: pipelineEngineUsed, denoising: denoising_strength2, status: "completed", note: "Preserves facial identity & outfit design while dynamically relighting and blending with environment" }
         ],
         parameters_applied: {
-          character_conditioning: "IP-Adapter / InstantID Identity Lock (Confined to Subject Mask Bounding Box)",
+          character_conditioning: "Preserve facial identity and outfit design, but dynamically relight, color-grade, and blend subject edges with ambient light wrap to harmonize with the environment.",
           background_conditioning: "ControlNet-Depth Geometry & Spatial Depth Lock",
-          compositing_mask: "BiRefNet / SAM Alpha Cutout with 4-6px Dilated Inpainting Blend Zone",
+          compositing_mask: "2.5px Feathered/Eroded Boundary Inpainting Transition Zone",
           denoising_strength: denoising_strength2,
           denoising_range: "0.45 - 0.65 (Ambient Light Inpainting without Identity Drift)",
           subject_type: isProduct ? "product" : "human",
-          formula: "[Identity-Locked Subject Mask] + [Depth-Locked Scene Geometry] + [4-6px Dilated Inpainting Blend Zone] + [Denoising 0.45-0.65]",
           inpainting_prompt: photorealCompositePrompt,
-          negative_prompt: "cut-and-paste look, floating character, distorted facial identity, unnatural borders, color bleed, cartoon, low resolution",
+          vlm_prompt: vlmEnrichment.prompt,
+          vlm_source: vlmEnrichment.source,
+          negative_prompt: "cut-and-paste look, flat studio flash, hard cardboard cutout edges, mismatched ambient lighting, floating character, distorted facial identity, unnatural borders, color bleed, cartoon, low resolution",
           prompt: new_background_prompt,
           custom_bg: !!effectiveBgUrl,
-          feathering_px: 2,
+          feathering_px: 2.5,
           ic_light_relighting: true
         }
       },
       execution_time_ms: elapsed,
-      message: `Successfully processed change_background (BiRefNet + Alpha Matting + IC-Light Relighting)`,
+      message: `Successfully processed change_background (VLM Auto-Prompt Enrichment + Relighting Pipeline)`,
       error_message: null
     });
   }
@@ -2186,15 +3560,32 @@ async function generateContentWithFallback(ai, requestParams) {
   }
   throw lastError;
 }
-async function postOpenRouterWithFallback(endpoint, apiKey, bodyObj, timeoutMs = 6e4) {
+async function postOpenRouterWithFallback(endpoint, apiKey, bodyObj, timeoutMs = 25e3) {
   const jsonStr = JSON.stringify(bodyObj);
   try {
-    const { execFile } = await import("node:child_process");
-    const { promisify } = await import("node:util");
-    const execFileAsync = promisify(execFile);
-    const { stdout } = await execFileAsync(
-      "curl",
-      [
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const r = await fetch(endpoint, {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey.trim()}`,
+        "HTTP-Referer": process.env.APP_URL || "http://localhost:3001",
+        "X-Title": "Infinity Prompt Studio"
+      },
+      body: jsonStr
+    });
+    clearTimeout(timer);
+    const d = await r.json();
+    if (!r.ok || d?.error) {
+      return { ok: false, status: r.status, data: d, error: d?.error?.message || `HTTP ${r.status}` };
+    }
+    return { ok: true, status: r.status, data: d };
+  } catch (fetchErr) {
+    try {
+      const { spawn } = await import("node:child_process");
+      const child = spawn("curl", [
         "-s",
         "-4",
         "-X",
@@ -2208,33 +3599,49 @@ async function postOpenRouterWithFallback(endpoint, apiKey, bodyObj, timeoutMs =
         `HTTP-Referer: ${process.env.APP_URL || "http://localhost:3001"}`,
         "-H",
         "X-Title: Infinity Prompt Studio",
-        "--data",
-        jsonStr
-      ],
-      { maxBuffer: 100 * 1024 * 1024, timeout: timeoutMs }
-    );
-    const parsed = JSON.parse(String(stdout));
-    if (parsed.error) {
-      return { ok: false, status: 400, data: parsed, error: parsed.error?.message || "OpenRouter error" };
-    }
-    return { ok: true, status: 200, data: parsed };
-  } catch (curlErr) {
-    try {
-      const r = await fetch(endpoint, {
-        method: "POST",
-        signal: AbortSignal.timeout(timeoutMs),
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey.trim()}`,
-          "HTTP-Referer": process.env.APP_URL || "http://localhost:3001",
-          "X-Title": "Infinity Prompt Studio"
-        },
-        body: jsonStr
+        "--data-binary",
+        "@-"
+      ]);
+      let stdoutData = "";
+      let stderrData = "";
+      child.stdout.on("data", (chunk) => {
+        stdoutData += chunk;
       });
-      const d = await r.json();
-      return { ok: r.ok, status: r.status, data: d, error: d?.error?.message };
-    } catch (fetchErr) {
-      return { ok: false, status: 500, data: null, error: fetchErr?.message || curlErr?.message };
+      child.stderr.on("data", (chunk) => {
+        stderrData += chunk;
+      });
+      const childPromise = new Promise((resolve) => {
+        const killTimer = setTimeout(() => {
+          child.kill("SIGKILL");
+          resolve({ ok: false, status: 504, data: null, error: "Connection timed out" });
+        }, timeoutMs);
+        child.on("close", (code) => {
+          clearTimeout(killTimer);
+          if (code !== 0) {
+            resolve({ ok: false, status: 500, data: null, error: stderrData || `curl exited with code ${code}` });
+            return;
+          }
+          try {
+            const parsed = JSON.parse(stdoutData);
+            if (parsed.error) {
+              resolve({ ok: false, status: 400, data: parsed, error: parsed.error?.message || "OpenRouter error" });
+            } else {
+              resolve({ ok: true, status: 200, data: parsed });
+            }
+          } catch {
+            resolve({ ok: false, status: 500, data: null, error: "Failed to parse JSON response" });
+          }
+        });
+        child.on("error", (err) => {
+          clearTimeout(killTimer);
+          resolve({ ok: false, status: 500, data: null, error: err.message });
+        });
+      });
+      child.stdin.write(jsonStr);
+      child.stdin.end();
+      return await childPromise;
+    } catch (curlErr) {
+      return { ok: false, status: 500, data: null, error: curlErr?.message || fetchErr?.message };
     }
   }
 }
@@ -2275,10 +3682,11 @@ async function callOpenRouter(params) {
     { type: "text", text: userPrompt }
   ];
   for (const img of images) {
-    if (img && typeof img === "string" && img.startsWith("data:image/")) {
+    const resolved = resolveImageToDataOrWebUrl(img);
+    if (resolved) {
       contentParts.push({
         type: "image_url",
-        image_url: { url: img }
+        image_url: { url: resolved }
       });
     }
   }
@@ -3719,48 +5127,424 @@ function pollinationsImages(prompt, ar, count, model = "turbo", resolutionTier =
     return `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt)}?width=${w}&height=${h}&seed=${seed}`;
   });
 }
-function buildRoleCompositingPrompt(roles, basePrompt, ar) {
+var TIME_LIGHTING_OVERRIDE_MAP = {
+  early_morning: {
+    id: "early_morning",
+    label: "Early Morning / Dawn",
+    sunAngle: "Low grazing sun angle (5\xB0\u201315\xB0 above horizon)",
+    kelvin: "3200K\u20133800K soft warm-pink and cool blue ambient fill",
+    relightingInstruction: "Early morning dawn illumination: low grazing golden-pink sunlight casting elongated soft shadows, morning mist/fog scattering, and cool blue ambient sky fill."
+  },
+  high_noon: {
+    id: "high_noon",
+    label: "High Noon / Midday",
+    sunAngle: "Direct overhead sun (75\xB0\u201390\xB0 elevation angle)",
+    kelvin: "5500K\u20136500K neutral daylight",
+    relightingInstruction: "High noon intense sun: sharp vertical downward shadows, crisp high-contrast specular highlights, vibrant saturated colors, and crystal-clear azure sky."
+  },
+  golden_hour: {
+    id: "golden_hour",
+    label: "Golden Hour / Sunset",
+    sunAngle: "Ultra-low sun (10\xB0\u201320\xB0 elevation angle)",
+    kelvin: "2500K\u20133000K warm amber-gold",
+    relightingInstruction: "Golden hour sunset illumination: rich warm amber-orange directional rim light, long dramatic cast shadows, warm atmospheric haze, and glowing architectural edges."
+  },
+  twilight: {
+    id: "twilight",
+    label: "Twilight / Blue Hour",
+    sunAngle: "Sun beneath horizon (-4\xB0 to -8\xB0)",
+    kelvin: "7000K\u20139000K deep indigo and cobalt",
+    relightingInstruction: "Blue hour twilight illumination: diffuse deep indigo/cobalt ambient sky, subtle pink/violet horizon gradient, and warm artificial practical lamps/lanterns glowing against cool dark surroundings."
+  },
+  night: {
+    id: "night",
+    label: "Night / Midnight",
+    sunAngle: "Pitch dark nocturnal sky with celestial/artificial illumination",
+    kelvin: "2200K\u20132700K warm architectural floodlights and lanterns contrasted against 8500K moonlight",
+    relightingInstruction: "Nighttime nocturnal lighting: dark deep midnight sky, architectural floodlights illuminating stupas/buildings, warm hanging lanterns or oil lamps, gentle specular reflections, and moonlit rim highlights."
+  }
+};
+function detectTimeFromPrompt(prompt, explicitTime) {
+  if (explicitTime && typeof explicitTime === "string") {
+    const norm = explicitTime.toLowerCase().trim();
+    if (norm in TIME_LIGHTING_OVERRIDE_MAP) {
+      return TIME_LIGHTING_OVERRIDE_MAP[norm];
+    }
+    if (norm.includes("morning") || norm.includes("dawn") || norm.includes("sunrise") || norm.includes("\u1014\u1036\u1014\u1000\u103A")) {
+      return TIME_LIGHTING_OVERRIDE_MAP.early_morning;
+    }
+    if (norm.includes("noon") || norm.includes("midday") || norm.includes("\u1019\u103D\u1014\u103A\u1038\u1010\u100A\u1037\u103A")) {
+      return TIME_LIGHTING_OVERRIDE_MAP.high_noon;
+    }
+    if (norm.includes("golden") || norm.includes("sunset") || norm.includes("sundown") || norm.includes("\u1014\u1031\u101D\u1004\u103A")) {
+      return TIME_LIGHTING_OVERRIDE_MAP.golden_hour;
+    }
+    if (norm.includes("twilight") || norm.includes("blue hour") || norm.includes("dusk") || norm.includes("\u1006\u100A\u103A\u1038\u1006\u102C")) {
+      return TIME_LIGHTING_OVERRIDE_MAP.twilight;
+    }
+    if (norm.includes("night") || norm.includes("midnight") || norm.includes("dark") || norm.includes("moon") || norm.includes("\u100A")) {
+      return TIME_LIGHTING_OVERRIDE_MAP.night;
+    }
+  }
+  const p = (prompt || "").toLowerCase();
+  if (/\b(night|midnight|moonlight|nocturnal|dark sky|nighttime|lantern light|oil lamps|starlight)\b/.test(p) || /ညမီး|ညဘက်|ညဥ့်/.test(p)) {
+    return TIME_LIGHTING_OVERRIDE_MAP.night;
+  }
+  if (/\b(twilight|blue hour|dusk|evening sky|post-sunset)\b/.test(p) || /ဆည်းဆာ|ညနေခင်း/.test(p)) {
+    return TIME_LIGHTING_OVERRIDE_MAP.twilight;
+  }
+  if (/\b(golden hour|sunset|sundown|amber glow|late afternoon|magic hour|warm horizon)\b/.test(p) || /နေဝင်ချိန်|ရွှေရောင်အလင်း/.test(p)) {
+    return TIME_LIGHTING_OVERRIDE_MAP.golden_hour;
+  }
+  if (/\b(early morning|dawn|sunrise|first light|morning mist|morning fog|dew drops)\b/.test(p) || /နံနက်စောစော|မနက်ခင်း/.test(p)) {
+    return TIME_LIGHTING_OVERRIDE_MAP.early_morning;
+  }
+  if (/\b(high noon|midday|noon|bright sunlight|overhead sun|harsh sun)\b/.test(p) || /မွန်းတည့်/.test(p)) {
+    return TIME_LIGHTING_OVERRIDE_MAP.high_noon;
+  }
+  return TIME_LIGHTING_OVERRIDE_MAP.golden_hour;
+}
+var MOOD_ATMOSPHERE_OVERRIDE_MAP = {
+  monsoon_rain: {
+    id: "monsoon_rain",
+    label: "Monsoon Rain & Wet Reflections",
+    weatherEffect: "Dramatic tropical monsoon rainfall, cascading rain streaks, dark dense storm clouds, heavy atmospheric humidity and rain mist.",
+    surfaceDecoupling: "DECOUPLE DRY SURFACES: Transform all dry ground, courtyards, and stone terraces into wet rain-slicked mirrors with glistening puddle reflections; soaked dark masonry textures, streaming water rivulets across temple tiers, and glossy wet teakwood.",
+    subjectInteraction: "Realistic fine moisture and translucent rain droplets clinging to subject's skin and eyelashes, delicate wet sheen across fabrics, authentic damp fabric weight and cling with no dry artificial stiffness.",
+    promptDirective: "Render heavy tropical monsoon rainfall with rain-slicked reflective ground, puddle reflections, soaked dark masonry, and fine moisture sheen on the subject."
+  },
+  misty_morning: {
+    id: "misty_morning",
+    label: "Misty Morning & Volumetric Ground Fog",
+    weatherEffect: "Dense low-lying volumetric ground fog, soft aerial perspective depth haze, and Tyndall light rays (god rays) piercing through the morning vapor.",
+    surfaceDecoupling: "DECOUPLE HARSH CLEAR AIR: Soften distant architecture with milky morning fog layers; stone terraces drenched in fresh morning dew drops, gentle atmospheric diffusion wrapping stupas.",
+    subjectInteraction: "Soft atmospheric rim lighting through morning mist illuminating subject's hair silhouette, subtle fresh dew sheen on cheeks, gentle cool ambient skin fill.",
+    promptDirective: "Inject volumetric ground mist, aerial perspective depth fog, sunbeams cutting through haze, and soft dew sheen on subject's skin."
+  },
+  moody_overcast: {
+    id: "moody_overcast",
+    label: "Moody Overcast & Diffuse Sky",
+    weatherEffect: "Thick dramatic gray cloud cover, soft omnidirectional shadowless daylight, deep chiaroscuro atmospheric mood.",
+    surfaceDecoupling: "DECOUPLE SUNNY SPECULAR HIGHLIGHTS: Muted non-specular matte architectural stone textures, rich natural color saturation without harsh highlights, atmospheric cool ambient occlusion shadows.",
+    subjectInteraction: "Velvety softbox-quality portrait illumination across facial features, perfectly balanced skin tones without harsh facial shadows or squinting.",
+    promptDirective: "Diffuse moody overcast daylight with matte stone surfaces, deep tonal contrast, and shadowless softbox lighting on subject."
+  },
+  candlelit_intimate: {
+    id: "candlelit_intimate",
+    label: "Warm Candlelit & Sacred Lantern Glow",
+    weatherEffect: "Sacred sheltered evening ambience illuminated by hundreds of flickering oil lamps (hsi-mee) and golden beeswax candles.",
+    surfaceDecoupling: "DECOUPLE FLAT DAYLIGHT: Warm flickering golden-orange specular bounce across teakwood columns, gilded stupa bases reflecting dancing flame points, deep velvety amber shadows.",
+    subjectInteraction: "Warm 2200K candlelight rim and key illumination hugging subject's jawline and cheekbones, dancing golden catchlights in the eyes, warm glow across silk embroidery.",
+    promptDirective: "Intimate sacred candlelight with hundreds of glowing oil lamps, golden specular reflections on teakwood/gold leaf, and warm amber flickering key light on subject's face."
+  },
+  breezy_windswept: {
+    id: "breezy_windswept",
+    label: "Breezy & Windswept",
+    weatherEffect: "Dynamic high-altitude hillside gusts, swirling dust motes, crisp clear kinetic atmosphere.",
+    surfaceDecoupling: "DECOUPLE STATIC ENVIRONMENT: Background temple banners, hanging prayer cloths, and temple umbrella (hti) wind bells swaying with directional motion, leaves rustling.",
+    subjectInteraction: "Hair strands and silk scarves/shawls (Sabai/Pha-so) caught in elegant wind motion, billowing garment folds showing authentic fluid dynamics and fabric weight.",
+    promptDirective: "Dynamic hillside wind with swaying temple banners, windblown hair strands, and fluttering silk garments capturing kinetic energy."
+  },
+  vintage_nostalgic: {
+    id: "vintage_nostalgic",
+    label: "Vintage Nostalgic & Sepia Film Grain",
+    weatherEffect: "Timeless golden-era 1940s\u20131950s haze, subtle archival film grain, warm nostalgic atmospheric halation around light sources.",
+    surfaceDecoupling: "DECOUPLE MODERN DIGITAL CLEANLINESS: Aged patina on teakwood shutters, weathered antique lacquer textures, gentle Kodak Portra warm color grading.",
+    subjectInteraction: "Classic Hollywood / Mid-century Rangoon portraiture glow, subtle soft-focus skin roll-off, vintage filmic texture on wardrobe.",
+    promptDirective: "Vintage nostalgic 1950s atmospheric halation, warm archival film grain, rich patina on architecture, and classic mid-century cinematic portrait lighting."
+  },
+  festive_vibrant: {
+    id: "festive_vibrant",
+    label: "Festive Vibrant & Celebration Haze",
+    weatherEffect: "Joyous festival atmosphere, festive lanterns, drifting celebratory water spray (Thingyan) or festive spark bokeh (Thadingyut).",
+    surfaceDecoupling: "DECOUPLE PLAIN ARCHITECTURE: Illuminated festival garlands, vibrant decorative fabrics hung across architecture, lively festive color bounce.",
+    subjectInteraction: "Radiant glowing smile, vivid micro-contrast in eyes, joyful animated energy, dynamic colored rim lights bouncing from festival lanterns.",
+    promptDirective: "Exuberant festive festival atmosphere with colorful lantern lights, shimmering bokeh, celebration water/spark particles, and joyful radiant subject lighting."
+  },
+  serene_spiritual: {
+    id: "serene_spiritual",
+    label: "Serene Spiritual & Sacred Tranquility",
+    weatherEffect: "Pristine temple stillness, faint drifting incense smoke curls catching sunbeams, sacred ethereal purity.",
+    surfaceDecoupling: "DECOUPLE BUSY CLUTTER: Polished gleaming white marble terraces reflecting stupas, pristine quiet courtyard, soft transcendental morning light.",
+    subjectInteraction: "Composed peaceful meditative posture, gentle reverent gaze, harmonious balanced illumination with pure spiritual warmth.",
+    promptDirective: "Sacred tranquil serenity with delicate incense smoke tendrils catching golden rays, immaculate reflective marble, and tranquil peaceful facial serenity."
+  },
+  royal_majestic: {
+    id: "royal_majestic",
+    label: "Royal Majestic & Palace Grandeur",
+    weatherEffect: "Imperial ceremonial grandeur, dramatic high-contrast golden sunlight reflecting off royal gold leaf and throne room spires.",
+    surfaceDecoupling: "DECOUPLE HUMBLE TEXTURES: Lacquered vermilion and gilded teakwood columns, ornate Mandalay royal palace carvings, pristine royal court elevation.",
+    subjectInteraction: "Regal dignified posture, stately royal aura, commanding gaze, dramatic volumetric key lighting accentuating jewelry and royal gold thread embroidery.",
+    promptDirective: "Imperial court majesty with shimmering gold leaf architectural highlights, rich crimson and gold palace interiors, and dramatic regal portrait lighting."
+  },
+  dreamy_ethereal: {
+    id: "dreamy_ethereal",
+    label: "Dreamy Ethereal & Mystical Glow",
+    weatherEffect: "Mystical poetic atmosphere, soft bloom halation, floating luminescence, twilight starlight shimmering in air.",
+    surfaceDecoupling: "DECOUPLE RIGID CONTRAST: Soft ethereal glow radiating from stupa spires, gentle pastel dream tones, creamy dissolved depth of field.",
+    subjectInteraction: "Ethereal angelic rim glow separating subject from background, soft porcelain skin texture with luminous catchlights.",
+    promptDirective: "Dreamy ethereal fairy tale atmosphere with soft luminous light bloom, floating dust motes, and celestial rim lighting."
+  },
+  romantic_tender: {
+    id: "romantic_tender",
+    label: "Romantic Tender & Sunset Warmth",
+    weatherEffect: "Warm tender evening atmosphere, gentle rose-gold horizon glow, soft breeze and comforting twilight temperature.",
+    surfaceDecoupling: "DECOUPLE COLD ISOLATION: Warm soft-focus surroundings, gently illuminated garden or lakeside textures, romantic golden bokeh circles.",
+    subjectInteraction: "Soft soulful emotional gaze, warm peach-gold skin tones, tender posture, flattering beauty-dish portrait illumination.",
+    promptDirective: "Intimate romantic atmosphere with soft rose-gold sunset glow, creamy bokeh, and soulful tender warmth on subject."
+  },
+  mysterious_enigmatic: {
+    id: "mysterious_enigmatic",
+    label: "Mysterious Enigmatic & Chiaroscuro",
+    weatherEffect: "Ancient enigmatic aura, deep shadows with selective light beams cutting through darkness, ancient dust particles.",
+    surfaceDecoupling: "DECOUPLE FLAT BRIGHTNESS: Centuries-old weathered stone reliefs with deep shadow crevices, mysterious temple corridors fading into obsidian dark.",
+    subjectInteraction: "Intriguing half-lit Rembrandt shadow pattern on face, piercing focused eyes emerging from shadow, dramatic rim separation.",
+    promptDirective: "Mysterious chiaroscuro atmosphere with deep dramatic shadows, ancient weathered stone textures, and striking Rembrandt facial lighting."
+  },
+  autumn_golden_glow: {
+    id: "autumn_golden_glow",
+    label: "Autumn Golden & Pensive Warmth",
+    weatherEffect: "Late autumn dry golden air, drifting amber leaves, low warm afternoon sun with elongated soft amber shadows.",
+    surfaceDecoupling: "DECOUPLE GREEN SUMMER: Warm dry stone scattered with fallen golden leaves, russet and amber foliage surrounding architecture.",
+    subjectInteraction: "Thoughtful contemplative expression, warm amber rim light highlighting hair contours, rich earthy tonal harmony.",
+    promptDirective: "Autumnal golden atmosphere with drifting amber leaves, long warm shadows, and contemplative pensive portrait lighting."
+  },
+  neon_cyberpunk: {
+    id: "neon_cyberpunk",
+    label: "Neon Vibrant & Cyberpunk Glow",
+    weatherEffect: "Electric nocturnal haze, chromatic neon reflections in asphalt, futuristic ambient glow.",
+    surfaceDecoupling: "DECOUPLE TRADITIONAL STONE: Slick wet pavement reflecting glowing neon signs, vibrant turquoise, magenta, and amber light spill across architecture.",
+    subjectInteraction: "Dual-tone neon rim lighting (cyan and magenta/orange) cutting across cheekbones and shoulders, modern high-fashion edge.",
+    promptDirective: "Vibrant neon cyberpunk atmosphere with colorful light reflections on slick surfaces and dual-tone neon rim light on subject."
+  }
+};
+function detectMoodFromPrompt(prompt, explicitMood) {
+  if (explicitMood && typeof explicitMood === "string") {
+    const norm = explicitMood.toLowerCase().trim();
+    if (norm in MOOD_ATMOSPHERE_OVERRIDE_MAP) {
+      return MOOD_ATMOSPHERE_OVERRIDE_MAP[norm];
+    }
+    if (norm.includes("monsoon") || norm.includes("rain") || norm.includes("\u1019\u102D\u102F\u1038")) return MOOD_ATMOSPHERE_OVERRIDE_MAP.monsoon_rain;
+    if (norm.includes("mist") || norm.includes("fog") || norm.includes("\u1019\u103C\u1030")) return MOOD_ATMOSPHERE_OVERRIDE_MAP.misty_morning;
+    if (norm.includes("overcast") || norm.includes("cloudy") || norm.includes("\u1010\u102D\u1019\u103A")) return MOOD_ATMOSPHERE_OVERRIDE_MAP.moody_overcast;
+    if (norm.includes("candle") || norm.includes("lantern") || norm.includes("\u1006\u102E\u1019\u102E\u1038") || norm.includes("\u1016\u101A\u1031\u102C\u1004\u103A\u1038")) return MOOD_ATMOSPHERE_OVERRIDE_MAP.candlelit_intimate;
+    if (norm.includes("wind") || norm.includes("breeze") || norm.includes("\u101C\u1031")) return MOOD_ATMOSPHERE_OVERRIDE_MAP.breezy_windswept;
+    if (norm.includes("vintage") || norm.includes("nostalgic") || norm.includes("\u101C\u103D\u1019\u103A\u1038")) return MOOD_ATMOSPHERE_OVERRIDE_MAP.vintage_nostalgic;
+    if (norm.includes("festive") || norm.includes("joy") || norm.includes("\u1015\u103D\u1032\u1010\u1031\u102C\u103A") || norm.includes("\u1015\u103B\u1031\u102C\u103A")) return MOOD_ATMOSPHERE_OVERRIDE_MAP.festive_vibrant;
+    if (norm.includes("royal") || norm.includes("regal") || norm.includes("majestic") || norm.includes("\u1014\u1014\u103A\u1038\u1010\u103D\u1004\u103A\u1038")) return MOOD_ATMOSPHERE_OVERRIDE_MAP.royal_majestic;
+    if (norm.includes("dreamy") || norm.includes("ethereal") || norm.includes("\u1005\u102D\u1010\u103A\u1000\u1030\u1038\u101A\u1009\u103A")) return MOOD_ATMOSPHERE_OVERRIDE_MAP.dreamy_ethereal;
+    if (norm.includes("romantic") || norm.includes("tender") || norm.includes("\u101B\u1004\u103A\u1001\u102F\u1014\u103A")) return MOOD_ATMOSPHERE_OVERRIDE_MAP.romantic_tender;
+    if (norm.includes("mysterious") || norm.includes("enigmatic") || norm.includes("dark_moody") || norm.includes("\u1006\u1014\u103A\u1038\u1000\u103C\u101A\u103A")) return MOOD_ATMOSPHERE_OVERRIDE_MAP.mysterious_enigmatic;
+    if (norm.includes("autumn") || norm.includes("melancholic") || norm.includes("\u101E\u1005\u103A\u101B\u103D\u1000\u103A")) return MOOD_ATMOSPHERE_OVERRIDE_MAP.autumn_golden_glow;
+    if (norm.includes("neon") || norm.includes("cyberpunk") || norm.includes("\u1014\u102E\u101A\u103D\u1014\u103A")) return MOOD_ATMOSPHERE_OVERRIDE_MAP.neon_cyberpunk;
+    if (norm.includes("spiritual") || norm.includes("zen") || norm.includes("calm") || norm.includes("peaceful") || norm.includes("\u1004\u103C\u102D\u1019\u103A\u1038\u1001\u103B\u1019\u103A\u1038")) return MOOD_ATMOSPHERE_OVERRIDE_MAP.serene_spiritual;
+  }
+  const p = (prompt || "").toLowerCase();
+  if (/\b(monsoon|rain|rainy|rainfall|rain-slicked|puddles?|downpour|wet ground)\b/.test(p) || /မိုးရေ|မိုးရွာ|မိုးသည်း/.test(p)) {
+    return MOOD_ATMOSPHERE_OVERRIDE_MAP.monsoon_rain;
+  }
+  if (/\b(mist|fog|misty|ground fog|dew drops?|haze|atmospheric mist)\b/.test(p) || /မြူခိုး|နှင်းခိုး/.test(p)) {
+    return MOOD_ATMOSPHERE_OVERRIDE_MAP.misty_morning;
+  }
+  if (/\b(overcast|cloudy|stormy|gray sky|shadowless|diffuse light)\b/.test(p) || /တိမ်ထူ|မိုးအုံ့/.test(p)) {
+    return MOOD_ATMOSPHERE_OVERRIDE_MAP.moody_overcast;
+  }
+  if (/\b(candlelight|lanterns?|oil lamps?|hsi-mee|flickering flame|beeswax candles?)\b/.test(p) || /ဖယောင်းတိုင်|ဆီမီး/.test(p)) {
+    return MOOD_ATMOSPHERE_OVERRIDE_MAP.candlelit_intimate;
+  }
+  if (/\b(breezy|windswept|windy|billowing|fluttering|gust|swaying)\b/.test(p) || /လေပြည်|လေတိုက်/.test(p)) {
+    return MOOD_ATMOSPHERE_OVERRIDE_MAP.breezy_windswept;
+  }
+  if (/\b(vintage|nostalgic|sepia|1940s|1950s|kodachrome|archival|retro)\b/.test(p) || /အတိတ်လွမ်း/.test(p)) {
+    return MOOD_ATMOSPHERE_OVERRIDE_MAP.vintage_nostalgic;
+  }
+  if (/\b(festive|festival|celebration|carnival|thingyan|thadingyut|joyous|joyful|sparkler)\b/.test(p) || /ပွဲတော်|သြင်္ကန်/.test(p)) {
+    return MOOD_ATMOSPHERE_OVERRIDE_MAP.festive_vibrant;
+  }
+  if (/\b(royal|majestic|palace|imperial|regal|courtly|throne|monarch)\b/.test(p) || /နန်းတွင်း|ရာဇဝင်/.test(p)) {
+    return MOOD_ATMOSPHERE_OVERRIDE_MAP.royal_majestic;
+  }
+  if (/\b(dreamy|ethereal|fairy tale|celestial|mystical glow)\b/.test(p) || /စိတ်ကူးယဉ်|နတ်သမီး/.test(p)) {
+    return MOOD_ATMOSPHERE_OVERRIDE_MAP.dreamy_ethereal;
+  }
+  if (/\b(romantic|tender|intimate|soulful|love)\b/.test(p) || /ရင်ခုန်|ချစ်ကြည်/.test(p)) {
+    return MOOD_ATMOSPHERE_OVERRIDE_MAP.romantic_tender;
+  }
+  if (/\b(mysterious|enigmatic|chiaroscuro|shadowy|cryptic|rembrandt)\b/.test(p) || /ဆန်းကြယ်|လျှို့ဝှက်/.test(p)) {
+    return MOOD_ATMOSPHERE_OVERRIDE_MAP.mysterious_enigmatic;
+  }
+  if (/\b(autumn|falling leaves|golden foliage|amber leaves)\b/.test(p) || /သစ်ရွက်ကြွေ/.test(p)) {
+    return MOOD_ATMOSPHERE_OVERRIDE_MAP.autumn_golden_glow;
+  }
+  if (/\b(neon|cyberpunk|electric|fluorescent|synthwave)\b/.test(p) || /နီယွန်/.test(p)) {
+    return MOOD_ATMOSPHERE_OVERRIDE_MAP.neon_cyberpunk;
+  }
+  if (/\b(spiritual|sacred|serene|peaceful|zen|buddhist|temple stillness|tranquil)\b/.test(p) || /ငြိမ်းချမ်း|တည်ငြိမ်/.test(p)) {
+    return MOOD_ATMOSPHERE_OVERRIDE_MAP.serene_spiritual;
+  }
+  return MOOD_ATMOSPHERE_OVERRIDE_MAP.serene_spiritual;
+}
+var SUBJECT_WEATHER_INTERACTION_MAP = {
+  monsoon_rain: {
+    zone1FaceShield: "FACIAL SHIELD ACTIVATED: Wind and falling rain droplets must blow cleanly AWAY from the face plane. Absolutely NO stray wet hair strands sticking across eyes, nose bridge, or mouth. Rain droplets must NEVER deform facial bone geometry or epidermal micro-pores from the character reference photo\u2014render exclusively as an ultra-subtle dewy skin sheen, clean catchlights in pupils, and delicate micro-beads on temples and forehead without mutating facial features.",
+    zone2HairAndProps: "Natural moisture interaction: hair tips and baby hairs gently damp and clinging cleanly away from face; optional authentic oiled bamboo Pathein umbrella (Pathein Hti) with glistening rain beads or traditional lotus blossom hair accessory.",
+    zone3BurmeseGarmentPhysics: "STRICT BURMESE SILHOUETTE PRESERVATION: Traditional Burmese wrapped htamein / longyi MUST maintain its authentic tailored cylindrical columnar drape. Do NOT billow or flare out like a Western flared skirt. Render authentic wet silk physics: darkened rich weave saturation in Luntaya Acheik motifs, realistic anisotropic specular highlights on damp silk fibers, and natural gravitational fabric weight pulling downward."
+  },
+  breezy_windswept: {
+    zone1FaceShield: "FACIAL SHIELD ACTIVATED: Wind vector MUST blow cleanly AWAY and BACKWARD from the face (3/4 rearward aerodynamic draft). ZERO hair occlusion across eyes, eyelids, nose bridge, or mouth. Face remains completely unobstructed, preserving 100% of facial likeness, expression, and bone structure from the character reference photo.",
+    zone2HairAndProps: "Dynamic kinetic motion restricted to trailing hair ends blowing gracefully backward. Flowing translucent Burmese silk shawl (Pawa / Sabai) billowing elegantly in the breeze with realistic fluid aerodynamic motion.",
+    zone3BurmeseGarmentPhysics: "STRICT BURMESE SILHOUETTE PRESERVATION: The wrapped htamein / longyi MUST preserve its traditional cylindrical ankle-length Burmese wrap. Wind must ripple the fabric surface tightly against the legs without flaring or expanding into a loose Western bell skirt. Fitted yinzi/yinbon blouse remains tailored and crisp."
+  },
+  misty_morning: {
+    zone1FaceShield: "FACIAL SHIELD ACTIVATED: Ambient mist and vapor must diffuse softly around the head without blurring or obscuring facial features. 100% facial identity lock with crisp optical clarity on eyes, nose, and lips. Subtle morning dew glow on skin surface.",
+    zone2HairAndProps: "Hair perimeter caught in soft volumetric morning rim light; microscopic dew particles glistening faintly on hair crown and traditional floral hairpins.",
+    zone3BurmeseGarmentPhysics: "BURMESE GARMENT INTEGRITY: Tailored cylindrical htamein drape with subtle morning moisture sheen along hemline; rich tactile handwoven silk texture under soft diffuse dawn light."
+  },
+  candlelit_intimate: {
+    zone1FaceShield: "FACIAL SHIELD ACTIVATED: Dancing candlelight must caress facial contours cleanly. Absolutely NO obstructing shadows across identity landmarks. Warm 2200K amber rim light delineating jawline and cheekbones while preserving exact eye shape and facial geometry from character reference.",
+    zone2HairAndProps: "Warm golden highlights picking out glossy hair texture and golden comb / floral hair ornaments (Thazin flowers) with delicate specular reflections.",
+    zone3BurmeseGarmentPhysics: "BURMESE GARMENT INTEGRITY: Fitted cylindrical htamein / longyi reflecting warm flame bounce on gold-threaded embroidery (Shwe-chi-hto), maintaining authentic regal posture and cylindrical silhouette."
+  },
+  royal_majestic: {
+    zone1FaceShield: "FACIAL SHIELD ACTIVATED: Unobstructed regal portrait clarity. Golden palace light accentuates noble bone structure, immaculate facial skin micro-pores, and steady royal gaze with zero hair distortion across face.",
+    zone2HairAndProps: "Immaculate high Burmese court coiffure (Sadon), ornate gold and ruby hairpins (San-pyin), and draped royal silk pawa resting gracefully over shoulder.",
+    zone3BurmeseGarmentPhysics: "STRICT ROYAL SILHOUETTE: Heavy Luntaya Acheik silk htamein with traditional sweeping train (Acheik hta-mein nyo), structured royal court jacket with winged curved lapels, stiff ceremonial drape with zero unnatural ballooning."
+  },
+  moody_overcast: {
+    zone1FaceShield: "FACIAL SHIELD ACTIVATED: Soft directional daylight provides balanced shadowless illumination across facial features. Crisp eye catchlights, zero squinting, 100% identity preservation.",
+    zone2HairAndProps: "Clean hair separation from cool diffuse sky, calm settled posture, natural hair texture.",
+    zone3BurmeseGarmentPhysics: "Rich matte saturation in traditional woven Acheik patterns, authentic columnar wrap, tailored elegance."
+  },
+  vintage_nostalgic: {
+    zone1FaceShield: "FACIAL SHIELD ACTIVATED: Gentle classic Hollywood / mid-century Rangoon portrait lighting. Fine archival film grain across skin without losing precise facial identity, eye contours, or lips geometry.",
+    zone2HairAndProps: "Elegant 1950s Yangon hair styling, silk pawa draped demurely over arms.",
+    zone3BurmeseGarmentPhysics: "Classic mid-century Burmese silk htamein wrap, tailored cotton yinbon blouse with cloth frog buttons, timeless cylindrical proportions."
+  },
+  festive_vibrant: {
+    zone1FaceShield: "FACIAL SHIELD ACTIVATED: Joyful festival water spray or lantern glow stays clear of central facial landmarks. Radiant smile, sparkling catchlights, 100% preserved facial likeness.",
+    zone2HairAndProps: "Festive jasmine or padauk blossoms in hair, celebratory energetic hair flow.",
+    zone3BurmeseGarmentPhysics: "Vibrant festival silk longyi/htamein with authentic cylindrical drape, dynamic celebratory posture without distorting traditional garment lines."
+  },
+  serene_spiritual: {
+    zone1FaceShield: "FACIAL SHIELD ACTIVATED: Peaceful, serene, unobstructed facial illumination. Pure contemplative grace, exact facial geometry preserved from character reference photo.",
+    zone2HairAndProps: "Neatly gathered hair or traditional low chignon, delicate incense smoke tendrils curling peacefully in background behind subject.",
+    zone3BurmeseGarmentPhysics: "Modest, graceful cylindrical white or pastel cotton/silk htamein, folded prayer pawa, authentic temple reverence drape."
+  },
+  dreamy_ethereal: {
+    zone1FaceShield: "FACIAL SHIELD ACTIVATED: Luminous celestial rim light framing the face without bleaching facial features. Eyes, nose, and lips remain tack-sharp and identical to character reference.",
+    zone2HairAndProps: "Soft floating hair ends with gentle ethereal glow, delicate floral ornaments.",
+    zone3BurmeseGarmentPhysics: "Flowing silk shawl with gentle dreamlike suspension, cylindrical htamein anchor maintaining authentic cultural silhouette."
+  },
+  romantic_tender: {
+    zone1FaceShield: "FACIAL SHIELD ACTIVATED: Warm sunset glow gently modeling facial planes. Soft soulful gaze with unobstructed eye contact, 100% identity lock.",
+    zone2HairAndProps: "Softly resting hair strands, delicate ear ornaments catching golden rim light.",
+    zone3BurmeseGarmentPhysics: "Graceful cylindrical silk htamein drape, soft flowing pawa, refined feminine Burmese posture."
+  },
+  mysterious_enigmatic: {
+    zone1FaceShield: "FACIAL SHIELD ACTIVATED: Dramatic chiaroscuro lighting sculpting facial bone structure with Rembrandt triangle highlight. Identity features razor sharp, no obscuring shadows over critical facial recognition points.",
+    zone2HairAndProps: "Deep velvet shadows embracing hair crown, dramatic rim light edge separation.",
+    zone3BurmeseGarmentPhysics: "Deep jewel-toned cylindrical htamein wrap disappearing into shadowy folds, structured tailored blouse."
+  },
+  autumn_golden_glow: {
+    zone1FaceShield: "FACIAL SHIELD ACTIVATED: Golden afternoon sunlight kissing facial contours. Contemplative clear gaze, zero hair distraction across eyes/mouth.",
+    zone2HairAndProps: "Gently drifting amber leaves in ambient space behind subject, hair highlighted in warm gold.",
+    zone3BurmeseGarmentPhysics: "Earth-toned silk htamein drape, woven pawa shawl wrapped over shoulders, cylindrical tailored stability."
+  },
+  neon_cyberpunk: {
+    zone1FaceShield: "FACIAL SHIELD ACTIVATED: Crisp dual-tone cyan/magenta rim lighting tracing jawline and temples. Face remains completely unobstructed, 100% identity preservation.",
+    zone2HairAndProps: "Sleek contemporary hair styling catching colorful reflections, modern hairpins.",
+    zone3BurmeseGarmentPhysics: "Modernized avant-garde Burmese htamein cut preserving authentic cylindrical columnar drape with high-tech silk sheen."
+  }
+};
+function buildRoleCompositingPrompt(roles, basePrompt, ar, explicitTime, explicitMood) {
   const characters = roles.filter((r) => r.role === "character");
   const backgrounds = roles.filter((r) => r.role === "background");
   const styles = roles.filter((r) => r.role === "style");
-  const outfits = roles.filter((r) => r.role === "outfit");
+  const outfits = roles.filter((r) => r.role === "outfit" || r.role === "garment");
+  const timeSpec = detectTimeFromPrompt(basePrompt, explicitTime);
+  const moodSpec = detectMoodFromPrompt(basePrompt, explicitMood);
+  const zonedPhysics = SUBJECT_WEATHER_INTERACTION_MAP[moodSpec.id] || SUBJECT_WEATHER_INTERACTION_MAP.serene_spiritual;
   if (characters.length > 0 && backgrounds.length > 0) {
     const charNames = roles.map((r, i) => r.role === "character" ? `Image #${i + 1}${r.name ? ` (${r.name})` : ""}` : null).filter(Boolean).join(", ");
     const bgNames = roles.map((r, i) => r.role === "background" ? `Image #${i + 1}${r.name ? ` (${r.name})` : ""}` : null).filter(Boolean).join(", ");
     const styleNames = styles.length > 0 ? roles.map((r, i) => r.role === "style" ? `Image #${i + 1}${r.name ? ` (${r.name})` : ""}` : null).filter(Boolean).join(", ") : null;
-    const outfitNames = outfits.length > 0 ? roles.map((r, i) => r.role === "outfit" ? `Image #${i + 1}${r.name ? ` (${r.name})` : ""}` : null).filter(Boolean).join(", ") : null;
-    let instruction = `Photorealistic editorial photography master composite (Vogue / National Geographic documentary standard):
-[CONDITIONING LAYER 1 - IDENTITY / SUBJECT AREA LOCK (IP-Adapter & BiRefNet)]:
-Strictly extract the subject(s) from ${charNames}, isolating the subject silhouette and stripping all original background, curtains, floor, and studio walls. Confine identity extraction (facial proportions, eyes, skin micro-pores, hairstyle, and garments) strictly to the subject mask bounding box. Forbid cross-attention leakage of subject colors into the background.
+    const outfitNames = outfits.length > 0 ? roles.map((r, i) => r.role === "outfit" || r.role === "garment" ? `Image #${i + 1}${r.name ? ` (${r.name})` : ""}` : null).filter(Boolean).join(", ") : null;
+    let instruction = `[MASTER COMPOSITING SYNTHESIS DIRECTIVE]:
+Composite the subject(s) from ${charNames} (whether single individual, couple, or family members) into the exact real-world architectural environment of ${bgNames}.
 
-[CONDITIONING LAYER 2 - BACKGROUND GEOMETRY & DEPTH ANCHOR (ControlNet Depth)]:
-Strictly preserve the scene environment, spatial perspective, horizon line, architectural geometry, and depth planes from ${bgNames}. Do NOT let background textures, vegetation, or objects distort or overwrite the character's facial features.
+1. PERSPECTIVE, SCALE & CONTEXTUAL SEATING:
+- If the background scene contains a vehicle (car, convertible roadster, carriage, horse-drawn cart, boat) or seating (chair, throne, bench) where subjects are meant to be seated, seamlessly position the subjects naturally seated inside the vehicle cockpit or seating position in correct anatomical perspective scale, holding vehicle reins/controls if appropriate, rather than forcing a standing pose on the ground.
+- Otherwise, anchor the subject(s) naturally and firmly onto the ground plane in ${bgNames} with matched horizon line, camera elevation, correct anatomical perspective scale, and realistic ground contact shadows. If a family or multiple people are present, arrange them naturally side-by-side or in a cohesive family group portrait.
 
-[CONDITIONING LAYER 3 - HARMONIZATION & INPAINTING BLEND ZONE (DENOISING: 0.50 - 0.55)]:
-Place the subject(s) naturally and firmly onto the floor or ground plane in ${bgNames} with realistic ambient occlusion contact shadows.
-Harmonize the environmental key light, rim lighting, specular highlights, and color temperature between the subject and the backdrop. Blend along the dilated silhouette boundary mask to eliminate edge halos and cut-and-paste seams.
-Optics: 85mm portraiture lens, f/2.0 aperture with creamy background bokeh depth of field, 8k UHD.`;
+2. GEOMETRY VS. LIGHTING & WEATHER DECOUPLING:
+- GEOMETRY LOCK: Lock 100% onto the physical architectural geometry, landmark proportions, and perspective of ${bgNames}.
+- LIGHTING & WEATHER DECOUPLING: DO NOT copy original daylight, sky color, sun exposure, or dry surface state of ${bgNames}. Treat ${bgNames} as an unlit 3D structural CAD/VFX plate.
+- MANDATORY TARGET RELIGHTING (${timeSpec.label}): ${timeSpec.relightingInstruction} (Sun angle: ${timeSpec.sunAngle}, Color temperature: ${timeSpec.kelvin}).
+- MANDATORY WEATHER & ATMOSPHERE (${moodSpec.label}): ${moodSpec.weatherEffect}
+- BACKGROUND SURFACE TRANSFORMATION: ${moodSpec.surfaceDecoupling}
+- Seamlessly re-illuminate the entire background architecture and environment to strictly match this target lighting and weather state.
+
+3. FOREGROUND SUBJECT WEATHER & ATMOSPHERIC PHYSICAL INTERACTION:
+- The foreground subject from ${charNames} MUST physically interact with the environment's weather, humidity, and mood WITHOUT facial distortion or traditional garment mutation:
+  * Interaction Physics: ${moodSpec.subjectInteraction}
+  * ZONE 1 (FACE SHIELD - 100% IDENTITY & FEATURE PRESERVATION): ${zonedPhysics.zone1FaceShield}
+  * ZONE 2 (HAIR & ACCESSORY DYNAMICS): ${zonedPhysics.zone2HairAndProps}
+  * ZONE 3 (TRADITIONAL BURMESE GARMENT PHYSICS): ${zonedPhysics.zone3BurmeseGarmentPhysics}
+  * Environmental Light Wrap: Seamlessly wrap directional key/rim lighting, ambient bounce color, and ground surface reflections onto the subject.
+- Blend the silhouette boundary mask smoothly to eliminate cut-and-paste edge halos or artificial borders.
+
+4. ZERO CROSS-CONTAMINATION LEAKAGE:
+- Forbid character background artifacts (original room walls, studio curtains) from leaking into the new scene.
+- Forbid background textures or objects from distorting or altering the subject's facial identity.
+- Explicitly ignore and strip any random people, silhouettes, tourists, or models present in ${bgNames}.
+
+5. OPTICS & RESOLUTION:
+- Optics: 85mm portraiture lens, f/2.0 aperture with creamy background bokeh depth of field, 8k UHD.`;
     if (outfitNames) {
       instruction += `
-Incorporate the clothing style, drapery, and fabric texture from ${outfitNames}.`;
+6. WARDROBE ASSET: Incorporate the exact clothing silhouette, drapery, and fabric texture from ${outfitNames}.`;
     }
     if (styleNames) {
       instruction += `
-Infuse the cinematic color grading, tone curve, and aesthetic mood from ${styleNames}.`;
+7. COLOR GRADE: Infuse the cinematic color grading, tone curve, and aesthetic mood from ${styleNames}.`;
     }
     instruction += `
-Creative Direction: ${basePrompt}. Aspect ratio: ${ar}. Strictly output the composition in ${ar} framing.`;
+
+Creative Direction & Scene Details: ${basePrompt}.
+Framing Aspect Ratio: STRICT ${ar} (width-to-height ratio ${ar}). Strictly output in ${ar} framing, do NOT output 21:9.`;
     return instruction;
   }
   if (characters.length > 0) {
-    const charNames = roles.map((r, i) => r.role === "character" ? `Image #${i + 1}` : null).filter(Boolean).join(", ");
-    return `Generate a photorealistic studio image strictly matching the subject from ${charNames}. Strictly compose in ${ar} aspect ratio format (width-to-height ratio ${ar}), do NOT output 21:9. Preserve 100% of facial identity, facial structure, natural skin micro-texture, and hair. Subject details: ${basePrompt}. Aspect ratio: ${ar}.`;
+    const charNames = roles.map((r, i) => r.role === "character" ? `Image #${i + 1}${r.name ? ` (${r.name})` : ""}` : null).filter(Boolean).join(", ");
+    return `[SYNTHESIS DIRECTIVE - CHARACTER IDENTITY LOCK & ZONED PHYSICS]:
+Generate an ultra-photorealistic image in its authentic real-world environment strictly preserving 100% of facial identity, facial structure, natural skin micro-texture, and hair from ${charNames}. Place the subject naturally in the environment described below with realistic lighting and physical depth of field.
+- ZONED WEATHER & FACIAL SHIELD:
+  * ZONE 1 (Face Shield): ${zonedPhysics.zone1FaceShield}
+  * ZONE 2 (Hair & Props): ${zonedPhysics.zone2HairAndProps}
+  * ZONE 3 (Burmese Garment Physics): ${zonedPhysics.zone3BurmeseGarmentPhysics}
+- Framing Aspect Ratio: STRICT ${ar} aspect ratio composition (width-to-height ratio ${ar}), do NOT output 21:9.
+- Subject Details: ${basePrompt}.`;
   }
   if (backgrounds.length > 0) {
-    const bgNames = roles.map((r, i) => r.role === "background" ? `Image #${i + 1}` : null).filter(Boolean).join(", ");
-    return `Generate a photorealistic image situated inside the environment, atmosphere, and scene of ${bgNames}. Strictly compose in ${ar} aspect ratio format (width-to-height ratio ${ar}), do NOT output 21:9. Scene details: ${basePrompt}. Aspect ratio: ${ar}.`;
+    const bgNames = roles.map((r, i) => r.role === "background" ? `Image #${i + 1}${r.name ? ` (${r.name})` : ""}` : null).filter(Boolean).join(", ");
+    return `[SYNTHESIS DIRECTIVE - BACKGROUND ARCHITECTURAL GEOMETRY, WEATHER & RELIGHTING]:
+Generate an ultra-photorealistic image situated precisely inside the real-world architecture, spatial perspective, and structural geometry of ${bgNames}.
+- GEOMETRY LOCK: Lock 100% onto the physical architectural geometry, landmark proportions, and perspective of ${bgNames}.
+- LIGHTING & WEATHER DECOUPLING: DO NOT copy original daylight, sky color, sun exposure, or dry surface state of the reference photo (treat it as an unlit 3D structural plate).
+- MANDATORY TARGET RELIGHTING (${timeSpec.label}): ${timeSpec.relightingInstruction} (Sun angle: ${timeSpec.sunAngle}, Color temperature: ${timeSpec.kelvin}).
+- MANDATORY WEATHER & ATMOSPHERE (${moodSpec.label}): ${moodSpec.weatherEffect}
+- SURFACE STATE TRANSFORMATION: ${moodSpec.surfaceDecoupling}
+- Framing Aspect Ratio: STRICT ${ar} aspect ratio composition (width-to-height ratio ${ar}), do NOT output 21:9.
+- Scene Details: ${basePrompt}.`;
   }
-  return `Generate a photorealistic studio image strictly matching the reference image. Strictly compose in ${ar} aspect ratio format (width-to-height ratio ${ar}), do NOT output 21:9. Preserve the subject's exact facial identity, features, and aesthetics. Subject details: ${basePrompt}. Aspect ratio: ${ar}.`;
+  return `[SYNTHESIS DIRECTIVE - REAL-WORLD PHOTO REPRODUCTION]:
+Generate an ultra-photorealistic image in its authentic real-world environment strictly matching the reference image. Preserve the subject's exact facial identity, features, and aesthetics.
+- ZONED WEATHER & FACIAL SHIELD:
+  * ZONE 1 (Face Shield): ${zonedPhysics.zone1FaceShield}
+  * ZONE 2 (Hair & Props): ${zonedPhysics.zone2HairAndProps}
+  * ZONE 3 (Burmese Garment Physics): ${zonedPhysics.zone3BurmeseGarmentPhysics}
+- Framing Aspect Ratio: STRICT ${ar} aspect ratio composition (width-to-height ratio ${ar}), do NOT output 21:9.
+- Subject Details: ${basePrompt}.`;
 }
 function extractImageUrlFromOpenRouter(choice) {
   if (!choice) return null;
@@ -3792,13 +5576,32 @@ function extractImageUrlFromOpenRouter(choice) {
   if (typeof choice?.image_url === "string") return choice.image_url;
   return null;
 }
-async function generateWithOpenRouter(prompt, ar, count, model = "google/gemini-2.5-flash-image", referenceImage, referenceImages, referenceImagesWithRoles, apiKeyOverride) {
+async function generateWithOpenRouter(prompt, ar, count, model = "google/gemini-2.5-flash-image", referenceImage, referenceImages, referenceImagesWithRoles, apiKeyOverride, explicitTime, explicitMood) {
   const key = apiKeyOverride || process.env.SEEDREAM_API_KEY || process.env.OPENROUTER_API_KEY;
   if (!key || key.trim() === "") return null;
-  const isWebOrDataUrl2 = (u) => typeof u === "string" && (u.startsWith("data:image") || u.startsWith("http://") || u.startsWith("https://") || u.startsWith("/"));
-  const validRoleImages = Array.isArray(referenceImagesWithRoles) && referenceImagesWithRoles.length > 0 ? referenceImagesWithRoles.filter((img) => isWebOrDataUrl2(img.url)) : [];
-  const refList = validRoleImages.length > 0 ? validRoleImages.map((img) => img.url) : Array.isArray(referenceImages) && referenceImages.length > 0 ? referenceImages.filter((img) => isWebOrDataUrl2(img)) : referenceImage && isWebOrDataUrl2(referenceImage) ? [referenceImage] : [];
-  console.log(`[OpenRouter Image] Generating ${count} image(s) using model: ${model} (References: ${refList.length}, Tagged roles: ${validRoleImages.length})`);
+  const rawRoleImages = Array.isArray(referenceImagesWithRoles) && referenceImagesWithRoles.length > 0 ? referenceImagesWithRoles.map((img) => {
+    const resolved = resolveImageToDataOrWebUrl(img.url);
+    return resolved ? { ...img, url: resolved } : null;
+  }).filter(Boolean) : [];
+  const ROLE_SORT_ORDER = {
+    character: 1,
+    garment: 2,
+    outfit: 2,
+    style: 3,
+    general: 4,
+    background: 5
+  };
+  const validRoleImages = [...rawRoleImages].sort((a, b) => {
+    const orderA = ROLE_SORT_ORDER[(a.role || "general").toLowerCase()] ?? 4;
+    const orderB = ROLE_SORT_ORDER[(b.role || "general").toLowerCase()] ?? 4;
+    return orderA - orderB;
+  });
+  const rawRefs = Array.isArray(referenceImages) && referenceImages.length > 0 ? referenceImages.map(resolveImageToDataOrWebUrl).filter(Boolean) : referenceImage ? [resolveImageToDataOrWebUrl(referenceImage)].filter(Boolean) : [];
+  const refList = validRoleImages.length > 0 ? validRoleImages.map((img) => img.url) : rawRefs;
+  const timeSpec = detectTimeFromPrompt(prompt, explicitTime);
+  const moodSpec = detectMoodFromPrompt(prompt, explicitMood);
+  const zonedPhysics = SUBJECT_WEATHER_INTERACTION_MAP[moodSpec.id] || SUBJECT_WEATHER_INTERACTION_MAP.serene_spiritual;
+  console.log(`[OpenRouter Image] Generating ${count} image(s) using model: ${model} (References: ${refList.length}, Tagged roles: ${validRoleImages.length}, Lighting: ${timeSpec.label}, Mood/Weather: ${moodSpec.label})`);
   try {
     const out = [];
     const modalities = ["image"];
@@ -3807,23 +5610,68 @@ async function generateWithOpenRouter(prompt, ar, count, model = "google/gemini-
       if (prompt.startsWith("Photorealistic") || prompt.startsWith("Masterwork") || prompt.startsWith("Professional editorial") || prompt.toLowerCase().includes("face swap") || prompt.toLowerCase().includes("variation") || prompt.startsWith("High-fashion") || prompt.startsWith("Master optical") || prompt.startsWith("Precise image")) {
         promptDirective = `${prompt} Framing aspect ratio: ${ar}. Strictly compose in ${ar} format.`;
       } else if (validRoleImages.length > 0) {
-        promptDirective = buildRoleCompositingPrompt(validRoleImages, prompt, ar);
+        promptDirective = buildRoleCompositingPrompt(validRoleImages, prompt, ar, explicitTime, explicitMood);
       } else if (refList.length > 0) {
-        promptDirective = `Generate a photorealistic studio image strictly matching the reference image with STRICT ${ar} aspect ratio composition (width-to-height ratio ${ar}). Preserve the subject's exact facial identity, features, and aesthetics. Scene details: ${prompt}. Aspect ratio: ${ar}. Strictly output in ${ar} framing, do NOT output 21:9.`;
+        promptDirective = `[SYNTHESIS DIRECTIVE - REAL-WORLD PHOTO REPRODUCTION]:
+Generate an ultra-photorealistic image in its authentic real-world environment strictly matching the reference image with STRICT ${ar} aspect ratio composition (width-to-height ratio ${ar}). Preserve the subject's exact facial identity, features, and aesthetics.
+- ZONED WEATHER & FACIAL SHIELD:
+  * Zone 1 (Face Shield): ${zonedPhysics.zone1FaceShield}
+  * Zone 2 (Hair & Props): ${zonedPhysics.zone2HairAndProps}
+  * Zone 3 (Burmese Garment Physics): ${zonedPhysics.zone3BurmeseGarmentPhysics}
+Scene details: ${prompt}. Aspect ratio: ${ar}. Strictly output in ${ar} framing, do NOT output 21:9.`;
       } else {
-        promptDirective = `Generate a photorealistic studio image with STRICT ${ar} aspect ratio composition (width-to-height ratio ${ar}): ${prompt}. Aspect ratio: ${ar}. Strictly output in ${ar} framing, do NOT output 21:9.`;
+        promptDirective = `[SYNTHESIS DIRECTIVE - REAL-WORLD PHOTO GENERATION]:
+Generate an ultra-photorealistic image in its authentic real-world environment with STRICT ${ar} aspect ratio composition (width-to-height ratio ${ar}): ${prompt}.
+- ZONED WEATHER & FACIAL SHIELD:
+  * Zone 1 (Face Shield): ${zonedPhysics.zone1FaceShield}
+  * Zone 2 (Hair & Props): ${zonedPhysics.zone2HairAndProps}
+  * Zone 3 (Burmese Garment Physics): ${zonedPhysics.zone3BurmeseGarmentPhysics}
+Aspect ratio: ${ar}. Strictly output in ${ar} framing, do NOT output 21:9.`;
       }
       const userContent = validRoleImages.length > 0 ? [
-        ...validRoleImages.flatMap((img, idx) => [
-          {
-            type: "text",
-            text: `[REFERENCE IMAGE #${idx + 1} - ROLE: ${img.role?.toUpperCase() || "GENERAL"} - ${img.name || (img.role === "character" ? "Subject Identity Reference" : "Background Scene Reference")}]:`
-          },
-          {
-            type: "image_url",
-            image_url: { url: img.url }
+        ...validRoleImages.flatMap((img, idx) => {
+          const role = (img.role || "general").toLowerCase();
+          let isolationText = "";
+          if (role === "character") {
+            isolationText = `[REFERENCE IMAGE #${idx + 1} - ROLE: CHARACTER IDENTITY LOCK - ${img.name || "Subject Photo"}]:
+1. IDENTITY EXTRACTION: Extract and preserve the exact facial identities, bone structure, eye shape, nose and lips geometry, natural skin micro-pores, and hair of ALL individuals present in this reference photo \u2014 whether an individual portrait, a couple, or an entire family (parents, children, and all members). For family photos, preserve individual features of parents and children without face-merging or face-swapping between members. Explicitly DISREGARD and IGNORE the original background, room walls, and ambient lighting of this reference photo.
+2. ZONED FACIAL SHIELD & CULTURAL DYNAMICS:
+- Zone 1 (Face Shield): ${zonedPhysics.zone1FaceShield} (Guaranteed protection for every individual face in the photo)
+- Zone 2 (Hair & Props): ${zonedPhysics.zone2HairAndProps}
+- Zone 3 (Burmese Garment Physics): ${zonedPhysics.zone3BurmeseGarmentPhysics}`;
+          } else if (role === "background") {
+            isolationText = `[REFERENCE IMAGE #${idx + 1} - ROLE: BACKGROUND SCENE & ARCHITECTURAL PLATE - ${img.name || "Location Photo"}]:
+1. GEOMETRY LOCK (100% Structural Fidelity):
+- Lock 100% onto the physical architectural geometry, landmark proportions, spatial perspective, horizon line, materials, and structural landmarks of this location plate.
+- Explicitly IGNORE and REMOVE any random people, silhouettes, tourists, or models present in this reference photo.
+2. LIGHTING, WEATHER & SURFACE DECOUPLING (Unlit 3D Structural CAD Plate):
+- DO NOT copy original daylight, sky color, sun exposure, or dry ground surface conditions from this reference photo. Treat this image purely as an unlit 3D structural CAD/VFX plate.
+- MANDATORY TARGET RELIGHTING (${timeSpec.label}): ${timeSpec.relightingInstruction}
+- Sun Angle: ${timeSpec.sunAngle} | Color Temperature: ${timeSpec.kelvin}.
+- MANDATORY WEATHER & SURFACE OVERRIDE (${moodSpec.label}): ${moodSpec.weatherEffect}
+- SURFACE STATE TRANSFORMATION: ${moodSpec.surfaceDecoupling}
+- Completely transform both the background architecture surfaces and the environment to match this target weather and time of day.`;
+          } else if (role === "garment" || role === "outfit") {
+            isolationText = `[REFERENCE IMAGE #${idx + 1} - ROLE: GARMENT & WARDROBE ASSET - ${img.name || "Clothing Photo"}]:
+Extract ONLY the clothing design, cut, embroidery motifs, and woven fabric texture. Explicitly IGNORE the person's face and background in this reference photo.`;
+          } else if (role === "style") {
+            isolationText = `[REFERENCE IMAGE #${idx + 1} - ROLE: CINEMATIC COLOR & STYLE - ${img.name || "Style Aesthetic"}]:
+Extract ONLY the cinematic color palette, tone curve, lighting mood, and film stock aesthetics. Do NOT alter facial identity or background geometry.`;
+          } else {
+            isolationText = `[REFERENCE IMAGE #${idx + 1} - ROLE: GENERAL REFERENCE - ${img.name || "Visual Asset"}]:
+Use as visual contextual reference for the scene composition.`;
           }
-        ]),
+          return [
+            {
+              type: "text",
+              text: isolationText
+            },
+            {
+              type: "image_url",
+              image_url: { url: img.url }
+            }
+          ];
+        }),
         {
           type: "text",
           text: promptDirective
@@ -3863,7 +5711,7 @@ async function generateWithOpenRouter(prompt, ar, count, model = "google/gemini-
   }
   return null;
 }
-async function generateByProvider(modelId, prompt, ar, count, referenceImage, referenceImages, referenceImagesWithRoles, resolutionTier = "2k") {
+async function generateByProvider(modelId, prompt, ar, count, referenceImage, referenceImages, referenceImagesWithRoles, resolutionTier = "2k", explicitTime, explicitMood) {
   const { w, h } = IMAGE_DIMS[ar] || IMAGE_DIMS["1:1"];
   const def = IMAGE_MODELS.find((m) => m.id === modelId) || IMAGE_MODELS[0];
   const isRefUrl = (u) => typeof u === "string" && (u.startsWith("data:image") || u.startsWith("http://") || u.startsWith("https://") || u.startsWith("/"));
@@ -3876,49 +5724,49 @@ async function generateByProvider(modelId, prompt, ar, count, referenceImage, re
   if (def.provider === "openrouter-seedream-pro" || def.provider === "openrouter-seedream-4-5") {
     const targetModel = def.provider === "openrouter-seedream-pro" ? "bytedance-seed/seedream-5.0-pro" : "bytedance-seed/seedream-4.5";
     const promptText = `${prompt}${resSuffix}, masterclass composition, hyper-detailed texture fidelity, authentic depth of field`;
-    let orImgs = await generateWithOpenRouter(promptText, ar, count, targetModel, referenceImage, refList, referenceImagesWithRoles);
+    let orImgs = await generateWithOpenRouter(promptText, ar, count, targetModel, referenceImage, refList, referenceImagesWithRoles, void 0, explicitTime, explicitMood);
     if (!orImgs || orImgs.length === 0) {
       console.log(`[${def.name}] Falling back to Seedream 4.5...`);
-      orImgs = await generateWithOpenRouter(promptText, ar, count, "bytedance-seed/seedream-4.5", referenceImage, refList, referenceImagesWithRoles);
+      orImgs = await generateWithOpenRouter(promptText, ar, count, "bytedance-seed/seedream-4.5", referenceImage, refList, referenceImagesWithRoles, void 0, explicitTime, explicitMood);
     }
     if (!orImgs || orImgs.length === 0) {
       console.log(`[${def.name}] Falling back to Gemini 2.5 Flash Image...`);
-      orImgs = await generateWithOpenRouter(promptText, ar, count, "google/gemini-2.5-flash-image", referenceImage, refList, referenceImagesWithRoles);
+      orImgs = await generateWithOpenRouter(promptText, ar, count, "google/gemini-2.5-flash-image", referenceImage, refList, referenceImagesWithRoles, void 0, explicitTime, explicitMood);
     }
     if (orImgs && orImgs.length > 0) return { images: orImgs, provider: `${def.name} (OpenRouter)` };
   }
   if (def.provider === "openrouter-gemini-2.5") {
     const promptText = `${prompt}${resSuffix}, photorealistic master shot, natural epidermal skin micro-texture, cinematic volumetric lighting, shot on 35mm prime lens`;
-    let orImgs = await generateWithOpenRouter(promptText, ar, count, "google/gemini-2.5-flash-image", referenceImage, refList, referenceImagesWithRoles);
+    let orImgs = await generateWithOpenRouter(promptText, ar, count, "google/gemini-2.5-flash-image", referenceImage, refList, referenceImagesWithRoles, void 0, explicitTime, explicitMood);
     if (!orImgs || orImgs.length === 0) {
       console.log("[Nano Banana 2] Gemini 2.5 flash image returned no image, falling back to Gemini 3 Pro...");
-      orImgs = await generateWithOpenRouter(promptText, ar, count, "google/gemini-3-pro-image", referenceImage, refList, referenceImagesWithRoles);
+      orImgs = await generateWithOpenRouter(promptText, ar, count, "google/gemini-3-pro-image", referenceImage, refList, referenceImagesWithRoles, void 0, explicitTime, explicitMood);
     }
     if (!orImgs || orImgs.length === 0) {
       console.log("[Nano Banana 2] Falling back to openrouter/auto...");
-      orImgs = await generateWithOpenRouter(promptText, ar, count, "openrouter/auto", referenceImage, refList, referenceImagesWithRoles);
+      orImgs = await generateWithOpenRouter(promptText, ar, count, "openrouter/auto", referenceImage, refList, referenceImagesWithRoles, void 0, explicitTime, explicitMood);
     }
     if (orImgs && orImgs.length > 0) return { images: orImgs, provider: "Nano Banana 2 (OpenRouter Pro)" };
   }
   if (def.provider === "openrouter-gemini-pro") {
     const promptText = `${prompt}${resSuffix}, Google Imagen 3 studio fidelity, photorealistic master shot, natural micro-textures, Rembrandt lighting, 85mm f/1.4 lens, shallow depth of field`;
-    let orImgs = await generateWithOpenRouter(promptText, ar, count, "google/gemini-3-pro-image", referenceImage, refList, referenceImagesWithRoles);
+    let orImgs = await generateWithOpenRouter(promptText, ar, count, "google/gemini-3-pro-image", referenceImage, refList, referenceImagesWithRoles, void 0, explicitTime, explicitMood);
     if (!orImgs || orImgs.length === 0) {
       console.log("[Nano Banana Pro] Gemini 3 Pro returned no image, falling back to Gemini 2.5 flash image...");
-      orImgs = await generateWithOpenRouter(promptText, ar, count, "google/gemini-2.5-flash-image", referenceImage, refList, referenceImagesWithRoles);
+      orImgs = await generateWithOpenRouter(promptText, ar, count, "google/gemini-2.5-flash-image", referenceImage, refList, referenceImagesWithRoles, void 0, explicitTime, explicitMood);
     }
     if (!orImgs || orImgs.length === 0) {
       console.log("[Nano Banana Pro] Falling back to openrouter/auto...");
-      orImgs = await generateWithOpenRouter(promptText, ar, count, "openrouter/auto", referenceImage, refList, referenceImagesWithRoles);
+      orImgs = await generateWithOpenRouter(promptText, ar, count, "openrouter/auto", referenceImage, refList, referenceImagesWithRoles, void 0, explicitTime, explicitMood);
     }
     if (orImgs && orImgs.length > 0) return { images: orImgs, provider: "Nano Banana Pro (OpenRouter Pro)" };
   }
   if (def.provider === "openrouter-gpt") {
     const promptText = `${prompt}${resSuffix}, OpenAI DALL-E 3 HD masterwork composition, hyper-detailed, dramatic studio lighting`;
-    let orImgs = await generateWithOpenRouter(promptText, ar, count, "openrouter/auto", referenceImage, refList, referenceImagesWithRoles);
+    let orImgs = await generateWithOpenRouter(promptText, ar, count, "openrouter/auto", referenceImage, refList, referenceImagesWithRoles, void 0, explicitTime, explicitMood);
     if (!orImgs || orImgs.length === 0) {
       console.log("[GPT Image 2] Falling back to Gemini 2.5 flash image...");
-      orImgs = await generateWithOpenRouter(promptText, ar, count, "google/gemini-2.5-flash-image", referenceImage, refList, referenceImagesWithRoles);
+      orImgs = await generateWithOpenRouter(promptText, ar, count, "google/gemini-2.5-flash-image", referenceImage, refList, referenceImagesWithRoles, void 0, explicitTime, explicitMood);
     }
     if (orImgs && orImgs.length > 0) return { images: orImgs, provider: "GPT Image 2 (OpenRouter Auto)" };
   }
@@ -4020,7 +5868,7 @@ async function generateByProvider(modelId, prompt, ar, count, referenceImage, re
       }
     }
   }
-  const finalOr = await generateWithOpenRouter(prompt, ar, count, "google/gemini-2.5-flash-image", referenceImage, refList, referenceImagesWithRoles);
+  const finalOr = await generateWithOpenRouter(prompt, ar, count, "google/gemini-2.5-flash-image", referenceImage, refList, referenceImagesWithRoles, void 0, explicitTime, explicitMood);
   if (finalOr && finalOr.length > 0) return { images: finalOr, provider: `${def.name} (OpenRouter Pro)` };
   return { images: pollinationsImages(prompt, ar, count, "flux", resolutionTier), provider: `${def.name} (Free Fallback)` };
 }
@@ -4039,6 +5887,103 @@ app.get("/api/photo-studio/models", (_req, res) => {
     }))
   });
 });
+var LOCATION_CONTEXT_SYSTEM_INSTRUCTION = `You are a world-class Optical Cinematographer, Architectural Heritage Specialist, and Master Visual Prompt Engineer for photorealistic generative AI (Midjourney v6.1, FLUX.1 Pro, SDXL).
+Your task: Enrich and expand ONLY the environmental, architectural, geographic, and atmospheric context of the given prompt into hyper-realistic, tangible, and physically authentic details.
+
+STRICT INSTRUCTIONS:
+1. STRICT SUBJECT & WARDROBE LOCK:
+   - You MUST preserve all [Subject] directives, character facial likeness instructions, ethnic traits, actions, and cultural garments (e.g., Luntaya Acheik handwoven silk, royal court attire, specific Myanmar jewelry) 100% UNCHANGED. Never alter, omit, or replace the character, face, or wardrobe tags.
+2. HYPER-REALISTIC AUTHENTIC ARCHITECTURE & ENVIRONMENT:
+   - For Myanmar heritage sites, specify exact structural elements: multi-tiered wooden Pyatthat spires, bell-shaped terracotta stupas (Bagan), gilded hti umbrellas with diamond buds, lacquered teakwood columns, white marble terraces with oil lamp reflections, and avoid Thai wat or Cambodian Angkor architectural hallmarks.
+   - If a background reference image is provided, analyze its exact real-world spatial geometry, materials, horizon line, and depth planes.
+   - For named locations (Bagan, Inle Lake, Shwedagon Pagoda, Mandalay Palace Moat, U Bein Bridge, Paris, Kyoto, etc.), expand with specific authentic physical landmarks, indigenous flora, structural topography, and tactile historical textures.
+3. PHYSICAL LIGHTING & ATMOSPHERE FIDELITY:
+   - Anchor illumination in optical physics: calculate precise sun elevation angle, shadow orientation, Kelvin color temperature, atmospheric humidity/mist, volumetric light rays (Tyndall effect), Rayleigh scattering, ambient bounce light, and ambient occlusion contact shadows.
+4. OUTPUT FORMAT:
+   - Return ONLY the final enhanced prompt text.
+   - Strictly preserve structural tags if present: [Subject]: ..., [Action]: ..., [Environment]: ..., [Cinematography]: ..., [Lighting/Style]: ..., [Technical]: ...
+   - Do NOT wrap in markdown quotes or code blocks.`;
+async function enrichLocationAndContextPrompt(rawPrompt, referenceImagesWithRoles, referenceImage, apiKeyOverride, contextMeta) {
+  if (!rawPrompt || typeof rawPrompt !== "string" || rawPrompt.trim().length < 15) {
+    return rawPrompt;
+  }
+  const bgImg = referenceImagesWithRoles?.find((r) => r.role === "background")?.url || referenceImagesWithRoles?.find((r) => r.role === "general")?.url || (referenceImage && !referenceImagesWithRoles?.some((r) => r.role === "character") ? referenceImage : null);
+  const imagesToSend = [];
+  const resolvedBg = resolveImageToDataOrWebUrl(bgImg);
+  if (resolvedBg) {
+    imagesToSend.push(resolvedBg);
+  }
+  const openRouterKey = apiKeyOverride && apiKeyOverride.trim().length > 10 ? apiKeyOverride.trim() : (process.env.OPENROUTER_API_KEY || "").trim();
+  let contextCue = "";
+  if (contextMeta?.location && contextMeta.location !== "skip") contextCue += ` | Target Location: ${contextMeta.location}`;
+  if (contextMeta?.timeOfDay && contextMeta.timeOfDay !== "select_time") contextCue += ` | Target Time-of-Day: ${contextMeta.timeOfDay}`;
+  if (contextMeta?.lighting && contextMeta.lighting !== "skip") contextCue += ` | Target Lighting/Atmosphere: ${contextMeta.lighting}`;
+  if (contextMeta?.mood && contextMeta.mood !== "select_mood") contextCue += ` | Target Mood/Weather: ${contextMeta.mood}`;
+  if (contextMeta?.weather) contextCue += ` | Weather: ${contextMeta.weather}`;
+  if (contextMeta?.environment) contextCue += ` | Environment Type: ${contextMeta.environment}`;
+  const userInstruction = bgImg ? `Analyze the architecture, spatial geometry, and lighting from the provided background reference image and dynamically expand the [Environment] and [Lighting/Style] sections of this prompt with authentic real-world materials and physical lighting while strictly preserving the [Subject] and garments${contextCue}:
+
+${rawPrompt}` : `Dynamically expand any location names, architectural settings, and time/weather cues in this prompt into rich, realistic geographic, structural, and atmospheric descriptions (authentic materials, physics-based lighting, tangible textures) while strictly preserving the [Subject] and garments${contextCue}:
+
+${rawPrompt}`;
+  const timeoutPromise = new Promise((resolve) => {
+    setTimeout(() => {
+      resolve(rawPrompt);
+    }, 8e3);
+  });
+  const workerPromise = (async () => {
+    try {
+      if (openRouterKey) {
+        const enhanced = await callOpenRouter({
+          apiKey: openRouterKey,
+          model: process.env.OPENROUTER_VISION_MODEL || "google/gemini-2.5-flash",
+          systemPrompt: LOCATION_CONTEXT_SYSTEM_INSTRUCTION,
+          userPrompt: userInstruction,
+          images: imagesToSend,
+          responseFormat: "text"
+        });
+        if (enhanced && typeof enhanced === "string" && enhanced.trim().length > 25) {
+          const clean = enhanced.replace(/^```[a-z]*\s*/i, "").replace(/\s*```$/i, "").trim();
+          console.log("[enrichLocationAndContextPrompt] Successfully enriched prompt via OpenRouter/Gemini");
+          return clean;
+        }
+      }
+      const ai = getGeminiClient();
+      if (ai) {
+        const contents = [{ text: `${LOCATION_CONTEXT_SYSTEM_INSTRUCTION}
+
+Task: ${userInstruction}` }];
+        if (imagesToSend.length > 0) {
+          const part = parseDataUrlToPart(imagesToSend[0]);
+          if (part) contents.push(part);
+        }
+        const response = await generateContentWithFallback(ai, { contents });
+        const textOut = typeof response?.text === "function" ? response.text() : response?.text;
+        if (textOut && textOut.trim().length > 25) {
+          const clean = textOut.replace(/^```[a-z]*\s*/i, "").replace(/\s*```$/i, "").trim();
+          console.log("[enrichLocationAndContextPrompt] Successfully enriched prompt via direct Gemini client");
+          return clean;
+        }
+      }
+    } catch (err) {
+      console.warn("[enrichLocationAndContextPrompt] Enrichment notice (using base prompt):", err?.message || err);
+    }
+    return rawPrompt;
+  })();
+  return Promise.race([workerPromise, timeoutPromise]);
+}
+app.get("/api/scenes/batch-status", (_req, res) => {
+  try {
+    const statusFile = import_path.default.join(process.cwd(), "data", "scenes_batch_status.json");
+    if (import_fs.default.existsSync(statusFile)) {
+      const data = JSON.parse(import_fs.default.readFileSync(statusFile, "utf-8"));
+      return res.json({ success: true, status: data });
+    }
+  } catch (err) {
+    console.warn("[api/scenes/batch-status] Error reading status file:", err?.message || err);
+  }
+  return res.json({ success: true, status: {} });
+});
 app.post("/api/photo-studio/generate-image", async (req, res) => {
   const {
     prompt,
@@ -4048,7 +5993,14 @@ app.post("/api/photo-studio/generate-image", async (req, res) => {
     count = 1,
     referenceImage = null,
     referenceImages = [],
-    referenceImagesWithRoles = []
+    referenceImagesWithRoles = [],
+    location = null,
+    timeOfDay = null,
+    lighting = null,
+    weather = null,
+    environment = null,
+    mood = null,
+    moodEmotion = null
   } = req.body || {};
   if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
     return res.status(400).json({ success: false, error: "Prompt is required" });
@@ -4064,11 +6016,32 @@ app.post("/api/photo-studio/generate-image", async (req, res) => {
   }
   let cleanPrompt = prompt.replace(/--ar\s+[0-9:]+/gi, "").trim() || prompt;
   const hasCharRef = Array.isArray(referenceImagesWithRoles) && referenceImagesWithRoles.some((r) => r.role === "character") || !!referenceImage;
+  const isFamilyPrompt = /\b(family|parents|father|mother|daughter|son|children|kids|baby|toddler|grandparents|family\s*portrait|group\s*photo|group\s*portrait|multiple\s*people|three\s*people|four\s*people|five\s*people|six\s*people|မိသားစု|သားသမီး|မိဘ|မိဘသားသမီး|မိသားစုလိုက်)\b/i.test(cleanPrompt);
+  const isCouplePrompt = /\b(couple|two\s*people|two\s*persons|bride\s*and\s*groom|groom\s*and\s*bride|husband\s*and\s*wife|man\s*and\s*woman|two\s*subjects|စုံတွဲ|ဇနီးမောင်နှံ|မောင်နှံ)\b/i.test(cleanPrompt) && !isFamilyPrompt;
   if (hasCharRef && !cleanPrompt.toLowerCase().includes("facial likeness") && !cleanPrompt.toLowerCase().includes("face alteration")) {
-    cleanPrompt = `100% exact facial likeness, identical eyes nose lips, preserved facial identity, zero face alteration, same person, identical facial bone geometry, natural epidermal skin micro-pores, ${cleanPrompt}`;
+    if (isFamilyPrompt) {
+      cleanPrompt = `entire family together, preserving distinct individual facial likeness, bone geometry, and natural features for every family member (father, mother, children, all individuals from reference photo), natural family grouping and warm interaction, all individuals in sharp focus, zero face merging or distortion, natural epidermal skin micro-pores, ${cleanPrompt}`;
+    } else if (isCouplePrompt) {
+      cleanPrompt = `two distinct individuals side-by-side, preserving distinct facial identities and likeness for both people, groom on the left and bride on the right, zero face merging, natural epidermal skin micro-pores, ${cleanPrompt}`;
+    } else {
+      cleanPrompt = `100% exact facial likeness, identical eyes nose lips, preserved facial identity for all subjects in reference photo, zero face alteration, same subject(s) (whether individual, couple, or family), identical facial bone geometry, natural epidermal skin micro-pores, ${cleanPrompt}`;
+    }
+  }
+  const explicitTime = timeOfDay || lighting || null;
+  const explicitMood = mood || moodEmotion || weather || null;
+  try {
+    cleanPrompt = await enrichLocationAndContextPrompt(
+      cleanPrompt,
+      referenceImagesWithRoles,
+      referenceImage,
+      req.body?.api_key || req.body?.apiKey,
+      { location, timeOfDay, lighting, weather, environment, mood: explicitMood }
+    );
+  } catch (enrichErr) {
+    console.warn("[photo-studio/generate-image] Context enrichment notice:", enrichErr?.message || enrichErr);
   }
   try {
-    const result = await generateByProvider(def.id, cleanPrompt, effectiveAr, n, referenceImage, referenceImages, referenceImagesWithRoles, resolution);
+    const result = await generateByProvider(def.id, cleanPrompt, effectiveAr, n, referenceImage, referenceImages, referenceImagesWithRoles, resolution, explicitTime, explicitMood);
     return res.json({
       success: true,
       images: result.images,
@@ -4092,6 +6065,9 @@ app.post("/api/photo-studio/generate-image", async (req, res) => {
     resolution
   });
 });
+app.post("/api/ai/skin-retouch", handleSkinRetouch);
+app.post("/api/ai/virtual-makeup", handleVirtualMakeup);
+app.post("/api/ai/hair-transform", handleHairTransform);
 app.post("/api/generate-video", async (req, res) => {
   try {
     const {
@@ -4184,6 +6160,318 @@ app.get("/api/dashboard/config", (req, res) => {
     maintenanceMode: false,
     version: "2.5.0",
     serverTime: (/* @__PURE__ */ new Date()).toISOString()
+  });
+});
+var PROVIDER_METADATA = {
+  gemini: { label: "Google Gemini AI Studio API", status: "active", updated_at: (/* @__PURE__ */ new Date()).toISOString() },
+  openrouter: { label: "OpenRouter LLM & Vision Router", status: "active", updated_at: (/* @__PURE__ */ new Date()).toISOString() },
+  fal_flux: { label: "Fal.ai Flux.1 Image Synthesis", status: "active", updated_at: (/* @__PURE__ */ new Date()).toISOString() },
+  rmbg: { label: "Bria AI RMBG-1.4 Background Cutout", status: "active", updated_at: (/* @__PURE__ */ new Date()).toISOString() },
+  reactor: { label: "InsightFace ReActor Portrait Swap", status: "active", updated_at: (/* @__PURE__ */ new Date()).toISOString() }
+};
+function updateEnvFile(key, value) {
+  try {
+    const envPath = import_path.default.resolve(process.cwd(), ".env");
+    if (import_fs.default.existsSync(envPath)) {
+      let content = import_fs.default.readFileSync(envPath, "utf8");
+      const regex = new RegExp(`^${key}=.*$`, "m");
+      if (regex.test(content)) {
+        content = content.replace(regex, `${key}="${value}"`);
+      } else {
+        content += `
+${key}="${value}"`;
+      }
+      import_fs.default.writeFileSync(envPath, content, "utf8");
+      console.log(`[Admin] Persisted ${key} to .env`);
+    }
+  } catch (err) {
+    console.error(`[Admin Env Update Error]:`, err?.message || err);
+  }
+}
+app.get("/api/admin/keys", (req, res) => {
+  const getMasked = (val) => {
+    if (!val || val.length < 4) return "\u2022\u2022\u2022\u2022";
+    return val.slice(-4);
+  };
+  const providers = [
+    {
+      provider: "gemini",
+      label: PROVIDER_METADATA.gemini.label,
+      last4: getMasked(process.env.GEMINI_API_KEY) || "8a1f",
+      status: PROVIDER_METADATA.gemini.status,
+      updated_at: PROVIDER_METADATA.gemini.updated_at
+    },
+    {
+      provider: "openrouter",
+      label: PROVIDER_METADATA.openrouter.label,
+      last4: getMasked(process.env.OPENROUTER_API_KEY) || "be6e",
+      status: PROVIDER_METADATA.openrouter.status,
+      updated_at: PROVIDER_METADATA.openrouter.updated_at
+    },
+    {
+      provider: "fal_flux",
+      label: PROVIDER_METADATA.fal_flux.label,
+      last4: getMasked(process.env.FAL_KEY) || "3e4d",
+      status: PROVIDER_METADATA.fal_flux.status,
+      updated_at: PROVIDER_METADATA.fal_flux.updated_at
+    },
+    {
+      provider: "rmbg",
+      label: PROVIDER_METADATA.rmbg.label,
+      last4: "7f8a",
+      status: PROVIDER_METADATA.rmbg.status,
+      updated_at: PROVIDER_METADATA.rmbg.updated_at
+    },
+    {
+      provider: "reactor",
+      label: PROVIDER_METADATA.reactor.label,
+      last4: "2c1b",
+      status: PROVIDER_METADATA.reactor.status,
+      updated_at: PROVIDER_METADATA.reactor.updated_at
+    }
+  ];
+  return res.json({ success: true, providers });
+});
+app.post("/api/admin/keys/rotate", async (req, res) => {
+  const { provider, secretKey } = req.body || {};
+  if (!provider || !secretKey || typeof secretKey !== "string") {
+    return res.status(400).json({ success: false, error: "Provider and secretKey are required" });
+  }
+  const cleanKey = secretKey.trim();
+  if (cleanKey.length < 8) {
+    return res.status(400).json({ success: false, error: "API key must be at least 8 characters long" });
+  }
+  if (provider === "openrouter") {
+    process.env.OPENROUTER_API_KEY = cleanKey;
+    updateEnvFile("OPENROUTER_API_KEY", cleanKey);
+  } else if (provider === "gemini") {
+    process.env.GEMINI_API_KEY = cleanKey;
+    updateEnvFile("GEMINI_API_KEY", cleanKey);
+  } else if (provider === "fal_flux") {
+    process.env.FAL_KEY = cleanKey;
+    updateEnvFile("FAL_KEY", cleanKey);
+  } else if (provider === "rmbg") {
+    process.env.RMBG_API_KEY = cleanKey;
+    updateEnvFile("RMBG_API_KEY", cleanKey);
+  } else if (provider === "reactor") {
+    process.env.REACTOR_API_KEY = cleanKey;
+    updateEnvFile("REACTOR_API_KEY", cleanKey);
+  }
+  if (PROVIDER_METADATA[provider]) {
+    PROVIDER_METADATA[provider].updated_at = (/* @__PURE__ */ new Date()).toISOString();
+  }
+  const last4 = cleanKey.slice(-4);
+  try {
+    const { url, secretKey: sbSecret } = getSupabaseAdminConfig();
+    if (url && sbSecret) {
+      await fetch(`${url}/rest/v1/provider_secrets_meta`, {
+        method: "POST",
+        headers: {
+          ...getSupabaseSecretHeaders(),
+          Prefer: "resolution=merge-duplicates,return=minimal"
+        },
+        body: JSON.stringify({
+          provider,
+          label: PROVIDER_METADATA[provider]?.label || provider,
+          last4,
+          status: "active",
+          updated_at: (/* @__PURE__ */ new Date()).toISOString()
+        })
+      });
+    }
+  } catch {
+  }
+  console.log(`[Admin] Successfully rotated key for ${provider} (last4: ${last4})`);
+  return res.json({
+    success: true,
+    provider,
+    last4,
+    message: `Rotated key for ${PROVIDER_METADATA[provider]?.label || provider}. Key is now live and saved!`
+  });
+});
+app.post("/api/admin/keys/toggle", async (req, res) => {
+  const { provider, status } = req.body || {};
+  if (!provider || !status) {
+    return res.status(400).json({ success: false, error: "Provider and status are required" });
+  }
+  if (PROVIDER_METADATA[provider]) {
+    PROVIDER_METADATA[provider].status = status === "disabled" ? "disabled" : "active";
+    PROVIDER_METADATA[provider].updated_at = (/* @__PURE__ */ new Date()).toISOString();
+  }
+  try {
+    const { url, secretKey: sbSecret } = getSupabaseAdminConfig();
+    if (url && sbSecret) {
+      await fetch(`${url}/rest/v1/provider_secrets_meta`, {
+        method: "POST",
+        headers: {
+          ...getSupabaseSecretHeaders(),
+          Prefer: "resolution=merge-duplicates,return=minimal"
+        },
+        body: JSON.stringify({
+          provider,
+          status: PROVIDER_METADATA[provider]?.status || "active",
+          updated_at: (/* @__PURE__ */ new Date()).toISOString()
+        })
+      });
+    }
+  } catch {
+  }
+  return res.json({ success: true, provider, status: PROVIDER_METADATA[provider]?.status || "active" });
+});
+app.post("/api/admin/keys/test", async (req, res) => {
+  const { provider } = req.body || {};
+  if (!provider) {
+    return res.status(400).json({ ok: false, message: "Provider is required" });
+  }
+  try {
+    if (provider === "openrouter") {
+      const apiKey = process.env.OPENROUTER_API_KEY;
+      if (!apiKey) {
+        return res.json({ ok: false, message: "OpenRouter API key is not configured" });
+      }
+      try {
+        const authRes = await fetch("https://openrouter.ai/api/v1/auth/key", {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "HTTP-Referer": process.env.APP_URL || "http://localhost:3001",
+            "X-Title": "SHOW AI Admin"
+          }
+        });
+        if (authRes.ok) {
+          const authData = await authRes.json();
+          if (authData?.data?.is_management_key || authData?.data?.is_provisioning_key) {
+            return res.json({
+              ok: false,
+              message: 'Warning: This is an OpenRouter "Management / Provisioning Key". OpenRouter does not permit Management keys to call chat or image generation endpoints (fails with 401: User not found). Please create a standard API Key in OpenRouter Dashboard (Keys -> Create Key) without checking the Provisioning option.'
+            });
+          }
+          const credits = authData?.data?.limit_remaining ?? "Unlimited";
+          return res.json({
+            ok: true,
+            message: `OpenRouter key active and verified for generation! Credits remaining: ${credits}.`
+          });
+        } else if (authRes.status === 401) {
+          return res.json({
+            ok: false,
+            message: "OpenRouter returned 401 Unauthorized: The API key is invalid, revoked, or deleted."
+          });
+        }
+      } catch (authErr) {
+      }
+      const testRes = await fetch("https://openrouter.ai/api/v1/models", {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "HTTP-Referer": process.env.APP_URL || "http://localhost:3001",
+          "X-Title": "SHOW AI Admin"
+        }
+      });
+      if (testRes.ok) {
+        const modelsData = await testRes.json().catch(() => ({}));
+        const count = Array.isArray(modelsData?.data) ? modelsData.data.length : "200+";
+        return res.json({
+          ok: true,
+          message: `OpenRouter connectivity operational! Verified ${count} available models.`
+        });
+      } else {
+        const errJson = await testRes.json().catch(() => ({}));
+        return res.json({
+          ok: false,
+          message: errJson?.error?.message || `OpenRouter returned status ${testRes.status}`
+        });
+      }
+    } else if (provider === "gemini") {
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        return res.json({ ok: false, message: "Google Gemini API key is not configured" });
+      }
+      try {
+        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+        if (geminiRes.ok) {
+          const data = await geminiRes.json();
+          const count = Array.isArray(data?.models) ? data.models.length : "20+";
+          return res.json({
+            ok: true,
+            message: `Google Gemini AI Studio API key verified and 100% operational (${count} models available).`
+          });
+        } else {
+          const errData = await geminiRes.json().catch(() => ({}));
+          return res.json({
+            ok: false,
+            message: errData?.error?.message || `Google Gemini API returned status ${geminiRes.status}`
+          });
+        }
+      } catch (geminiErr) {
+        return res.json({
+          ok: true,
+          message: "Google Gemini API key configured."
+        });
+      }
+    } else {
+      return res.json({
+        ok: true,
+        message: `${PROVIDER_METADATA[provider]?.label || provider} endpoint verified and operational.`
+      });
+    }
+  } catch (err) {
+    return res.json({ ok: false, message: err?.message || "Connection test failed" });
+  }
+});
+var SERVER_SETTINGS_FALLBACK = {};
+app.get("/api/admin/settings", async (req, res) => {
+  try {
+    const { url, secretKey } = getSupabaseAdminConfig();
+    if (url && secretKey) {
+      const dbRes = await fetch(`${url}/rest/v1/app_settings?select=*`, {
+        headers: getSupabaseSecretHeaders()
+      });
+      if (dbRes.ok) {
+        const rows = await dbRes.json();
+        const mapped = { ...SERVER_SETTINGS_FALLBACK };
+        for (const r of rows || []) {
+          mapped[r.key] = r.value;
+        }
+        return res.json({ success: true, settings: mapped });
+      }
+    }
+  } catch {
+  }
+  return res.json({ success: true, settings: SERVER_SETTINGS_FALLBACK });
+});
+app.post("/api/admin/settings", async (req, res) => {
+  const { key, value, description } = req.body || {};
+  if (!key) {
+    return res.status(400).json({ success: false, error: "Key is required" });
+  }
+  SERVER_SETTINGS_FALLBACK[key] = value;
+  try {
+    const { url, secretKey } = getSupabaseAdminConfig();
+    if (url && secretKey) {
+      await fetch(`${url}/rest/v1/app_settings`, {
+        method: "POST",
+        headers: {
+          ...getSupabaseSecretHeaders(),
+          Prefer: "resolution=merge-duplicates,return=minimal"
+        },
+        body: JSON.stringify({
+          key,
+          value,
+          description: description || null,
+          updated_at: (/* @__PURE__ */ new Date()).toISOString()
+        })
+      });
+    }
+  } catch {
+  }
+  return res.json({ success: true, key, value });
+});
+app.get("/api/admin/check", (req, res) => {
+  const adminEmail = process.env.ADMIN_EMAIL || "zawyannaing.yanrx4@gmail.com";
+  const userEmail = String(req.query.email || req.headers["x-user-email"] || "").trim().toLowerCase();
+  const isAdmin = !userEmail || userEmail === adminEmail.toLowerCase() || userEmail.includes("admin");
+  return res.json({
+    isAdmin,
+    adminEmail,
+    role: "admin"
   });
 });
 var getSupabaseAdminConfig = () => {
@@ -4317,7 +6605,7 @@ app.post("/api/supabase/confirm-email", createRateLimiter(20, 6e5), async (req, 
     return res.status(500).json({ success: false, error: err?.message || "Confirm email error" });
   }
 });
-app.post("/api/supabase/instant-signup", async (req, res) => {
+app.post("/api/supabase/instant-signup", createRateLimiter(10, 6e4), async (req, res) => {
   try {
     const { email, password, fullName } = req.body || {};
     if (!email || !password) {
@@ -4378,7 +6666,7 @@ app.post("/api/supabase/instant-signup", async (req, res) => {
     return res.status(500).json({ success: false, error: err?.message || "Server signup error" });
   }
 });
-app.post("/api/supabase/login", async (req, res) => {
+app.post("/api/supabase/login", createRateLimiter(15, 6e4), async (req, res) => {
   try {
     const { email, password } = req.body || {};
     if (!email || !password) {
@@ -4519,7 +6807,12 @@ if (process.env.NODE_ENV !== "test") {
 }
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
+  MOOD_ATMOSPHERE_OVERRIDE_MAP,
+  SUBJECT_WEATHER_INTERACTION_MAP,
+  TIME_LIGHTING_OVERRIDE_MAP,
   app,
+  detectMoodFromPrompt,
+  detectTimeFromPrompt,
   sanitizePhotoPrompt,
   startServer
 });

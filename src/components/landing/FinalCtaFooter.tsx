@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Rocket, Sparkles, Globe, Heart, Shield, Lock, ArrowUp } from 'lucide-react';
 import { Language } from '../../types';
 import { LANDING_COPY } from './landingCopy';
+import { SocialMediaLinks } from './SocialMediaLinks';
 
 interface FinalCtaFooterProps {
   language: Language;
@@ -46,7 +47,7 @@ export const FinalCtaFooter: React.FC<FinalCtaFooterProps> = ({
   return (
     <>
       {/* ================= FINAL CTA SECTION ================= */}
-      <section id="final-cta-section" className="relative py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto overflow-hidden">
+      <section id="final-cta-section" className="relative py-12 sm:py-28 px-3 sm:px-6 lg:px-8 max-w-7xl mx-auto overflow-hidden">
         {/* Deep ambient background glows */}
         <div
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] bg-gradient-to-r from-emerald-500/20 via-cyan-500/15 to-emerald-500/10 rounded-full blur-[150px] pointer-events-none -z-10"
@@ -58,7 +59,7 @@ export const FinalCtaFooter: React.FC<FinalCtaFooterProps> = ({
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-50px' }}
           transition={{ duration: 0.6 }}
-          className="relative rounded-3xl p-8 sm:p-14 lg:p-20 bg-gradient-to-b from-slate-900/90 via-slate-950/90 to-black/95 border border-emerald-500/40 shadow-[0_0_60px_rgba(16,185,129,0.15)] text-center overflow-hidden"
+          className="relative rounded-3xl p-5 sm:p-14 lg:p-20 bg-gradient-to-b from-slate-900/90 via-slate-950/90 to-black/95 border border-emerald-500/40 shadow-[0_0_60px_rgba(16,185,129,0.15)] text-center overflow-hidden"
         >
           {/* Subtle grid pattern overlay */}
           <div
@@ -113,6 +114,11 @@ export const FinalCtaFooter: React.FC<FinalCtaFooterProps> = ({
       {/* ================= FOOTER ================= */}
       <footer className="relative border-t border-slate-800/80 bg-slate-950 text-slate-400 text-sm py-14 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
+          {/* Official Social Media Community Links (Admin Controlled via Settings) */}
+          <div className="mb-12 pb-10 border-b border-slate-800/80">
+            <SocialMediaLinks language={language} variant="footer-cards" />
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-12 gap-8 mb-12">
             {/* Brand + Cultural Statement (7 cols) */}
             <div className="md:col-span-7 space-y-4">

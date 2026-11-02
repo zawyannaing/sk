@@ -8,7 +8,8 @@ import {
   ShieldCheck,
   Gift,
   Coins,
-  Sparkles
+  Sparkles,
+  Compass
 } from 'lucide-react';
 import { motion, useScroll, useTransform } from 'motion/react';
 import { ScrollReveal } from './ScrollReveal';
@@ -17,7 +18,7 @@ import { FloatingLanternsBackground } from './FloatingLanternsBackground';
 
 import { UserProfile } from '../types';
 
-export type MainSectionType = 'video-prompt' | 'photo-prompt' | 'detail-burmese' | 'community';
+export type MainSectionType = 'video-prompt' | 'photo-prompt' | 'detail-burmese' | 'community' | 'scenes-550';
 
 interface MainPortalHubProps {
   onSelectSection: (section: MainSectionType) => void;
@@ -25,6 +26,7 @@ interface MainPortalHubProps {
   currentUser?: UserProfile;
   onOpenProfile?: () => void;
   onOpenLanding?: () => void;
+  onOpenScenes?: () => void;
 }
 
 export interface TypewriterPhrase {
@@ -167,7 +169,8 @@ export const MainPortalHub: React.FC<MainPortalHubProps> = ({
   onOpenSlides,
   currentUser,
   onOpenProfile,
-  onOpenLanding
+  onOpenLanding,
+  onOpenScenes
 }) => {
   const { scrollYProgress } = useScroll();
   const rotateClockwise = useTransform(scrollYProgress, [0, 1], [0, 360]);
@@ -233,107 +236,123 @@ export const MainPortalHub: React.FC<MainPortalHubProps> = ({
         <div className="absolute w-[420px] h-[420px] rounded-full bg-gradient-to-tr from-emerald-500/10 via-cyan-500/5 to-transparent blur-3xl pointer-events-none" />
       </div>
 
-      {/* Top Navbar Header with Restored Logo & Typing Text (SHOW AI STUDIO) */}
-      <header className="relative z-20 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-5 flex items-center justify-between gap-2 sm:gap-4 mb-2 sm:mb-4 overflow-hidden" data-purpose="top-navbar">
-        <div className="inline-flex items-center gap-2 sm:gap-3 group cursor-pointer shrink min-w-0">
+      {/* Top Navbar Header with Clean, Responsive UI/UX (SHOW AI STUDIO) */}
+      <header className="relative z-20 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between gap-2 sm:gap-4 mb-2 sm:mb-4" data-purpose="top-navbar">
+        {/* BRAND LOGO & TITLE: Protected shrink-0, never squished on mobile */}
+        <div 
+          onClick={() => {
+            if (onOpenLanding) onOpenLanding();
+          }}
+          className="inline-flex items-center gap-2 sm:gap-2.5 group cursor-pointer shrink-0"
+          title="SHOW AI Studio"
+        >
           <img
             src="/logo.png"
             alt="SHOW AI Logo"
-            className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl object-contain shadow-md transition duration-200 group-hover:scale-105 shrink-0"
+            className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl object-contain shadow-md transition duration-200 group-hover:scale-105 shrink-0"
             style={{ filter: 'drop-shadow(rgba(16, 185, 129, 0.35) 0px 4px 14px)' }}
           />
-          <div className="flex flex-col min-w-0">
-            <span className="font-logo text-white font-extrabold text-xs sm:text-base tracking-wider leading-none flex items-center min-h-[1.2em] truncate">
-              <TypewriterText 
-                text="SHOW AI STUDIO" 
-                speed={95} 
-                pauseDuration={3000} 
-                cursorColor="#34d399"
-                fontHighlightClass="font-logo bg-gradient-to-r from-white via-emerald-200 to-emerald-400 bg-clip-text text-transparent"
-              />
-            </span>
-            <span className="font-logo text-emerald-400/90 text-[9px] sm:text-[11px] font-semibold tracking-widest uppercase mt-0.5 sm:mt-1 leading-none truncate">
-              PROMPT STUDIO
+          <div className="flex flex-col shrink-0">
+            <div className="flex items-center gap-1 leading-none">
+              <span className="font-logo text-white font-black text-sm sm:text-base tracking-wider">
+                SHOW AI
+              </span>
+              <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-[9px] font-bold text-emerald-400 uppercase tracking-wider font-mono">
+                STUDIO
+              </span>
+            </div>
+            <span className="font-logo text-emerald-400/80 text-[8px] sm:text-[10px] font-semibold tracking-widest uppercase mt-0.5 leading-none hidden xs:inline">
+              PROMPT WORKBENCH
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-          {/* 🌟 USER PROFILE PILL (AVATAR, NAME, PLAN, CREDITS, CAN SEE CREATION & PHOTO) */}
+        {/* ACTIONS / PILLS RIGHT SIDE: Clean, Balanced Spacing with Zero Overflow */}
+        <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
+          {/* 🌟 USER PROFILE PILL (AVATAR, CREDITS) */}
           <button
             type="button"
             onClick={() => {
               if (onOpenProfile) onOpenProfile();
               else window.dispatchEvent(new CustomEvent('open-user-profile'));
             }}
-            className="inline-flex items-center gap-1.5 sm:gap-2 pl-1.5 pr-2.5 sm:pr-3 py-1 rounded-full text-xs font-semibold text-white bg-stone-900/90 hover:bg-stone-850 border border-stone-700/80 hover:border-amber-500/60 shadow-md transition duration-200 cursor-pointer active:scale-95 group shrink-0"
-            title="View User Profile, Plan, Credits, Creations & Photo Gallery"
+            className="inline-flex items-center gap-1.5 pl-1 pr-2 sm:pr-2.5 py-1 rounded-full text-xs font-semibold text-white bg-stone-900/90 hover:bg-stone-850 border border-stone-700/80 hover:border-amber-500/60 shadow-md transition duration-200 cursor-pointer active:scale-95 group shrink-0"
+            title="View User Profile, Plan, Credits & Creations"
           >
             <img
               src={currentUser?.avatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80'}
               alt={currentUser?.name || 'User'}
               className="w-5 h-5 sm:w-6 sm:h-6 rounded-full object-cover border border-amber-400 group-hover:scale-105 transition-transform shrink-0"
             />
-            <span className="font-bold text-stone-100 max-w-[60px] xs:max-w-[80px] sm:max-w-[120px] truncate text-xs hidden xs:inline">
+            <span className="font-bold text-stone-100 text-xs hidden md:inline truncate max-w-[90px]">
               {currentUser?.name || 'Profile'}
             </span>
             <span className="px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-mono text-[9px] sm:text-[10px] font-bold">
               🪙 {(currentUser?.credits ?? 2500).toLocaleString()}
             </span>
-            <span className="hidden sm:inline-block px-1.5 py-0.2 rounded bg-stone-800 text-stone-300 text-[9px] font-extrabold uppercase border border-stone-700">
+            <span className="hidden lg:inline-block px-1.5 py-0.2 rounded bg-stone-800 text-stone-300 text-[9px] font-extrabold uppercase border border-stone-700">
               {currentUser?.plan === 'master' ? 'Master' : currentUser?.plan === 'starter' ? 'Starter' : 'Creator Pro'}
             </span>
           </button>
 
+          {/* 🏛️ SCENES 550+ BUTTON (Full label on sm+, compact badge on mobile) */}
+          <button
+            type="button"
+            onClick={() => {
+              if (onOpenScenes) onOpenScenes();
+              else handleEnterSection('scenes-550');
+            }}
+            className="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-bold text-emerald-300 bg-emerald-500/15 border border-emerald-500/40 hover:bg-emerald-500/25 transition duration-200 cursor-pointer shadow-sm active:scale-95 whitespace-nowrap shrink-0"
+            title="Explore 550+ Digital Backdrops & Heritage Sets"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span className="hidden sm:inline">Scenes 550+</span>
+            <span className="text-[9px] bg-emerald-400 text-slate-950 px-1.5 py-0.2 rounded-full font-black">
+              760+
+            </span>
+          </button>
+
+          {/* COMMUNITY REMIX (hidden on small/medium mobile, shown on lg+) */}
           <button
             type="button"
             onClick={() => handleEnterSection('community')}
-            className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 transition duration-200 cursor-pointer shadow-sm active:scale-95"
+            className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 transition duration-200 cursor-pointer shadow-sm active:scale-95 shrink-0"
             title="Explore Global Community Prompt Creations & Remix"
           >
             <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
             <span>Remix</span>
           </button>
 
+          {/* SHOWCASE (hidden on mobile, shown on md+) */}
           {onOpenLanding && (
             <button
               type="button"
               onClick={onOpenLanding}
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-slate-300 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/80 hover:border-emerald-500/50 transition duration-200 cursor-pointer shadow-sm active:scale-95"
+              className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-slate-300 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/80 hover:border-emerald-500/50 transition duration-200 cursor-pointer shadow-sm active:scale-95 shrink-0"
               title="View Showcase & Features Landing Page"
             >
               <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
               <span>Showcase</span>
             </button>
           )}
-          {isLoggedIn ? (
-            <>
-              <button
-                type="button"
-                onClick={() => window.dispatchEvent(new CustomEvent('open-supabase-cloud', { detail: { tab: 'topup' } }))}
-                className="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-full text-xs font-bold text-amber-300 bg-amber-500/15 border border-amber-500/35 hover:bg-amber-500/25 transition duration-200 cursor-pointer shadow-sm active:scale-95"
-                title="Claim Daily 250 Free Credits or Top-Up Credits"
-              >
-                <Gift className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-                <span className="hidden sm:inline">Free 250 Daily</span>
-                <span className="sm:hidden font-mono text-[10px]">+250</span>
-              </button>
 
-              <button
-                type="button"
-                onClick={() => window.dispatchEvent(new CustomEvent('open-supabase-cloud'))}
-                className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 transition duration-200 cursor-pointer shadow-sm active:scale-95"
-                title="Open Cloud Account & Balance"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Cloud</span>
-              </button>
-            </>
+          {/* DAILY 250 GIFT BUTTON (Opens Top-Up & Daily Claim) */}
+          {isLoggedIn ? (
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent('open-topup-pricing'))}
+              className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-bold text-amber-300 bg-amber-500/15 border border-amber-500/35 hover:bg-amber-500/25 transition duration-200 cursor-pointer shadow-sm active:scale-95 shrink-0"
+              title="Claim Daily 250 Free Credits or Top-Up Credits"
+            >
+              <Gift className="w-3.5 h-3.5 text-amber-400 animate-pulse shrink-0" />
+              <span className="hidden sm:inline">Free 250 Daily</span>
+              <span className="sm:hidden font-mono text-[10px] font-bold">+250</span>
+            </button>
           ) : (
             <button
               type="button"
               onClick={() => window.dispatchEvent(new CustomEvent('open-supabase-auth'))}
-              className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide text-slate-200 hover:text-white glass-pill transition duration-200 cursor-pointer shadow-sm active:scale-95"
+              className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide text-slate-200 hover:text-white glass-pill transition duration-200 cursor-pointer shadow-sm active:scale-95 shrink-0"
               title="Login / Sign In"
             >
               <LogIn className="w-3.5 h-3.5 text-emerald-400" />
@@ -433,39 +452,39 @@ export const MainPortalHub: React.FC<MainPortalHubProps> = ({
         </ScrollReveal>
 
         {/* 🌟 4 Workstations Grid (borderless glass cards) */}
-        <section className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-6" data-purpose="workstation-cards">
+        <section className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-5 lg:gap-6" data-purpose="workstation-cards">
           
           {/* Card 1: Video Prompt Studio */}
           <ScrollReveal delay={0.1} className="h-full">
             <article 
               onClick={() => handleEnterSection('video-prompt')}
-              className="glass-card rounded-2xl p-6 lg:p-7 flex flex-col justify-between transition duration-300 relative group overflow-hidden cursor-pointer h-full"
+              className="glass-card rounded-2xl p-4 sm:p-6 lg:p-7 flex flex-col justify-between transition duration-300 relative group overflow-hidden cursor-pointer h-full"
               data-purpose="video-studio-card"
             >
               <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
               <div>
                 {/* Header with Icon & Section Badge */}
-                <div className="flex items-center justify-between mb-8">
-                  <div className="w-12 h-12 rounded-xl bg-[#05b187]/15 border border-[#05b187]/30 flex items-center justify-center text-[#05b187] group-hover:scale-105 transition-transform duration-200">
-                    <Video className="w-6 h-6" />
+                <div className="flex items-center justify-between mb-4 sm:mb-8">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-[#05b187]/15 border border-[#05b187]/30 flex items-center justify-center text-[#05b187] group-hover:scale-105 transition-transform duration-200">
+                    <Video className="w-5 h-5 sm:w-6 sm:h-6" />
                   </div>
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-[10px] font-bold tracking-widest text-[#05b187] bg-[#05b187]/20 border border-[#05b187]/30 uppercase">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-md text-[10px] font-bold tracking-widest text-[#05b187] bg-[#05b187]/20 border border-[#05b187]/30 uppercase">
                     <Menu className="w-3 h-3 text-[#05b187]" />
                     SECTION 01
                   </span>
                 </div>
                 {/* Studio Title & Description */}
-                <h2 className="text-xl lg:text-2xl font-bold text-white mb-3 tracking-tight">Video Prompt Studio</h2>
-                <p className="text-slate-400 text-xs sm:text-[13px] leading-relaxed mb-6 font-normal">
+                <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white mb-2 sm:mb-3 tracking-tight">Video Prompt Studio</h2>
+                <p className="text-slate-400 text-xs sm:text-[13px] leading-relaxed mb-3 sm:mb-6 font-normal">
                   Engineered specifically for next-gen text-to-video AI. Generate director-grade cinematic paragraphs or strictly structured camera JSON.
                 </p>
               </div>
               {/* Tag Footer Area */}
-              <div className="pt-4 mt-auto">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-3">Optimized for Video Models:</p>
-                <div className="flex flex-wrap gap-2 text-xs">
+              <div className="pt-2 sm:pt-4 mt-auto">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2 sm:mb-3">Optimized for Video Models:</p>
+                <div className="flex flex-wrap gap-1.5 sm:gap-2 text-[11px] sm:text-xs">
                   {['Veo', 'Sora', 'Kling', 'Hailuo', 'Wan', 'Seedance 2.5'].map((m) => (
-                    <span key={m} className="px-2.5 py-1 rounded-md bg-slate-900/80 text-slate-300 font-medium">
+                    <span key={m} className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md bg-slate-900/80 text-slate-300 font-medium">
                       {m}
                     </span>
                   ))}
@@ -478,33 +497,33 @@ export const MainPortalHub: React.FC<MainPortalHubProps> = ({
           <ScrollReveal delay={0.2} className="h-full">
             <article 
               onClick={() => handleEnterSection('photo-prompt')}
-              className="glass-card rounded-2xl p-6 lg:p-7 flex flex-col justify-between transition duration-300 relative group overflow-hidden cursor-pointer h-full"
+              className="glass-card rounded-2xl p-4 sm:p-6 lg:p-7 flex flex-col justify-between transition duration-300 relative group overflow-hidden cursor-pointer h-full"
               data-purpose="photo-studio-card"
             >
               <div className="absolute top-0 right-0 w-32 h-32 bg-pink-500/5 rounded-full blur-2xl pointer-events-none" />
               <div>
                 {/* Header with Icon & Section Badge */}
-                <div className="flex items-center justify-between mb-8">
-                  <div className="w-12 h-12 rounded-xl bg-pink-950/20 flex items-center justify-center text-pink-400 group-hover:scale-105 transition-transform duration-200">
-                    <Camera className="w-6 h-6" />
+                <div className="flex items-center justify-between mb-4 sm:mb-8">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-pink-950/20 flex items-center justify-center text-pink-400 group-hover:scale-105 transition-transform duration-200">
+                    <Camera className="w-5 h-5 sm:w-6 sm:h-6" />
                   </div>
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-[10px] font-bold tracking-widest text-pink-400 bg-pink-950/40 uppercase">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-md text-[10px] font-bold tracking-widest text-pink-400 bg-pink-950/40 uppercase">
                     <Menu className="w-3 h-3 text-pink-400" />
                     SECTION 02
                   </span>
                 </div>
                 {/* Studio Title & Description */}
-                <h2 className="text-xl lg:text-2xl font-bold text-white mb-3 tracking-tight">Photo Prompt Studio</h2>
-                <p className="text-slate-400 text-xs sm:text-[13px] leading-relaxed mb-6 font-normal">
+                <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white mb-2 sm:mb-3 tracking-tight">Photo Prompt Studio</h2>
+                <p className="text-slate-400 text-xs sm:text-[13px] leading-relaxed mb-3 sm:mb-6 font-normal">
                   High-end photography workbench. Simulates 100MP medium-format optics, studio lighting rigs, and includes multimodal Vision Photo-to-Prompt.
                 </p>
               </div>
               {/* Tag Footer Area */}
-              <div className="pt-4 mt-auto">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-3">Optimized for Photo Engines:</p>
-                <div className="flex flex-wrap gap-2 text-xs">
+              <div className="pt-2 sm:pt-4 mt-auto">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2 sm:mb-3">Optimized for Photo Engines:</p>
+                <div className="flex flex-wrap gap-1.5 sm:gap-2 text-[11px] sm:text-xs">
                   {['Midjourney v6.1', 'FLUX.1 Dev', 'SDXL 1.0', 'Ideogram 2', 'GPT Image'].map((m) => (
-                    <span key={m} className="px-2.5 py-1 rounded-md bg-slate-900/80 text-slate-300 font-medium">
+                    <span key={m} className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md bg-slate-900/80 text-slate-300 font-medium">
                       {m}
                     </span>
                   ))}
@@ -517,36 +536,36 @@ export const MainPortalHub: React.FC<MainPortalHubProps> = ({
           <ScrollReveal delay={0.3} className="h-full">
             <article 
               onClick={() => handleEnterSection('detail-burmese')}
-              className="glass-card rounded-2xl p-6 lg:p-7 flex flex-col justify-between transition duration-300 relative group overflow-hidden cursor-pointer h-full"
+              className="glass-card rounded-2xl p-4 sm:p-6 lg:p-7 flex flex-col justify-between transition duration-300 relative group overflow-hidden cursor-pointer h-full"
               data-purpose="burmese-studio-card"
             >
               <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/5 rounded-full blur-2xl pointer-events-none" />
               <div>
                 {/* Header with Icon & Section Badge */}
-                <div className="flex items-center justify-between mb-8">
-                  <div className="w-12 h-12 rounded-xl bg-amber-950/20 flex items-center justify-center text-yellow-400 group-hover:scale-105 transition-transform duration-200">
-                    <Layers className="w-6 h-6" />
+                <div className="flex items-center justify-between mb-4 sm:mb-8">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-amber-950/20 flex items-center justify-center text-yellow-400 group-hover:scale-105 transition-transform duration-200">
+                    <Layers className="w-5 h-5 sm:w-6 sm:h-6" />
                   </div>
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-[10px] font-bold tracking-widest text-yellow-300 bg-amber-950/40 uppercase">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-md text-[10px] font-bold tracking-widest text-yellow-300 bg-amber-950/40 uppercase">
                     <Menu className="w-3 h-3 text-yellow-400" />
                     SECTION 03
                   </span>
                 </div>
                 {/* Studio Title, Burmese Subtitle & Description */}
-                <h2 className="text-xl lg:text-2xl font-bold text-white mb-2 tracking-tight">Detail Burmese</h2>
-                <p className="font-myanmar text-yellow-400/90 text-xs sm:text-[13px] font-medium leading-relaxed mb-3">
+                <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white mb-1.5 sm:mb-2 tracking-tight">Detail Burmese</h2>
+                <p className="font-myanmar text-yellow-400/90 text-[11px] sm:text-[13px] font-medium leading-relaxed mb-2 sm:mb-3">
                   ၉ ခန်းတွဲ စတူဒီယို၊ မင်္ဂလာဆောင် စတူဒီယို (၆၂ ခု) နှင့် Utilities
                 </p>
-                <p className="text-slate-400 text-xs sm:text-[13px] leading-relaxed mb-6 font-normal">
+                <p className="text-slate-400 text-xs sm:text-[13px] leading-relaxed mb-3 sm:mb-6 font-normal">
                   Complete 9-Room AI Photography Studio Suite: Burmese Wedding Studio (62+ Templates with 100% Face Lock), Cultural Heritage Matrix, Clothes Swap, Baby Studio, and Pro Utilities.
                 </p>
               </div>
               {/* Tag Footer Area */}
-              <div className="pt-4 mt-auto">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-3">Integrated Utilities &amp; Rooms:</p>
-                <div className="flex flex-wrap gap-2 text-xs">
+              <div className="pt-2 sm:pt-4 mt-auto">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2 sm:mb-3">Integrated Utilities &amp; Rooms:</p>
+                <div className="flex flex-wrap gap-1.5 sm:gap-2 text-[11px] sm:text-xs">
                   {['Wedding Studio (62+)', 'Prompt Matrix'].map((m) => (
-                    <span key={m} className="px-2.5 py-1 rounded-md bg-slate-900/80 text-slate-300 font-medium">
+                    <span key={m} className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md bg-slate-900/80 text-slate-300 font-medium">
                       {m}
                     </span>
                   ))}
@@ -559,36 +578,36 @@ export const MainPortalHub: React.FC<MainPortalHubProps> = ({
           <ScrollReveal delay={0.4} className="h-full">
             <article 
               onClick={() => handleEnterSection('community')}
-              className="glass-card rounded-2xl p-6 lg:p-7 flex flex-col justify-between transition duration-300 relative group overflow-hidden cursor-pointer h-full border border-emerald-500/25 hover:border-emerald-500/60"
+              className="glass-card rounded-2xl p-4 sm:p-6 lg:p-7 flex flex-col justify-between transition duration-300 relative group overflow-hidden cursor-pointer h-full border border-emerald-500/25 hover:border-emerald-500/60"
               data-purpose="community-showcase-card"
             >
               <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
               <div>
                 {/* Header with Icon & Section Badge */}
-                <div className="flex items-center justify-between mb-8">
-                  <div className="w-12 h-12 rounded-xl bg-emerald-950/30 border border-emerald-500/30 flex items-center justify-center text-emerald-400 group-hover:scale-105 transition-transform duration-200">
-                    <Sparkles className="w-6 h-6" />
+                <div className="flex items-center justify-between mb-4 sm:mb-8">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-emerald-950/30 border border-emerald-500/30 flex items-center justify-center text-emerald-400 group-hover:scale-105 transition-transform duration-200">
+                    <Sparkles className="w-5 h-5 sm:w-6 sm:h-6" />
                   </div>
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-[10px] font-bold tracking-widest text-emerald-300 bg-emerald-950/50 uppercase border border-emerald-500/30">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-md text-[10px] font-bold tracking-widest text-emerald-300 bg-emerald-950/50 uppercase border border-emerald-500/30">
                     <Menu className="w-3 h-3 text-emerald-400" />
                     SECTION 04
                   </span>
                 </div>
                 {/* Studio Title & Description */}
-                <h2 className="text-xl lg:text-2xl font-bold text-white mb-2 tracking-tight">Community Remix</h2>
-                <p className="font-myanmar text-emerald-400/90 text-xs sm:text-[13px] font-medium leading-relaxed mb-3">
-                  ကမ္ဘာ့ အလှဆုံး Master Prompt များနှင့် 1-Click Remix
+                <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white mb-1.5 sm:mb-2 tracking-tight">Community Remix &amp; 550+ Scenes</h2>
+                <p className="font-myanmar text-emerald-400/90 text-[11px] sm:text-[13px] font-medium leading-relaxed mb-2 sm:mb-3">
+                  ၅၅၀+ ရှုခင်းစုံ၊ မင်္ဂလာဆောင်၊ နန်းတွင်း နှင့် Master Prompt Remix
                 </p>
-                <p className="text-slate-400 text-xs sm:text-[13px] leading-relaxed mb-6 font-normal">
-                  Explore trending master prompts created by global artists. Tap &quot;Remix Prompt&quot; to load directly into your studio with one click.
+                <p className="text-slate-400 text-xs sm:text-[13px] leading-relaxed mb-3 sm:mb-6 font-normal">
+                  Explore 760+ pre-calibrated archival sets and trending community creations. Tap &quot;Remix Prompt&quot; or &quot;Use Scene&quot; with one click.
                 </p>
               </div>
               {/* Tag Footer Area */}
-              <div className="pt-4 mt-auto">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-3">Community Features:</p>
-                <div className="flex flex-wrap gap-2 text-xs">
-                  {['1-Click Remix', 'Public Showcase', 'Social Crop'].map((m) => (
-                    <span key={m} className="px-2.5 py-1 rounded-md bg-slate-900/80 text-emerald-300 font-medium">
+              <div className="pt-2 sm:pt-4 mt-auto">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2 sm:mb-3">Community Features:</p>
+                <div className="flex flex-wrap gap-1.5 sm:gap-2 text-[11px] sm:text-xs">
+                  {['550+ Scenes', '1-Click Remix', 'Public Showcase', 'Social Crop'].map((m) => (
+                    <span key={m} className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md bg-slate-900/80 text-emerald-300 font-medium">
                       {m}
                     </span>
                   ))}

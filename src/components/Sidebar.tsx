@@ -5,6 +5,7 @@ export type NavView =
   | 'presentation-slides'
   | 'video-prompt-studio'
   | 'photo-prompt-studio'
+  | 'scenes-550'
   | 'studio-suite'
   | 'pro-workstation'
   | 'prompt-builder'
@@ -34,7 +35,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   return (
     <aside
-      className={`fixed left-0 top-0 h-full bg-[#ffffff] border-r border-[#e0e2e8] z-50 flex flex-col justify-between py-4 transition-all duration-300 ease-in-out ${
+      style={{
+        top: 'var(--top-banner-height, 0px)',
+        height: 'calc(100% - var(--top-banner-height, 0px))'
+      }}
+      className={`fixed left-0 bg-[#ffffff] border-r border-[#e0e2e8] z-50 flex flex-col justify-between py-4 transition-[top,height,width] duration-300 ease-in-out ${
         isCollapsed ? 'w-20' : 'w-64'
       }`}
     >
@@ -141,6 +146,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {[
               { id: 'video-prompt-studio' as NavView, icon: 'videocam', label: 'Video Prompt Studio', tag: 'VIDEO', tagColor: 'bg-[#05b187] text-black font-extrabold' },
               { id: 'photo-prompt-studio' as NavView, icon: 'photo_camera', label: 'Photo Prompt Studio', tag: 'PHOTO', tagColor: 'bg-[#ffd02f] text-black font-extrabold' },
+              { id: 'scenes-550' as NavView, icon: 'auto_awesome_motion', label: 'Community Remix (550+)', tag: '550+', tagColor: 'bg-emerald-500 text-slate-950 font-black' },
               { id: 'pro-workstation' as NavView, icon: 'wb_iridescent', label: 'Pro Workstation', tag: 'Capture One', tagColor: 'bg-[#ffd02f] text-[#1c1c1e]' },
               { id: 'prompt-builder' as NavView, icon: 'auto_fix_high', label: 'Prompt Matrix', tag: null, tagColor: '' },
               { id: 'preset-library' as NavView, icon: 'collections_bookmark', label: 'Preset & Eras Library', tag: null, tagColor: '' }

@@ -1,5 +1,6 @@
 import { MatrixSelection, AppMode } from '../types';
-import { HEIGHT_OPTIONS, WEIGHT_OPTIONS, GARMENT_OPTIONS, CULTURAL_PROP_PRESETS, ETHNICITY_OPTIONS } from '../data/presetData';
+import { HEIGHT_OPTIONS, WEIGHT_OPTIONS, GARMENT_OPTIONS, CULTURAL_PROP_PRESETS, ETHNICITY_OPTIONS, LOCATION_OPTIONS, LOCATION_REFERENCE_MAP } from '../data/presetData';
+import { SCENES_550_COLLECTION, SceneItem } from '../data/scenes550Data';
 
 // High-Fidelity Burmese Cultural & Optical Taxonomy Maps for 100% AI Accuracy
 const GARMENT_TAXONOMY: Record<string, { en: string; mm: string }> = {
@@ -101,28 +102,489 @@ const GARMENT_TAXONOMY: Record<string, { en: string; mm: string }> = {
   }
 };
 
-const LOCATION_TAXONOMY: Record<string, { en: string; mm: string }> = {
+export const LOCATION_TAXONOMY_MAP: Record<string, { en: string; mm: string }> = {
+  // 0. Default & Studio Baseline
+  skip: {
+    en: 'high-end minimalist editorial portrait studio, clean neutral backdrop with subtle softbox gradient falloff, authentic cinematic depth of field',
+    mm: 'စတူဒီယို သန့်သန့် မိုနိုခရုန်း နောက်ခံ၊ ချောမွေ့သော အလင်းအရိပ်'
+  },
+
+  // 1. Myanmar Heritage & Iconic Sites (1 to 15 + Key Historical Aliases)
+  shwedagon_pagoda: {
+    en: 'sacred white marble platform of Shwedagon Pagoda in Yangon, monumental 99-meter solid gold-plated Burmese bell-shaped stupa (Khaung-laung-pon) crowned with diamond bud (Sein-bu) and filigree Hti umbrella, surrounded by ornate multi-tiered wooden Pyatthat prayer pavilions (Tazaungs), intricate Mandalay glass mosaic shrines (Hman-zi Shwe-cha), bronze bells, and glowing golden oil lamps reflecting on mirror-polished white jade marble terrace (strictly authentic Burmese architecture, no Thai wat prangs, no Cambodian Angkor towers)',
+    mm: 'ရန်ကုန် ရွှေတိဂုံစေတီတော် ရင်ပြင်တော်၊ ရွှေသင်္ကန်းရောင်ပြန် ခေါင်းလောင်းပုံစေတီ၊ တန်ဆောင်းပြာသာဒ်များနှင့် စကျင်ကျောက်သား ရောင်ပြန်နောက်ခံ'
+  },
+  bagan_temples: {
+    en: 'ancient Bagan archaeological sanctuary, weathered 11th-century Pagan Dynasty vaulted terracotta red-brick stupas (gugyi architectural spires) and bell-shaped gilded stupas stretching to the horizon across dry alluvial red plains dotted with acacia trees, warm atmospheric dust motes, and soft morning sun rays piercing through mist (authentic Pagan terracotta brickwork, strictly avoiding Thai prang spires and Angkor Wat ruins)',
+    mm: 'ပုဂံ ရှေးဟောင်း စေတီပုထိုးများ၊ ၁၁ ရာစု အနီရောင် ရှေးဟောင်းအုတ်ကျောင်းများနှင့် ရွှေရောင်မြူခိုးဝေသော ရှုခင်း'
+  },
   bagan_pagoda: {
-    en: 'ancient Bagan archaeological sanctuary at sunrise, weathered 11th-century terracotta brick stupas receding into golden morning mist, warm atmospheric dust motes',
+    en: 'ancient Bagan archaeological sanctuary, weathered 11th-century Pagan Dynasty vaulted terracotta red-brick stupas (gugyi architectural spires) and bell-shaped gilded stupas stretching to the horizon across dry alluvial red plains dotted with acacia trees, warm atmospheric dust motes, and soft morning sun rays piercing through mist (authentic Pagan terracotta brickwork, strictly avoiding Thai prang spires and Angkor Wat ruins)',
     mm: 'ပုဂံ ရှေးဟောင်းစေတီပုထိုးများနှင့် နံနက်ခင်း ရွှေရောင်မြူခိုးဝေသော ရှုခင်း'
   },
-  shwedagon_pagoda: {
-    en: 'sacred marble platform of Shwedagon Pagoda in Yangon, towering gold-leaf stupa shimmering softly in background bokeh, warm oil-lamp reflections on polished white marble',
-    mm: 'ရန်ကုန် ရွှေတိဂုံစေတီတော် ရင်ပြင်တော်၊ ရွှေသင်္ကန်းရောင်ပြန်နှင့် စကျင်ကျောက်သား နောက်ခံ'
+  inle_lake: {
+    en: 'serene Inle Lake scenic fresh waters at sunrise, traditional wooden longtail canoe, floating hydroponic vegetation gardens (Ye-chan), stilted teakwood lake pavilions with curved eaves, and distant misty blue Shan mountain ridge reflections (authentic Intha lake architecture, traditional wooden stilt construction)',
+    mm: 'အင်းလေးကန် ရေပြင်၊ ရိုးရာသစ်သားလှေ၊ ကြာပန်းခင်းနှင့် ရှမ်းရိုးမ တောင်တန်း နောက်ခံ'
+  },
+  mandalay_moat: {
+    en: 'historic Mandalay Royal Palace moat, tranquil mirror-like waters reflecting the ancient red crenellated masonry fortress walls and tiered golden wooden Pyatthat watchtowers with multi-tiered gabled roofs, flanked by lush tamarind trees with the misty green Mandalay Hill in the distance (authentic Konbaung dynasty fortification and Pyatthat roofs, no Western castle walls)',
+    mm: 'မန္တလေး ကျုံးနှင့် နန်းမြို့ရိုး၊ ပြာသာဒ်ဆောင်များနှင့် ရှမ်းရိုးမတောင်တန်း ရောင်ပြန် ရှုခင်း'
+  },
+  konbaung_palace_interior: {
+    en: 'opulent Mandalay Yadanabon Konbaung Royal Palace Lion Throne Hall (Sihasana), soaring vermilion cinnabar-lacquered teakwood pillars intricately carved with gold-leaf filigree and peacock emblems, traditional Mandalay glass mosaic (Hman-zi Shwe-cha), polished teak parquet flooring, gilded lotus cornices, and dramatic warm directional window shafts (authentic Konbaung royal court interiors, no European palace decor)',
+    mm: 'ကုန်းဘောင် / ရတနာပုံ နန်းတွင်း ရွှေနန်းတော်ဆောင်၊ ကျွန်းသစ်ပန်းပုတိုင်များနှင့် ဟင်္သာပြဒါးရွှေချည်ထိုး နန်းတွင်းဗိသုကာ'
   },
   mandalay_palace: {
-    en: 'historic Mandalay Royal Palace pavilion, intricately carved golden teakwood pillars, vermilion lacquered colonnade, dramatic shafts of warm sunlight',
+    en: 'historic Mandalay Royal Palace royal pavilion, intricately carved golden teakwood pillars, vermilion cinnabar-lacquered colonnade, multi-tiered Pyatthat spires with floral bargeboards, dramatic shafts of warm golden sunlight (authentic Konbaung dynasty court architecture)',
     mm: 'မန္တလေး နန်းတော် ကျွန်းသစ်ပန်းပုတိုင်များနှင့် ဟင်္သာပြဒါးရောင် နန်းတွင်းဆောင်'
   },
-  inle_lake: {
-    en: 'serene Inle Lake misty waters at dawn, traditional wooden longtail boat, floating lotus gardens and distant Shan mountain range',
-    mm: 'အင်းလေးကန် ရေပြင်၊ ကြာပန်းခင်းနှင့် ရှမ်းရိုးမ တောင်တန်း နောက်ခံ'
-  },
   ubein_bridge: {
-    en: 'historic U Bein teakwood bridge in Amarapura at golden sunset, warm amber reflections rippling across Taungthaman Lake',
+    en: 'historic U Bein teakwood bridge in Amarapura, weathered 150-year-old teakwood pilings curving across serene Taungthaman Lake, warm amber water reflections, silhouetted boatmen with conical nets, and glowing sunset horizon (authentic 19th-century Amarapura teakwood engineering)',
     mm: 'အမရပူရ ဦးပိန်တံတား နေဝင်ဆည်းဆာနှင့် တောင်သမန်အင်း ရေပြင်ရောင်ပြန်'
+  },
+  amarapura_teak_bridge: {
+    en: 'historic U Bein teakwood bridge in Amarapura, weathered 150-year-old teakwood pilings curving across serene Taungthaman Lake, warm amber water reflections, silhouetted boatmen with conical nets, and glowing sunset horizon (authentic 19th-century Amarapura teakwood engineering)',
+    mm: 'အမရပူရ ဦးပိန်တံတားနှင့် တောင်သမန်အင်း ရေပြင်ရောင်ပြန်'
+  },
+  sagaing_hill: {
+    en: 'majestic Sagaing Hill slopes cascading with hundreds of whitewashed and gilded Burmese bell stupas (U Min Thonze crescent colonnade, Soon U Ponya Shin), lush tamarind and acacia foliage, overlooking the sweeping silver curves of the Ayeyarwady River and Inwa bridge (authentic Burmese bell-shaped stupas, no Thai chedis)',
+    mm: 'စစ်ကိုင်းတောင်ရိုး စေတီပုထိုးများ၊ ဧရာဝတီမြစ်ကွေ့နှင့် သဘာဝရှုခင်း'
+  },
+  kalaw_pindaya: {
+    en: 'crisp misty Kalaw highland pine forest trails, undulating green tea plantation terraces, and dramatic limestone entrance to Pindaya natural cave sanctuary housing thousands of centuries-old gilded Buddha statues (authentic Shan highland topography)',
+    mm: 'ကလော ထင်းရှူးတော၊ လက်ဖက်ခင်း တောင်ကုန်းများနှင့် ပင်းတယ လိုဏ်ဂူ ရှုခင်း'
+  },
+  pyinoolwin_garden: {
+    en: 'Pyin Oo Lwin National Kandawgyi Botanical Gardens, manicured vibrant flower beds, towering silver pine groves, wooden lake footbridge, classic teak gazebo, and serene reflective lake waters beneath cool mountain air',
+    mm: 'ပြင်ဦးလွင် အမျိုးသား ကန်တော်ကြီး ပန်းခြံ၊ ထင်းရှူးတန်းနှင့် ရေကန် ရှုခင်း'
+  },
+  ngapali_beach: {
+    en: 'pristine Ngapali coastline, soft powdery white sand, swaying coconut palms, crystal-clear turquoise Bay of Bengal waves, rustic bamboo thatch beach umbrellas, and warm coastal sea breeze',
+    mm: 'ငပလီ ကမ်းခြေ ဖြူဖွေးသော သဲသောင်ပြင်၊ အုန်းပင်ရိပ်နှင့် စိမ်းပြာရောင် ပင်လယ်လှိုင်း'
+  },
+  myeik_islands: {
+    en: 'remote Mergui (Myeik) Archipelago, dramatic jungle-topped limestone karst cliffs rising out of crystalline turquoise Andaman sea waters, secluded pristine white sand cove with coral reefs visible beneath the surface',
+    mm: 'မြိတ် ကျွန်းစုများ၏ အပြာရောင် ပင်လယ်၊ ကျွန်းပတ်လည် သဲဖြူသောင်နှင့် သဘာဝ ကျောက်ဆောင်များ'
+  },
+  taunggyi_balloon_field: {
+    en: 'Taunggyi Tazaungdaing highland festival grounds at dusk, illuminated giant handmade Shan paper hot-air balloons bearing intricate firework candle patterns floating into the deep twilight Shan sky, festive bonfire glow and cheering crowds',
+    mm: 'တောင်ကြီး မီးပုံးပျံပွဲတော် ကွင်း၊ မီးရှူးမီးပန်းများနှင့် ညနေခင်း ရှမ်းပြည်တောင်တန်း ရှုခင်း'
+  },
+  chin_mountains: {
+    en: 'rugged misty Chin mountain ridges, Mount Victoria (Nat Ma Taung) alpine summit with blooming crimson rhododendron trees, rolling dramatic sea of clouds drifting across pine-clad mountain peaks and terraced tribal villages',
+    mm: 'ချင်းတောင်တန်း၊ ဝိတိုရိယတောင်၊ တောင်ဇလပ်ပန်းများနှင့် တောင်ပေါ်မြူခိုး ရှုခင်း'
+  },
+  kyaiktiyo_golden_rock: {
+    en: 'sacred Kyaiktiyo Golden Rock pagoda precariously perched on the edge of a sheer granite cliff, completely gilded in pure leaf gold crowned with a delicate hti umbrella, shrouded in mystical swirling mountain fog overlooking lush Mon state hills (authentic Burmese sacred boulder pagoda)',
+    mm: 'ကျိုက်ထီးရိုး ဆံတော်ရှင် စေတီတော်၊ ကျောက်တုံးရွှေစင်နှင့် တောင်ပေါ် မြူခိုးဝေသော ရှုခင်း'
+  },
+  riverside_sunset: {
+    en: 'picturesque Ayeyarwady riverbank jetty at sunset, gentle golden water ripples, moored antique teak passenger boats and wooden sampans, rustic wooden boardwalk, and distant silhouetted river palms',
+    mm: 'ရန်ကုန်မြစ်ကမ်း / ဧရာဝတီ မြစ်ကမ်း သင်္ဘောဆိပ်နှင့် နေဝင်ချိန် ရွှေရောင်ရေပြင်'
+  },
+  monastery_temple_hall: {
+    en: 'sacred centuries-old antique Burmese monastery (kyaung) prayer hall, dark hand-hewn golden teak pillars with intricate Jataka relief carvings, ornate gilded Mandalay glass mosaic Buddha altar, and incense smoke filtering through timber louvers (authentic Burmese teakwood monastery architecture, no Thai wat interior)',
+    mm: 'ရိုးရာ သစ်သား ကျောင်းတိုက်ကြီး အတွင်း၊ ရွှေပန်းပု ကျွန်းတိုင်များနှင့် ဓမ္မာရုံ နောက်ခံ'
+  },
+  mrauk_u_temples: {
+    en: 'ancient medieval Mrauk-U archaeological sanctuary, colossal medieval sandstone fortress temples (Shitthaung Pagoda) with tiered stone stupas rising through thick morning hill mist in Rakhine State (authentic Rakhine fortress pagoda architecture)',
+    mm: 'ရခိုင်ပြည်နယ် မြောက်ဦး ရှေးဟောင်း ကျောက်ဆစ် စေတီပုထိုးများနှင့် နံနက်ခင်း မြူခိုးရှုခင်း'
+  },
+  hpa_an_caves: {
+    en: 'dramatic Hpa-An limestone karst peak landscape, towering sheer karst cliffs surrounded by verdant emerald rice paddies, sacred Sadan Cave lake waters, and golden stupa spires crowning jagged peaks',
+    mm: 'ဘားအံ ဇွဲကပင်တောင်ခြေ၊ ထုံးကျောက်တောင်များနှင့် သဘာဝ လိုဏ်ဂူ ရေကန် ရှုခင်း'
+  },
+
+  // 2. World-Class Iconic Locations (16 to 25)
+  paris_eiffel_tower: {
+    en: 'Parisian Seine riverbank promenade overlooking the iconic architectural ironwork of the Eiffel Tower, elegant Haussmannian limestone architecture, and classic cobblestone walkway bathed in golden afternoon light',
+    mm: 'ပြင်သစ် ပါရီ အီဖယ်တာဝါနှင့် စိန်းမြစ်ကမ်း ကျောက်ခင်းလမ်း ရှုခင်း'
+  },
+  santorini_greece: {
+    en: 'Santorini cliffside village of Oia, pristine whitewashed Cycladic stone cubic architecture, vibrant cobalt-blue church domes, and sweeping vistas of the sapphire Aegean Sea caldera at sunset',
+    mm: 'ဂရိ ဆန်တိုရီနီ အဖြူရောင် ပင်လယ်ကမ်းပါး မြို့ကလေးနှင့် အပြာရောင် အမိုးခုံး ရှုခင်း'
+  },
+  kyoto_bamboo_torii: {
+    en: 'Kyoto Arashiyama soaring green bamboo grove pathway and vibrant vermilion Fushimi Inari wooden torii gates, dappled soft sunlight filtering through towering bamboo shoots with mossy stone lanterns',
+    mm: 'ဂျပန် ကျိုတို အာရာရှိယာမ ဝါးတောနှင့် တိုရီးတံခါးအနီ ကျောက်လမ်း ရှုခင်း'
+  },
+  swiss_alps_snow: {
+    en: 'Swiss Alps alpine scenery, towering snow-dusted jagged mountain massifs, crystal-clear turquoise alpine glacial lake, weathered wooden timber chalet, and wildflower meadows',
+    mm: 'ဆွစ်ဇာလန် အဲလ်ပ်စ် နှင်းတောင်၊ ရေခဲကန်နှင့် သဘာဝ ရှုခင်း'
+  },
+  venice_gondola_canal: {
+    en: 'historic Venice Grand Canal, weathered Venetian Gothic palazzo stone facades, traditional polished black wooden gondolas moored on striped wooden poles, and emerald reflective canal water',
+    mm: 'အီတလီ ဗင်းနစ် ဂွန်ဒိုလာ လှေနှင့် ရှေးဟောင်း ရေမြောင်း ဗိသုကာ ရှုခင်း'
+  },
+  taj_mahal_palace: {
+    en: 'monumental grounds of the Taj Mahal in Agra, luminous ivory-white Mughal marble dome and minarets reflecting in pristine symmetrical lotus reflecting pools bordered by cypress gardens',
+    mm: 'အိန္ဒိယ တာဂျ်မဟာရ် စကျင်ကျောက် နန်းတော်နှင့် ရောင်ပြန် ရေကန် ရှုခင်း'
+  },
+  bali_jungle_swing: {
+    en: 'lush tropical Ubud Bali landscape, terraced emerald green rice paddies (Tegallalang), sweeping coconut palm fronds, wooden pavilion, and misty volcanic mountain ridge',
+    mm: 'အင်ဒိုနီးရှား ဘာလီ လယ်ကွင်းလှေကားထစ်များနှင့် အပူပိုင်း သစ်တော ရှုခင်း'
+  },
+  maldives_overwater: {
+    en: 'exclusive Maldives luxury overwater timber bungalow villa with private sun deck, perched over crystal-clear aqua-turquoise lagoon waters with pristine white coral sand below',
+    mm: 'မော်လဒိုက် ရေပေါ် ဘန်ဂလိုနှင့် ကြည်လင်ပြာလဲ့သော သန္တာကျောက်တန်း လဂွန် ရေပြင်'
+  },
+  cappadocia_balloons: {
+    en: 'whimsical Cappadocia Goreme valley, ancient wind-carved volcanic fairy chimney rock formations, colorful hot air balloons rising in the dawn sky over golden sandstone canyons',
+    mm: 'တူရကီ ကက်ပါဒိုစီယာ မီးပုံးပျံများနှင့် ကျောက်တောင် ချိုင့်ဝှမ်း ရှုခင်း'
+  },
+  ny_central_park: {
+    en: 'New York City Central Park Bow Bridge, lush American elm trees framing the tranquil lake waters with the iconic Beaux-Arts Manhattan apartment skyline rising behind',
+    mm: 'နယူးယောက် စင်ထရယ်ပါ့ခ်၊ သစ်တောရိပ်နှင့် မြို့ပြ မိုးမျှော်တိုက် ရှုခင်း'
+  },
+
+  // 3. Studio & Architectural Interiors (26 to 30)
+  plain_studio: {
+    en: 'high-end minimalist editorial photo studio, seamless neutral matte cyclorama wall with velvety smooth gradient falloff, clean floor, and zero background clutter',
+    mm: 'စတူဒီယို သန့်သန့် မိုနိုခရုန်း နောက်ခံ၊ ချောမွေ့သော အလင်းအရိပ်'
+  },
+  wood_brick_studio: {
+    en: 'contemporary industrial loft photo studio, exposed weathered warm red-brick walls, rustic reclaimed herringbone oak flooring, and expansive steel-mullioned factory casement windows',
+    mm: 'စတူဒီယို သစ်သား / ရှေးဟောင်း အုတ်နံရံ ခေတ်မီ စတိုင်လ် နောက်ခံ'
+  },
+  luxury_hotel_ballroom: {
+    en: 'lavish five-star luxury hotel grand ballroom, soaring coffered ceilings, multi-tiered sparkling crystal chandeliers, polished Italian Botticino marble flooring, and gilded crown molding',
+    mm: 'ဟိုတယ် လော်ဘီနှင့် ခမ်းနားသော ပွဲမ အခန်းမ၊ စကျင်ကျောက်နှင့် ဖန်မီးဆိုင်းကြီးများ'
+  },
+  cafe_interior: {
+    en: 'aesthetic boutique artisan cafe interior, warm exposed terracotta tiles, warm hanging Edison filament pendant lights, solid walnut furniture, and lush indoor monstera greenery',
+    mm: 'ခေတ်မီ မီးရောင်စုံ ကော်ဖီဆိုင် အတွင်း၊ သစ်သားပရိဘောဂနှင့် နွေးထွေးသော အငွေ့အသက်'
+  },
+  traditional_myanmar_house: {
+    en: 'authentic heritage Myanmar teakwood family manor, polished broad teak plank flooring, open-air shaded veranda with woven bamboo blinds, carved wooden balustrades, and lush potted orchids in a tranquil tropical courtyard garden (authentic Burmese teakwood residential architecture)',
+    mm: 'ရိုးရာ မြန်မာ့ ကျွန်းသစ်အိမ်ကြီး၊ ဝရံတာနှင့် သဘာဝ ပန်းမန် ဥယျာဉ် နောက်ခံ'
+  },
+
+  // 4. Nature & Lifestyle (31 to 36)
+  golden_hour_paddy_field: {
+    en: 'sprawling golden harvest rice paddy fields in rural Myanmar, swaying ripe amber grain stalks, winding earthen foot trail, and expansive open sunset horizon with warm golden dust and silhouetted toddy palm trees',
+    mm: 'နေဝင်ချိန် ရွှေရောင် စပါးခင်းများ၊ လယ်ကွင်း ရှုခင်းနှင့် ဆည်းဆာ အလင်း'
+  },
+  lush_forest_stream: {
+    en: 'enchanting pristine rainforest sanctuary, moss-covered granite boulders, clear cascading mountain brook with frothy water sprays, and dense vibrant green wild ferns beneath a lush canopy',
+    mm: 'စိမ်းစိုသော သစ်တော၊ ရေတံခွန်နှင့် စမ်းချောင်း၊ ကျောက်ဆောင် ရှုခင်း'
+  },
+  cherry_blossom_garden: {
+    en: 'ethereal cherry blossom botanical garden in peak springtime bloom, cascading soft pink sakura petals drifting on the gentle breeze, manicured lawn, and wooden garden bench',
+    mm: 'ပန်းချယ်ရီခင်းနှင့် သဘာဝပန်းခြံ၊ ပန်းပွင့်ဖတ်လွင့်ဝေသော ရှုခင်း'
+  },
+  modern_city_street: {
+    en: 'sleek cosmopolitan urban boulevard, contemporary glass and steel architectural facades, wide polished granite pedestrian promenade, and refined urban street design',
+    mm: 'မြို့ပြ လမ်းမနှင့် ခေတ်မီ ဒေါင်လိုက် အဆောက်အဦများ၊ သန့်ရှင်းသော လမ်းလျှောက်စင်္ကြံ'
+  },
+  neon_city_night: {
+    en: 'atmospheric cyberpunk nighttime city street, rain-slicked asphalt reflecting vivid neon signs in magenta, turquoise, and amber, moody dark futuristic urban alleyway',
+    mm: 'နီယွန်မီးရောင်စုံ ညမြို့ပြ၊ မိုးစိုနေသော လမ်းမနှင့် ဆိုက်ဘာပန့်ခ် အလင်းရောင်စုံ'
+  },
+  other_location: {
+    en: 'an authentic bespoke atmospheric architectural setting featuring authentic regional cultural textures, realistic spatial geometry, multi-tiered woodwork, and natural optical depth of field (avoiding Thai prang spires and Cambodian stone towers)',
+    mm: 'ကိုယ်ပိုင် စိတ်ကြိုက် နောက်ခံ ဗိသုကာ ရှုခင်း'
   }
 };
+
+export const LOCATION_TAXONOMY = LOCATION_TAXONOMY_MAP;
+
+// Helper to resolve location from taxonomy, scenes550 data, or humanized formatting (NEVER raw snake_case)
+export function resolveLocationDescription(
+  locationKeyOrName?: string,
+  selectedSceneId?: string
+): { en: string; mm: string; referenceImage?: string; lightingNotes?: string } {
+  const raw = (locationKeyOrName || '').trim();
+  const normalizedKey = raw.toLowerCase().replace(/[\s-]+/g, '_');
+
+  // 1. Check direct match in SCENES_550_COLLECTION by sceneId or locationKey
+  if (selectedSceneId) {
+    const scene = SCENES_550_COLLECTION.find(s => s.id === selectedSceneId);
+    if (scene) {
+      return {
+        en: scene.prompt.replace(/\s+/g, ' ').trim(),
+        mm: scene.titleMm || scene.titleEn,
+        referenceImage: scene.previewImage,
+        lightingNotes: scene.lightingNotes
+      };
+    }
+  }
+
+  const sceneByKey = SCENES_550_COLLECTION.find(
+    s => s.id === raw || s.id === normalizedKey || s.tags?.includes(raw.toLowerCase()) || s.tags?.includes(normalizedKey)
+  );
+  if (sceneByKey) {
+    return {
+      en: sceneByKey.prompt.replace(/\s+/g, ' ').trim(),
+      mm: sceneByKey.titleMm || sceneByKey.titleEn,
+      referenceImage: sceneByKey.previewImage,
+      lightingNotes: sceneByKey.lightingNotes
+    };
+  }
+
+  // 2. Check direct match in LOCATION_TAXONOMY_MAP
+  if (normalizedKey && normalizedKey !== 'skip' && LOCATION_TAXONOMY_MAP[normalizedKey]) {
+    const ref = LOCATION_REFERENCE_MAP[normalizedKey]?.url;
+    return {
+      en: LOCATION_TAXONOMY_MAP[normalizedKey].en,
+      mm: LOCATION_TAXONOMY_MAP[normalizedKey].mm,
+      referenceImage: ref
+    };
+  }
+
+  // 3. Check preset options in LOCATION_OPTIONS
+  const opt = LOCATION_OPTIONS.find(l => l.id === normalizedKey || l.id === raw);
+  if (opt && opt.id !== 'skip') {
+    return {
+      en: `authentic ${opt.labelEn}, featuring authentic traditional Burmese architecture, regional landscape topography, and atmospheric natural lighting (avoiding Thai prang spires and Cambodian stone towers)`,
+      mm: opt.labelMm,
+      referenceImage: opt.referenceImage || opt.previewImage
+    };
+  }
+
+  // 4. Default or Fallback: Humanize string nicely, NEVER output raw snake_case like "mandalay_moat"
+  if (raw && raw !== 'skip' && raw !== 'other_location') {
+    const humanized = raw
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, c => c.toUpperCase());
+    return {
+      en: `an authentic atmospheric setting in ${humanized}, featuring authentic Myanmar architectural details, multi-tiered woodwork, and natural depth of field (strictly avoiding Thai prang spires and Cambodian Angkor stone towers)`,
+      mm: `${humanized} ရှုခင်း နောက်ခံ`
+    };
+  }
+
+  return {
+    en: 'an atmospheric Myanmar heritage architectural sanctuary with bell-shaped stupas, multi-tiered Pyatthat roofs, and warm golden depth of field (avoiding Thai prangs and Cambodian ruins)',
+    mm: 'မြန်မာ့ရိုးရာ ယဉ်ကျေးမှု အမွေအနှစ် နောက်ခံရှုခင်း'
+  };
+}
+
+export const resolveLocationTaxonomy = resolveLocationDescription;
+
+export interface MappedSceneContext {
+  prompt: string;
+  ratio: string;
+  referencePhoto: string;
+  referencePhotos: {
+    id: string;
+    url: string;
+    name: string;
+    role: 'background';
+  }[];
+  chosenOptions: { label: string; value: string; emoji?: string }[];
+  locationKey: string;
+  locationDetails: string;
+  timeOfDay: string;
+  mood: string;
+  lightingNotes: string;
+  scene: SceneItem;
+}
+
+// Maps any scene from 550+ library to rich architectural taxonomy, background reference plate, and environment controls
+export function mapSceneToStudioContext(
+  scene: SceneItem,
+  existingPrompt?: string
+): MappedSceneContext {
+  const sText = `${scene.id} ${scene.titleEn} ${scene.lightingNotes} ${scene.prompt} ${(scene.tags || []).join(' ')} ${scene.sunDirection} ${scene.atmosphere}`.toLowerCase();
+
+  // 1. Precise architectural location mapping
+  let locationKey = 'bagan_temples';
+  if (sText.includes('shwedagon') || sText.includes('shwemawdaw')) {
+    locationKey = 'shwedagon_pagoda';
+  } else if (sText.includes('bagan') || sText.includes('dhammayangyi') || sText.includes('ananda')) {
+    locationKey = 'bagan_temples';
+  } else if (sText.includes('inle') || sText.includes('nga phe') || sText.includes('jumping cat') || sText.includes('phaung daw oo')) {
+    locationKey = 'inle_lake';
+  } else if (sText.includes('mandalay moat') || sText.includes('palace moat') || sText.includes('fortress wall')) {
+    locationKey = 'mandalay_moat';
+  } else if (sText.includes('mandalay palace') || sText.includes('throne hall') || sText.includes('konbaung') || sText.includes('shwenandaw')) {
+    locationKey = 'konbaung_palace_interior';
+  } else if (sText.includes('mandalay hill') || sText.includes('sutaungpyei') || sText.includes('sagaing') || sText.includes('u min thonze')) {
+    locationKey = 'sagaing_hill';
+  } else if (sText.includes('kalaw') || sText.includes('pindaya')) {
+    locationKey = 'kalaw_pindaya';
+  } else if (sText.includes('pyin oo lwin') || sText.includes('pyinoolwin') || sText.includes('kandawgyi')) {
+    locationKey = 'pyinoolwin_garden';
+  } else if (sText.includes('ngapali') || sText.includes('chaung tha') || sText.includes('ngwesaung')) {
+    locationKey = 'ngapali_beach';
+  } else if (sText.includes('myeik') || sText.includes('mergui') || sText.includes('archipelago')) {
+    locationKey = 'myeik_islands';
+  } else if (sText.includes('taunggyi') || sText.includes('balloon') || sText.includes('tazaungdaing')) {
+    locationKey = 'taunggyi_balloon_field';
+  } else if (sText.includes('chin') || sText.includes('victoria') || sText.includes('nat ma taung')) {
+    locationKey = 'chin_mountains';
+  } else if (sText.includes('kyaiktiyo') || sText.includes('golden rock')) {
+    locationKey = 'kyaiktiyo_golden_rock';
+  } else if (sText.includes('riverside') || sText.includes('ayeyarwady') || sText.includes('jetty') || sText.includes('yangon river')) {
+    locationKey = 'riverside_sunset';
+  } else if (sText.includes('monastery') || sText.includes('dhamma hall') || sText.includes('kyaung')) {
+    locationKey = 'monastery_temple_hall';
+  } else if (sText.includes('mrauk-u') || sText.includes('mrauk u') || sText.includes('shittaung') || sText.includes('kothaung')) {
+    locationKey = 'mrauk_u_temples';
+  } else if (sText.includes('u bein') || sText.includes('ubein') || sText.includes('amarapura') || sText.includes('taungthaman')) {
+    locationKey = 'ubein_bridge';
+  } else if (sText.includes('hpa-an') || sText.includes('hpa an') || sText.includes('sadan') || sText.includes('zwekabin')) {
+    locationKey = 'hpa_an_caves';
+  } else if (sText.includes('paris') || sText.includes('eiffel')) {
+    locationKey = 'paris_eiffel_tower';
+  } else if (sText.includes('santorini') || sText.includes('oia')) {
+    locationKey = 'santorini_greece';
+  } else if (sText.includes('kyoto') || sText.includes('arashiyama') || sText.includes('torii')) {
+    locationKey = 'kyoto_bamboo_torii';
+  } else if (sText.includes('swiss') || sText.includes('alps')) {
+    locationKey = 'swiss_alps_snow';
+  } else if (sText.includes('venice') || sText.includes('gondola')) {
+    locationKey = 'venice_gondola_canal';
+  } else if (sText.includes('taj mahal')) {
+    locationKey = 'taj_mahal_palace';
+  } else if (sText.includes('bali') || sText.includes('ubud')) {
+    locationKey = 'bali_jungle_swing';
+  } else if (sText.includes('maldives') || sText.includes('bungalow')) {
+    locationKey = 'maldives_overwater';
+  } else if (sText.includes('cappadocia')) {
+    locationKey = 'cappadocia_balloons';
+  } else if (sText.includes('central park')) {
+    locationKey = 'ny_central_park';
+  } else if (scene.category === 'wedding_prewedding') {
+    locationKey = 'luxury_hotel_ballroom';
+  } else if (scene.category === 'fashion_commercial') {
+    locationKey = 'wood_brick_studio';
+  } else if (scene.category === 'baby_family') {
+    locationKey = 'traditional_myanmar_house';
+  } else if (sText.includes('paddy') || sText.includes('harvest') || sText.includes('field')) {
+    locationKey = 'golden_hour_paddy_field';
+  } else if (sText.includes('stream') || sText.includes('waterfall') || sText.includes('forest')) {
+    locationKey = 'lush_forest_stream';
+  } else if (sText.includes('cherry blossom') || sText.includes('sakura')) {
+    locationKey = 'cherry_blossom_garden';
+  } else if (sText.includes('cyberpunk') || sText.includes('neon')) {
+    locationKey = 'neon_city_night';
+  }
+
+  // 2. Fetch rich architectural details from taxonomy (Anti-Hallucination)
+  const locTax = LOCATION_TAXONOMY_MAP[locationKey] || resolveLocationDescription(scene.id, scene.id);
+  const locationDetails = locTax.en;
+
+  // 3. Precise Time-of-Day derivation
+  let timeOfDay = 'golden_hour';
+  if (sText.includes('night') || sText.includes('moonlit') || sText.includes('candle') || sText.includes('lantern') || sText.includes('oil lamp')) {
+    timeOfDay = 'night';
+  } else if (sText.includes('twilight') || sText.includes('blue hour') || sText.includes('dusk')) {
+    timeOfDay = 'twilight';
+  } else if (sText.includes('dawn') || sText.includes('sunrise') || sText.includes('misty dawn') || sText.includes('early morning')) {
+    timeOfDay = 'early_morning';
+  } else if (sText.includes('high noon') || sText.includes('noon') || sText.includes('midday') || scene.sunDirection === 'overhead') {
+    timeOfDay = 'high_noon';
+  } else {
+    timeOfDay = 'golden_hour';
+  }
+
+  // 4. Precise Mood & Atmosphere derivation
+  let mood = 'royal_majestic';
+  if (sText.includes('rain') || sText.includes('monsoon') || sText.includes('wet') || sText.includes('puddle')) {
+    mood = 'monsoon_rain';
+  } else if (sText.includes('mist') || sText.includes('fog') || sText.includes('haze') || scene.atmosphere === 'dreamy_mist') {
+    mood = 'misty_morning';
+  } else if (sText.includes('wind') || sText.includes('breeze') || sText.includes('windswept')) {
+    mood = 'breezy_windswept';
+  } else if (sText.includes('candle') || sText.includes('oil lamp') || sText.includes('lantern') || timeOfDay === 'night') {
+    mood = 'candlelit_intimate';
+  } else if (sText.includes('vintage') || sText.includes('sepia') || sText.includes('1940') || sText.includes('retro')) {
+    mood = 'vintage_nostalgic';
+  } else if (sText.includes('balloon') || sText.includes('festival') || sText.includes('celebration')) {
+    mood = 'festive_vibrant';
+  } else if (sText.includes('spiritual') || sText.includes('peaceful') || sText.includes('serene') || sText.includes('sacred')) {
+    mood = 'serene_spiritual';
+  } else if (scene.atmosphere === 'luxury_gilded' || scene.category === 'heritage_myanmar') {
+    mood = 'royal_majestic';
+  } else {
+    mood = 'serene_spiritual';
+  }
+
+  // 5. Harmonize or Build Rich Master Generation Prompt
+  let prompt = '';
+  const cleanScenePrompt = scene.prompt.replace(/\s+/g, ' ').trim();
+  const cleanLighting = scene.lightingNotes.replace(/\s+/g, ' ').trim();
+
+  if (existingPrompt && existingPrompt.trim()) {
+    const rawExisting = existingPrompt.trim();
+    const isFamily = /\b(family|parents|father|mother|children|kids|baby|toddler|grandparents|family\s*portrait|group\s*photo|group\s*portrait|multiple\s*people|three\s*people|four\s*people|five\s*people|six\s*people|မိသားစု|သားသမီး|မိဘ|မိဘသားသမီး|မိသားစုလိုက်)\b/i.test(rawExisting) || scene.category === 'baby_family';
+    const isCouple = (/\b(couple|two\s*people|two\s*persons|bride\s*and\s*groom|groom\s*and\s*bride|husband\s*and\s*wife|man\s*and\s*woman|two\s*subjects|စုံတွဲ|ဇနီးမောင်နှံ|မောင်နှံ)\b/i.test(rawExisting) || scene.category === 'wedding_prewedding') && !isFamily;
+
+    const defaultSubj = isFamily
+      ? 'Authentic Myanmar family (parents and children) together, natural skin micro-pores, preserved individual facial identities and likeness for all family members'
+      : isCouple
+      ? 'Authentic Myanmar couple (groom and bride) standing together side-by-side, natural skin micro-pores, preserved identities for both individuals'
+      : 'Authentic Myanmar subject, natural skin micro-pores, preserved identity';
+    const defaultAction = isFamily
+      ? 'Posing warmly together as a cohesive family, smiling naturally, affectionate family bond, all individuals in crisp focus'
+      : isCouple
+      ? 'Standing close affectionately side-by-side, posing for a romantic portrait, both looking toward camera'
+      : 'Preserving natural pose, authentic posture, relaxed expression';
+    const cineDirective = isFamily
+      ? 'Hasselblad X2D 100C, 45mm lens, f/4 aperture, sharp group focus framing all family members side-by-side with balanced depth of field'
+      : isCouple
+      ? 'Hasselblad X2D 100C, 50mm f/4 lens, wide medium shot framing both individuals side-by-side in sharp focus, balanced depth of field'
+      : 'Hasselblad X2D 100C, 85mm f/1.2 lens, medium-full portrait composition, shallow depth of field';
+
+    if (rawExisting.includes('[Subject]:')) {
+      const subjMatch = rawExisting.match(/\[Subject\]:\s*([^.]+)\./i);
+      const actionMatch = rawExisting.match(/\[Action\]:\s*([^.]+)\./i);
+      const subjPart = subjMatch ? subjMatch[1].trim() : defaultSubj;
+      const actionPart = actionMatch ? actionMatch[1].trim() : defaultAction;
+      prompt = `[Subject]: ${subjPart}. [Action]: ${actionPart}. [Environment]: Set against ${locationDetails}. Architectural backdrop plate: ${cleanScenePrompt}. [Cinematography]: ${cineDirective}. [Lighting/Style]: ${cleanLighting}, natural cinematic chiaroscuro. [Technical]: 8k uhd photorealistic, professional photography, cinematic color grading, strictly avoiding Thai prang spires and Cambodian Angkor stone towers --ar 16:9`.replace(/\s+/g, ' ').trim();
+    } else {
+      prompt = `${rawExisting}, set against ${locationDetails}. Architectural backdrop: ${cleanScenePrompt}. Cinematography: ${cineDirective}. Lighting: ${cleanLighting}. 8k uhd photorealistic, cinematic color grading, strictly avoiding Thai prangs and Angkor stone towers --ar 16:9`.replace(/\s+/g, ' ').trim();
+    }
+  } else {
+    const isFamily = scene.category === 'baby_family';
+    const isCouple = scene.category === 'wedding_prewedding';
+    const subjDirective = isFamily
+      ? '[Subject]: Authentic Myanmar family (parents and children from uploaded reference photo), natural skin micro-pores, preserved individual facial likeness for all family members. [Action]: Posing warmly together as a cohesive family, smiling naturally, all individuals in sharp focus.'
+      : isCouple
+      ? '[Subject]: Authentic Myanmar couple (groom and bride from uploaded reference photo), natural skin micro-pores, preserved identities for both individuals. [Action]: Standing close affectionately side-by-side, posing for a romantic portrait, both looking toward camera.'
+      : '[Subject]: Authentic Myanmar subject(s) (individual, couple, or family from uploaded reference photo), natural skin micro-pores, preserved facial likeness. [Action]: Preserving natural pose, authentic posture, relaxed expression.';
+    const cineDirective = isFamily
+      ? 'Hasselblad X2D 100C, 45mm lens, f/4 aperture, sharp group focus framing all family members side-by-side with balanced depth of field'
+      : isCouple
+      ? 'Hasselblad X2D 100C, 50mm f/4 lens, wide medium shot framing both individuals side-by-side in sharp focus, balanced depth of field'
+      : 'Hasselblad X2D 100C, 85mm f/1.2 lens, medium-full shot composition, shallow depth of field';
+
+    prompt = `${subjDirective} [Environment]: Set against ${locationDetails}. Architectural backdrop plate: ${cleanScenePrompt}. [Cinematography]: ${cineDirective}. [Lighting/Style]: ${cleanLighting}, authentic natural lighting. [Technical]: 8k uhd photorealistic, professional photography, cinematic color grading, strictly avoiding Thai prang spires and Cambodian Angkor stone towers --ar 16:9`.replace(/\s+/g, ' ').trim();
+  }
+
+  // 6. Assemble Background Reference Plate with strict role: 'background'
+  const plateId = `scene-plate-${scene.id.replace(/[\s_]+/g, '-')}-${Date.now()}`;
+  const referencePhotos = [
+    {
+      id: plateId,
+      url: scene.previewImage,
+      name: `${scene.titleEn} (Location Reference Plate)`,
+      role: 'background' as const
+    }
+  ];
+
+  const chosenOptions = [
+    { label: 'Location', value: locationKey, emoji: '🏛️' },
+    { label: 'Time of Day', value: timeOfDay, emoji: '🌅' },
+    { label: 'Mood / Atmosphere', value: mood, emoji: '✨' },
+    { label: 'Scene Title', value: scene.titleEn, emoji: '🎬' },
+    { label: 'Scene ID', value: scene.id, emoji: '🔖' }
+  ];
+
+  return {
+    prompt,
+    ratio: '16:9',
+    referencePhoto: scene.previewImage,
+    referencePhotos,
+    chosenOptions,
+    locationKey,
+    locationDetails,
+    timeOfDay,
+    mood,
+    lightingNotes: cleanLighting,
+    scene
+  };
+}
 
 export function buildComprehensiveMasterPrompt(
   selection: MatrixSelection,
@@ -136,6 +598,7 @@ export function buildComprehensiveMasterPrompt(
   descriptionMm: string;
   descriptionEn: string;
   cameraNotes: string;
+  scenePreviewImage?: string;
 } {
   const targetAr = selection?.aspectRatio || '9:16';
 
@@ -150,11 +613,11 @@ export function buildComprehensiveMasterPrompt(
 
   // 0. Standalone Background-Only Mode Handling
   if (mode === 'background-only') {
-    const locKey = (selection?.location || '').toLowerCase();
-    const locMapped = LOCATION_TAXONOMY[locKey]?.en || selection?.location || 'historic Bagan pagoda sanctuary';
-    const locMm = LOCATION_TAXONOMY[locKey]?.mm || selection?.location || 'ပုဂံ ရှေးဟောင်းစေတီပုထိုး နောက်ခံ';
+    const resolvedLoc = resolveLocationTaxonomy(selection?.location, selection?.selectedSceneId);
+    const locMapped = resolvedLoc.en;
+    const locMm = resolvedLoc.mm;
     const locCustom = selection?.customLocationDetails ? `, ${selection.customLocationDetails.trim()}` : '';
-    const lighting = selection?.timeAndLighting || 'golden hour warm directional sunlight with volumetric mist';
+    const lighting = resolvedLoc.lightingNotes || selection?.timeAndLighting || 'golden hour warm directional sunlight with volumetric mist';
     const lightCustom = selection?.customLightingDetails ? `, ${selection.customLightingDetails.trim()}` : '';
     const mood = selection?.moodEmotion && selection.moodEmotion !== 'skip' ? `${selection.moodEmotion} atmosphere` : 'serene and timeless aesthetic';
     const event = selection?.event && selection.event !== 'skip' ? `, inspired by ${selection.event}` : '';
@@ -181,6 +644,7 @@ export function buildComprehensiveMasterPrompt(
         `၄။ အထူးသတ်မှတ်ချက်: လူပုံ/မော်ဒယ် လုံးဝမပါဝင်ဘဲ နောက်ခံရှုခင်းနှင့် ဗိသုကာအလှကိုသာ ၁၀၀% အသေးစိတ် ပုံဖော်ပေးထားပါသည်။`,
       descriptionEn: `Standalone architectural and environmental background scenery prompt for ${locMapped} without human subjects (Aspect Ratio: ${targetAr}).`,
       cameraNotes: `${camera}, ISO 64, f/8.0 deep depth of field, 1/125s tripod exposure`,
+      scenePreviewImage: resolvedLoc.referenceImage || selection?.selectedScenePreviewImage || undefined
     };
   }
 
@@ -190,8 +654,9 @@ export function buildComprehensiveMasterPrompt(
     const eth = selection?.customEthnicityDetails || 'authentic Burmese / Myanmar heritage';
     const outfit = selection?.garmentStyle || 'intricate traditional Myanmar silk woven attire tailored from Reference Image';
     const pose = selection?.poseExpression || 'natural regal posture replicating Reference Image pose';
-    const loc = selection?.location || 'authentic Myanmar heritage architectural setting';
-    const light = selection?.timeAndLighting || 'soft directional Rembrandt studio lighting with warm golden rim light';
+    const resolvedLoc = resolveLocationTaxonomy(selection?.location, selection?.selectedSceneId);
+    const loc = resolvedLoc.en;
+    const light = resolvedLoc.lightingNotes || selection?.timeAndLighting || 'soft directional Rembrandt studio lighting with warm golden rim light';
     const cam = selection?.camera || 'Sony A7R V with 85mm f/1.2 GM portrait prime lens';
     const quality = selection?.qualityProfile || '8k resolution, highly detailed fabric textures, photorealistic, professional photography, cinematic color grading';
 
@@ -211,6 +676,7 @@ export function buildComprehensiveMasterPrompt(
         `၃။ ကင်မရာနှင့် အလင်း: ${cam} နှင့် ${light} (Aspect Ratio: ${targetAr})`,
       descriptionEn: `Reference Image Outfit & Pose: Preserves User Image facial identity with 100% fidelity while replicating Reference Image outfit, body posture, lighting, and background (Aspect Ratio: ${targetAr}).`,
       cameraNotes: `${cam}, ISO 100, f/1.2 aperture, 1/250s shutter speed, 85mm portrait prime lens`,
+      scenePreviewImage: resolvedLoc.referenceImage || selection?.selectedScenePreviewImage || undefined
     };
   }
 
@@ -235,17 +701,17 @@ export function buildComprehensiveMasterPrompt(
       garmentMm = `${gStyle} (${selection?.garmentFabric || 'ပိုးစစ်စစ်နှင့် ရွှေချည်ထိုး အထည်'})`;
     }
 
-    const locKey = (selection?.location || '').toLowerCase();
-    const locBase = LOCATION_TAXONOMY[locKey]?.en || selection?.location || 'authentic Myanmar royal heritage studio backdrop';
+    const resolvedLoc = resolveLocationTaxonomy(selection?.location, selection?.selectedSceneId);
+    const locBase = resolvedLoc.en;
     const locCustom = selection?.customLocationDetails ? `, ${selection.customLocationDetails.trim()}` : '';
-    const lightBase = selection?.timeAndLighting || 'warm golden hour directional key lighting with soft fill';
+    const lightBase = resolvedLoc.lightingNotes || selection?.timeAndLighting || 'warm golden hour directional key lighting with soft fill';
     const camera = selection?.camera || 'Hasselblad X2D 100C with 85mm f/1.2 portrait prime lens';
     const angle = selection?.cameraAngle && selection.cameraAngle !== 'skip' ? selection.cameraAngle : 'Medium-full shot, eye-level angle';
     const style = selection?.photoStyle || 'High-End Editorial Studio Portrait';
     const quality = selection?.qualityProfile || '8k resolution, highly detailed fabric textures, photorealistic, professional photography, cinematic color grading';
 
     const masterPrompt = `[Subject]: Keep the exact same person, face, facial bone structure, body proportions, and skin tone from Image 1 (100% exact face match, identical eyes nose lips, zero face alteration, preserved identity). Replace ONLY the clothing with the outfit from Image 2: ${garmentChecklist}. [Action]: Preserving the exact body posture, stance, and natural expression from Image 1. [Environment]: Set against ${locBase}${locCustom}. [Cinematography]: ${angle}, shot on ${camera}, f/2.0 aperture for shallow depth of field. [Lighting/Style]: ${lightBase}, ${style}, natural unretouched epidermal skin micro-pores. [Technical]: ${quality} --ar ${targetAr}`.replace(/\s+/g, ' ').trim();
-    const negativePrompt = `different face, altered face, changed eyes, changed nose, changed lips, distorted face, facial asymmetry, face swap artifact, mismatched identity, wrong cultural clothing, Indian saree, Chinese hanfu, plastic skin, low quality, blurry`;
+    const negativePrompt = `different face, altered face, changed eyes, changed nose, changed lips, distorted face, facial asymmetry, face swap artifact, mismatched identity, wrong cultural clothing, Indian saree, Chinese hanfu, Thai prang spire, Thai wat architecture, Cambodian Angkor stone towers, Khmer stone ruins, plastic skin, low quality, blurry`;
 
     return {
       masterPrompt,
@@ -261,6 +727,7 @@ export function buildComprehensiveMasterPrompt(
         `၄။ ကင်မရာနှင့် အချိုးအစား: ${camera} (Aspect Ratio: --ar ${targetAr})`,
       descriptionEn: `Strict Sequence Clothes Swap Prompt: Keeps Image 1 subject (face, body, pose, skin tone) 100% locked while swapping ONLY the clothing with ${garmentChecklist} (Aspect Ratio: ${targetAr}).`,
       cameraNotes: `${camera}, ISO 100, f/1.2, 1/250s`,
+      scenePreviewImage: resolvedLoc.referenceImage || selection?.selectedScenePreviewImage || undefined
     };
   }
 
@@ -464,18 +931,9 @@ export function buildComprehensiveMasterPrompt(
   }
 
   // 8. Location & Scenery Backdrop
-  let locationText = '';
-  let locationMm = 'မြန်မာ့ရိုးရာ ယဉ်ကျေးမှု အမွေအနှစ် နောက်ခံရှုခင်း';
-  const locKey = (selection?.location || '').toLowerCase();
-  if (LOCATION_TAXONOMY[locKey]) {
-    locationText = `, set in ${LOCATION_TAXONOMY[locKey].en}`;
-    locationMm = LOCATION_TAXONOMY[locKey].mm;
-  } else if (selection?.location && selection.location !== 'skip') {
-    locationText = `, set against ${selection.location}`;
-    locationMm = selection.location;
-  } else {
-    locationText = `, set in an atmospheric Myanmar heritage architectural sanctuary with warm depth of field`;
-  }
+  const resolvedLoc = resolveLocationTaxonomy(selection?.location, selection?.selectedSceneId);
+  let locationText = `, set in ${resolvedLoc.en}`;
+  let locationMm = resolvedLoc.mm;
   if (selection?.customLocationDetails && selection.customLocationDetails.trim()) {
     locationText += `, ${selection.customLocationDetails.trim()}`;
     locationMm += ` (${selection.customLocationDetails.trim()})`;
@@ -634,8 +1092,7 @@ export function buildComprehensiveMasterPrompt(
 
   // 3. [Environment] Section
   const envParts: string[] = [];
-  const locMapped = LOCATION_TAXONOMY[locKey]?.en || selection?.location || 'an atmospheric Myanmar heritage architectural setting';
-  envParts.push(`A breathtaking ${locMapped} at golden hour`);
+  envParts.push(`A breathtaking ${resolvedLoc.en}`);
   if (selection?.customLocationDetails && selection.customLocationDetails.trim()) {
     envParts.push(selection.customLocationDetails.trim());
   }
@@ -665,7 +1122,7 @@ export function buildComprehensiveMasterPrompt(
   const lightParts: string[] = [];
   const lighting = selection?.timeAndLighting && selection.timeAndLighting !== 'skip'
     ? selection.timeAndLighting
-    : 'Golden hour natural lighting, soft warm sunlight illuminating their faces, gentle rim light on their attire from the setting sun';
+    : (resolvedLoc.lightingNotes || 'Golden hour natural lighting, soft warm sunlight illuminating their faces, gentle rim light on their attire from the setting sun');
   lightParts.push(lighting);
   const mood = selection?.moodEmotion && selection.moodEmotion !== 'skip' ? `${selection.moodEmotion} aesthetic` : 'romantic and elegant aesthetic';
   lightParts.push(mood);
@@ -687,7 +1144,7 @@ export function buildComprehensiveMasterPrompt(
     .replace(/\.\./g, '.')
     .trim();
 
-  const negativePrompt = `different face, altered face, swapped face, distorted facial features, facial asymmetry, Indian saree, bindi, Chinese hanfu, Japanese kimono, Western casual clothes, plastic airbrushed skin, doll face, blurry, low resolution, bad eyes, deformed hands, extra fingers, overexposed, watermark, text`;
+  const negativePrompt = `different face, altered face, swapped face, distorted facial features, facial asymmetry, Indian saree, bindi, Chinese hanfu, Japanese kimono, Thai prang spire, Thai wat architecture, Cambodian Angkor stone towers, Khmer stone ruins, Western casual clothes, plastic airbrushed skin, doll face, blurry, low resolution, bad eyes, deformed hands, extra fingers, overexposed, watermark, text`;
 
   const angleNote = selection?.cameraAngle && selection.cameraAngle !== 'skip' ? `, Framing: ${selection.cameraAngle}` : ', Framing: Eye-Level Portrait';
   const styleNote = selection?.photoStyle && selection.photoStyle !== 'skip' ? `, Style: ${selection.photoStyle}` : '';
@@ -714,11 +1171,12 @@ export function buildComprehensiveMasterPrompt(
   return {
     masterPrompt,
     negativePrompt,
-    midjourneyFormat: `/imagine prompt: ${masterPrompt} --v 6.1 --style raw --no Indian saree, Chinese hanfu, Japanese kimono, plastic skin, altered face`,
+    midjourneyFormat: `/imagine prompt: ${masterPrompt} --v 6.1 --style raw --no Indian saree, Chinese hanfu, Japanese kimono, Thai prang spire, Thai wat architecture, Cambodian Angkor stone towers, Khmer stone ruins, plastic skin, altered face`,
     fluxFormat: `${masterPrompt.replace(/--ar\s+[0-9:]+/gi, '').trim()}`,
     sdxlFormat: `${masterPrompt} | Camera: ${cameraNotes} | Negative: ${negativePrompt}`,
     descriptionMm,
     descriptionEn,
     cameraNotes,
+    scenePreviewImage: resolvedLoc.referenceImage || selection?.selectedScenePreviewImage || undefined
   };
 }

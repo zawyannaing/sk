@@ -315,9 +315,17 @@ export const SupabaseCloudHub: React.FC<SupabaseCloudHubProps> = ({
     return () => window.removeEventListener('supabase-cloud-refresh', handler);
   }, [isConfigured, session]);
 
-  // Listen for open cloud modal event
+  // Listen for open cloud modal event (Strictly Protected for Admins only)
   useEffect(() => {
     const openCloudHandler = (e: any) => {
+      if (e?.detail?.tab === 'topup') {
+        window.dispatchEvent(new CustomEvent('open-topup-pricing'));
+        return;
+      }
+      // Security guard: DB Management only accessible to verified admins
+      if (!isAdmin) {
+        return;
+      }
       if (e?.detail?.tab) setActiveCloudTab(e.detail.tab);
       setCloudModalOpen(true);
       refreshCloudProfileAndData();
@@ -326,7 +334,7 @@ export const SupabaseCloudHub: React.FC<SupabaseCloudHubProps> = ({
     return () => {
       window.removeEventListener('open-supabase-cloud', openCloudHandler);
     };
-  }, []);
+  }, [isAdmin]);
 
   // ---- Save Supabase URL & Key ----
   const handleSaveConfig = (e: React.FormEvent) => {

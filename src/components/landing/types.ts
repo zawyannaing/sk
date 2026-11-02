@@ -3,6 +3,8 @@ import { Language } from '../../types';
 export type LandingNavSectionId =
   | 'hero'
   | 'features'
+  | 'bento-tools'
+  | 'scenes'
   | 'suite-8step'
   | 'photo-studio'
   | 'photo-tools'
@@ -16,6 +18,7 @@ export interface MasterLandingPageProps {
   language: Language;
   onLanguageChange: (lang: Language) => void;
   isLoggedIn?: boolean;
+  onOpenScenes?: () => void;
 }
 
 export interface StudioChapter {

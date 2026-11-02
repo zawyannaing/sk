@@ -2,30 +2,29 @@ export const landingCopy = {
   en: {
     navbar: {
       brandTitle: 'SHOW AI',
-      brandSubtitle: 'Burmese Creative Suite 2.0',
+      brandSubtitle: 'Next-Gen Creative Studio',
       links: [
         { id: 'features', label: 'Features' },
-        { id: 'suite-8step', label: '8-Step Suite' },
-        { id: 'photo-studio', label: 'Photo Studio' },
-        { id: 'photo-tools', label: 'AI Tools' },
-        { id: 'video-studio', label: 'Video Studio' },
-        { id: 'pricing', label: 'Pricing & Credits' }
+        { id: 'bento-tools', label: 'Tools' },
+        { id: 'scenes', label: '768+ Scenes' },
+        { id: 'pricing', label: 'Pricing' }
       ],
       signIn: 'Sign In',
-      launchApp: '🚀 Launch App'
+      launchApp: 'Open App'
     },
     hero: {
-      badge: '⚡ SHOW AI 2.0 • BURMESE CULTURAL & COMMERCIAL AI CREATIVE SUITE',
-      h1: "The World's First Archivally Accurate Burmese AI Studio",
+      badge: '✨ The Next-Generation Burmese AI Creative Studio',
+      h1: 'မင်းသမီး၊ မင်းသား ဝတ်စုံများမှစ၍ Pro Photo Studio အထိ AI ဖြင့် စက္ကန့်ပိုင်းအတွင်း ဖန်တီးလိုက်ပါ',
+      h1En: 'From Royal Attire to Pro Photo Studio: Create Cinema-Grade Visuals with AI in Seconds',
       subheadline:
-        '8-step Burmese prompt crafting → 8K photoreal images → commercial product ad posters → cinema-grade video prompts.',
-      ctaPrimary: '🚀 Start Creating (Free 250 Daily Credits)',
-      ctaSecondary: '▶ Watch 60s Demo',
+        'Archivally accurate Burmese portraits, 99.8% likeness face swaps, instant background synthesis, and ultra-high-definition 8K photography.',
+      ctaPrimary: 'Start Creating for Free - 250 Daily Credits',
+      ctaSecondary: 'Watch 1m Demo',
       stats: [
         { label: 'Ethnic Tribes', value: '135' },
         { label: 'Wedding Archetypes', value: '42' },
-        { label: 'Step Guided Wizard', value: '8' },
-        { label: 'Optical Resolution', value: '8K' },
+        { label: 'Burmese Scenes', value: '768+' },
+        { label: 'Likeness Accuracy', value: '99.8%' },
         { label: 'Daily Free Credits', value: '250' }
       ]
     },
@@ -150,7 +149,7 @@ export const landingCopy = {
       headline: 'Start Creating Masterpiece Prompts & Visuals Today',
       subheadline:
         'Join thousands of designers, prompt artists, and brands crafting archivally accurate Burmese cultural art and commercial graphics.',
-      ctaButton: '🚀 Launch Studio Now (Free 250 Credits)',
+      ctaButton: 'Launch Studio Now (Free 250 Credits)',
       stickyBarText: 'Start Creating Masterpiece Prompts & Visuals Today'
     },
     footer: {
@@ -165,31 +164,30 @@ export const landingCopy = {
   my: {
     navbar: {
       brandTitle: 'SHOW AI',
-      brandSubtitle: 'မြန်မာ့ရိုးရာ & စီးပွားရေး AI Creative Suite 2.0', // TODO: native review
+      brandSubtitle: 'မြန်မာ့ရိုးရာ & စီးပွားရေး AI Creative Suite 2.0',
       links: [
-        { id: 'features', label: 'စွမ်းဆောင်ချက်များ' }, // TODO: native review
-        { id: 'suite-8step', label: 'အဆင့် ၈ ဆင့် စနစ်' }, // TODO: native review
-        { id: 'photo-studio', label: 'Photo စတူဒီယို' }, // TODO: native review
-        { id: 'photo-tools', label: 'AI Tools များ' },
-        { id: 'video-studio', label: 'Video စတူဒီယို' }, // TODO: native review
-        { id: 'pricing', label: 'Credit နှုန်းထား' } // TODO: native review
+        { id: 'features', label: 'Features' },
+        { id: 'bento-tools', label: 'Tools' },
+        { id: 'scenes', label: '768+ Scenes' },
+        { id: 'pricing', label: 'Pricing' }
       ],
-      signIn: 'အကောင့်ဝင်ရန်', // TODO: native review
-      launchApp: '🚀 စတင်အသုံးပြုမည်' // TODO: native review
+      signIn: 'အကောင့်ဝင်ရန်',
+      launchApp: 'Open App'
     },
     hero: {
-      badge: '⚡ SHOW AI 2.0 • BURMESE CULTURAL & COMMERCIAL AI CREATIVE SUITE',
-      h1: 'ခေတ်မီ AI နည်းပညာနှင့် မြန်မာ့ရိုးရာ ယဉ်ကျေးမှု/စီးပွားရေး ကြော်ငြာ Poster ဖန်တီးမှု စနစ်',
+      badge: '✨ The Next-Generation Burmese AI Creative Studio',
+      h1: 'မင်းသမီး၊ မင်းသား ဝတ်စုံများမှစ၍ Pro Photo Studio အထိ AI ဖြင့် စက္ကန့်ပိုင်းအတွင်း ဖန်တီးလိုက်ပါ',
+      h1En: 'From Royal Attire to Pro Photo Studio: Create Cinema-Grade Visuals with AI in Seconds',
       subheadline:
-        'အဆင့် ၈ ဆင့် မြန်မာ့ရိုးရာ prompt ဖန်တီးမှုမှ 8K သဘာဝကျသော ပုံရိပ်များ၊ စီးပွားရေး ကုန်ပစ္စည်း ကြော်ငြာ poster များနှင့် ရုပ်ရှင်အဆင့်မီ video prompt များအထိ တစ်နေရာတည်းတွင် ဖန်တီးနိုင်ပါသည်။', // TODO: native review
-      ctaPrimary: '🚀 Start Creating (Free 250 Daily Credits)',
-      ctaSecondary: '▶ Watch 60s Demo',
+        'မြန်မာ့သမိုင်းဝင် နန်းတွင်းဝတ်စုံများ၊ ၉၉.၈% မျက်နှာသွင်ပြင်ထိန်းသိမ်းမှု၊ အဆင့်မြင့် နောက်ခံပေါင်းစပ်မှုနှင့် 8K စတူဒီယိုဓာတ်ပုံများကို စက္ကန့်ပိုင်းအတွင်း ဖန်တီးလိုက်ပါ။',
+      ctaPrimary: 'Start Creating for Free - 250 Daily Credits',
+      ctaSecondary: 'Watch 1m Demo',
       stats: [
-        { label: 'တိုင်းရင်းသားမျိုးနွယ်', value: '135' }, // TODO: native review
-        { label: 'မင်္ဂလာဝတ်စုံပုံစံ', value: '42' }, // TODO: native review
-        { label: 'အဆင့်ဆင့်လမ်းညွှန်', value: '8' }, // TODO: native review
-        { label: 'အကြည်လင်ဆုံးကြည်လင်မှု', value: '8K' }, // TODO: native review
-        { label: 'နေ့စဉ်အခမဲ့ Credit', value: '250' } // TODO: native review
+        { label: 'တိုင်းရင်းသားမျိုးနွယ်', value: '135' },
+        { label: 'မင်္ဂလာဝတ်စုံပုံစံ', value: '42' },
+        { label: 'မြန်မာ့ရိုးရာ Scenes', value: '768+' },
+        { label: 'မျက်နှာသွင်ပြင် တိကျမှု', value: '99.8%' },
+        { label: 'နေ့စဉ်အခမဲ့ Credit', value: '250' }
       ]
     },
     storytelling: {
@@ -313,7 +311,7 @@ export const landingCopy = {
       headline: 'ကမ္ဘာ့အဆင့်မီ Visual များကို ယနေ့ပင် စတင်ဖန်တီးလိုက်ပါ', // TODO: native review
       subheadline:
         'မြန်မာ့ရိုးရာ ယဉ်ကျေးမှုလက်ရာများနှင့် ခေတ်မီ စီးပွားရေး ကြော်ငြာဒီဇိုင်းများကို ဖန်တီးနေကြသော ထောင်ပေါင်းများစွာသော ဖန်တီးရှင်များနှင့် ပူးပေါင်းလိုက်ပါ။', // TODO: native review
-      ctaButton: '🚀 Launch Studio Now (Free 250 Credits)',
+      ctaButton: 'Launch Studio Now (Free 250 Credits)',
       stickyBarText: 'Start Creating Masterpiece Prompts & Visuals Today'
     },
     footer: {

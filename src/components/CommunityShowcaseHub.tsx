@@ -24,17 +24,34 @@ import {
   Upload,
   Image as ImageIcon,
   Loader2,
-  ImagePlus
+  ImagePlus,
+  Compass
 } from 'lucide-react';
 import { BeforeAfterSliderModal } from './BeforeAfterSliderModal';
 import { SocialExportModal } from './SocialExportModal';
 import { SupabaseService } from '../utils/supabaseClient';
+import { Scenes550Explorer } from './scenes/Scenes550Explorer';
+import { mapSceneToStudioContext } from '../utils/promptBuilder';
+import { SceneItem } from '../data/scenes550Data';
 
 interface CommunityShowcaseHubProps {
   onBackToPortal: () => void;
-  onRemixToPhotoStudio: (prompt: string, ratio?: string) => void;
+  onRemixToPhotoStudio: (
+    prompt: string,
+    ratio?: string,
+    bgImage?: string,
+    extraOptions?: {
+      scene?: SceneItem;
+      referencePhotos?: { url: string; name: string; id?: string; role: 'background' | 'character' | 'garment' | 'style' }[];
+      chosenOptions?: { label: string; value: string; emoji?: string }[];
+      location?: string;
+      timeOfDay?: string;
+      mood?: string;
+    }
+  ) => void;
   onRemixToMatrix: (prompt: string) => void;
   language?: any;
+  initialTab?: 'scenes-550' | 'creations';
 }
 
 const CATEGORIES = [
@@ -50,9 +67,11 @@ export const CommunityShowcaseHub: React.FC<CommunityShowcaseHubProps> = ({
   onBackToPortal,
   onRemixToPhotoStudio,
   onRemixToMatrix,
-  language
+  language,
+  initialTab = 'scenes-550'
 }) => {
   const isMm = language === 'my';
+  const [hubTab, setHubTab] = useState<'scenes-550' | 'creations'>(initialTab);
 
   // Filter & Search states
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -232,7 +251,7 @@ export const CommunityShowcaseHub: React.FC<CommunityShowcaseHubProps> = ({
   return (
     <div className="w-full min-h-screen bg-[#07090e] text-slate-100 flex flex-col justify-between selection:bg-emerald-500 selection:text-black">
       {/* Top Navbar */}
-      <header className="sticky top-0 z-30 w-full bg-zinc-950/85 backdrop-blur-xl border-b border-zinc-800/80 px-4 sm:px-8 py-4">
+      <header className="sticky top-0 z-30 w-full bg-zinc-950/85 backdrop-blur-xl border-b border-zinc-800/80 px-4 sm:px-8 py-3.5">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <button
@@ -244,30 +263,82 @@ export const CommunityShowcaseHub: React.FC<CommunityShowcaseHubProps> = ({
               <span className="hidden sm:inline">Main Portal</span>
             </button>
             <div className="h-5 w-px bg-zinc-800 hidden sm:block" />
-            <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                <Sparkles className="w-4 h-4" />
-              </span>
-              <span className="font-bold text-sm sm:text-base text-white tracking-tight">
-                {isMm ? 'ကမ္ဘာ့ အလှဆုံး Prompt များ & Community Remix' : 'Community Showcase & Prompt Remix'}
-              </span>
+            
+            {/* Dual Segment Switcher: 550+ Scenes vs Community Creations */}
+            <div className="flex items-center p-1 bg-zinc-900/90 rounded-2xl border border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setHubTab('scenes-550')}
+                className={`flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                  hubTab === 'scenes-550'
+                    ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/25'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                <Compass className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span>768+ Cinema Scenes</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                    hubTab === 'scenes-550' ? 'bg-slate-950 text-emerald-400' : 'bg-zinc-800 text-zinc-400'
+                  }`}
+                >
+                  768
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setHubTab('creations')}
+                className={`flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                  hubTab === 'creations'
+                    ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/25'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden xs:inline">Community</span>
+                <span>Creations</span>
+              </button>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setIsShareModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-black bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 shadow-md shadow-emerald-500/20 transition-all cursor-pointer active:scale-95"
-            >
-              <Plus className="w-4 h-4" />
-              <span>{isMm ? 'Prompt မျှဝေမည်' : 'Share Creation'}</span>
-            </button>
+            {hubTab === 'creations' && (
+              <button
+                type="button"
+                onClick={() => setIsShareModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-black bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 shadow-md shadow-emerald-500/20 transition-all cursor-pointer active:scale-95"
+              >
+                <Plus className="w-4 h-4" />
+                <span>{isMm ? 'Prompt မျှဝေမည်' : 'Share Creation'}</span>
+              </button>
+            )}
           </div>
         </div>
       </header>
 
-      {/* Main Container */}
+      {/* Main Container: Switch between 550+ Scenes & Community Creations */}
+      {hubTab === 'scenes-550' ? (
+        <div className="flex-1 w-full">
+          <Scenes550Explorer
+            language={language}
+            onUseSceneAsBackground={(scene) => {
+              const mapped = mapSceneToStudioContext(scene);
+              onRemixToPhotoStudio(mapped.prompt, mapped.ratio, mapped.referencePhoto, {
+                scene: mapped.scene,
+                referencePhotos: mapped.referencePhotos,
+                chosenOptions: mapped.chosenOptions,
+                location: mapped.locationKey,
+                timeOfDay: mapped.timeOfDay,
+                mood: mapped.mood
+              });
+            }}
+            onSendPromptToStudio={(prompt) => {
+              onRemixToPhotoStudio(prompt, '16:9');
+            }}
+          />
+        </div>
+      ) : (
       <main className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-8 flex-1">
         {/* Banner Section */}
         <div className="rounded-3xl bg-gradient-to-r from-emerald-950/40 via-zinc-900 to-teal-950/30 border border-emerald-500/30 p-6 sm:p-8 shadow-2xl relative overflow-hidden space-y-4">
@@ -505,6 +576,7 @@ export const CommunityShowcaseHub: React.FC<CommunityShowcaseHubProps> = ({
           })}
         </div>
       </main>
+      )}
 
       {/* Social Media 1-Click Multi-Ratio Export Modal */}
       <SocialExportModal

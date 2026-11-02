@@ -33,6 +33,9 @@ export interface LocationOption {
   labelEn: string;
   environmentType: 'indoor' | 'outdoor' | 'fantasy' | 'studio';
   category?: string;
+  referenceImage?: string;
+  previewImage?: string;
+  architecturalNotes?: string;
 }
 
 export interface LightingOption {
@@ -237,6 +240,9 @@ export interface MatrixSelection {
   preserveSubject100Percent?: boolean;
   changePersonStyle?: boolean;
   customInstruction?: string;
+  selectedSceneId?: string;
+  selectedSceneTitle?: string;
+  selectedScenePreviewImage?: string;
 }
 
 export interface PromptResult {
@@ -249,6 +255,7 @@ export interface PromptResult {
   descriptionMm: string;
   descriptionEn: string;
   cameraNotes: string;
+  scenePreviewImage?: string;
   aspectRatio?: string;
   generatedImageUrl?: string;
   timestamp: string;

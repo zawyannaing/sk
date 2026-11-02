@@ -384,7 +384,12 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
 
   // Generate Prompt handler with Animation & Camera awareness
   const handleGenerate = async () => {
-    if (!inputText.trim()) return;
+    if (isGenerating) return;
+
+    if (!inputText.trim()) {
+      setInputText('A majestic Bagan Royal Lady in traditional silk attire walking gracefully through ancient temple spires at golden sunset');
+      return;
+    }
 
     const session = SupabaseService.getSession();
     if (!session) {
@@ -980,7 +985,7 @@ export const VideoPromptStudio: React.FC<VideoPromptStudioProps> = ({
                 whileTap={{ scale: 0.95 }}
                 type="button"
                 onClick={handleGenerate}
-                disabled={isGenerating || !inputText.trim()}
+                disabled={isGenerating}
                 className={`h-11 px-5 rounded-full flex items-center justify-center gap-2 font-bold text-xs shrink-0 transition-all w-full sm:w-auto ${
                   isGenerating
                     ? 'bg-zinc-800 text-zinc-500 cursor-wait'

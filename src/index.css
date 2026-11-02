@@ -1,5 +1,79 @@
 @import "tailwindcss";
 
+:root {
+  --dr-bg-0: #020308;
+  --dr-bg-1: #05070d;
+  --dr-bg-2: #0a1020;
+  --dr-calm: #22e6ff;
+  --dr-mid: #8a5cff;
+  --dr-hot: #ff3d9a;
+  --dr-core: #eafcff;
+  --dr-vignette: 0.62;
+  --dr-grain: 0.05;
+  --dr-bloom-blur: 10px;
+  --dr-bloom-opacity: 0.7;
+}
+
+@keyframes dr-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.dr-root {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+  animation: dr-fade-in 0.8s ease-out forwards;
+}
+
+.dr-root--contained {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
+.dr-bloom {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  filter: blur(var(--dr-bloom-blur, 10px));
+  opacity: var(--dr-bloom-opacity, 0.7);
+  pointer-events: none;
+}
+
+.dr-main {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.dr-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at center, transparent 35%, rgba(2, 3, 8, var(--dr-vignette, 0.62)) 100%);
+}
+
+.dr-grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: var(--dr-grain, 0.05);
+  background-image: radial-gradient(rgba(255, 255, 255, 0.15) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
 @theme {
   --color-primary: #1c1c1e;
   --color-on-primary: #ffffff;
@@ -32,12 +106,18 @@
   --color-neon-cyan: #22d3ee;
   --color-neon-amber: #f59e0b;
 
-  --font-logo: "Tektur", "Google Sans", sans-serif;
-  --font-headline: "Oswald", "Google Sans", sans-serif;
-  --font-sans: "Google Sans", "Roboto", "Noto Sans Myanmar", -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-display: "Oswald", "Google Sans", sans-serif;
-  --font-myanmar: "Noto Sans Myanmar", sans-serif;
-  --font-retro: "Press Start 2P", monospace;
+  --font-logo: "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-headline: "Anton", "Oswald", "Plus Jakarta Sans", "Noto Sans Myanmar", sans-serif;
+  --font-sans: "Google Sans", "Noto Sans Myanmar", "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: "Anton", "Oswald", "Google Sans", "Noto Sans Myanmar", sans-serif;
+  --font-myanmar: "Noto Sans Myanmar", "Google Sans", "Padauk", sans-serif;
+  --font-anton: "Anton", "Noto Sans Myanmar", sans-serif;
+  --font-oswald: "Oswald", "Noto Sans Myanmar", sans-serif;
+  --font-google-sans: "Google Sans", "Noto Sans Myanmar", sans-serif;
+  --font-tektur: "Tektur", "Noto Sans Myanmar", monospace;
+  --font-roboto: "Roboto", "Noto Sans Myanmar", sans-serif;
+  --font-press-start: "Press Start 2P", monospace;
+  --font-retro: "Tektur", "Press Start 2P", sans-serif;
 }
 
 html {
@@ -56,7 +136,7 @@ html {
 body {
   background-color: #0a0d14;
   color: #f1f5f9;
-  font-family: 'Google Sans', 'Roboto', 'Noto Sans Myanmar', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Plus Jakarta Sans', 'Inter', 'Noto Sans Myanmar', -apple-system, BlinkMacSystemFont, sans-serif;
   overflow-x: hidden;
   width: 100%;
   max-width: 100vw;
@@ -76,22 +156,71 @@ img, video, canvas, svg {
 }
 
 /* Custom Typography Utilities */
-.font-logo {
-  font-family: 'Tektur', 'Google Sans', sans-serif;
-  letter-spacing: 0.05em;
-}
-
-.font-headline {
-  font-family: 'Oswald', 'Google Sans', sans-serif;
+.font-anton {
+  font-family: 'Anton', 'Noto Sans Myanmar', sans-serif;
   letter-spacing: 0.02em;
 }
 
+.font-oswald {
+  font-family: 'Oswald', 'Noto Sans Myanmar', sans-serif;
+  letter-spacing: 0.01em;
+}
+
+.font-google-sans {
+  font-family: 'Google Sans', 'Noto Sans Myanmar', sans-serif;
+}
+
+.font-tektur {
+  font-family: 'Tektur', 'Noto Sans Myanmar', monospace;
+  letter-spacing: 0.04em;
+}
+
+.font-roboto {
+  font-family: 'Roboto', 'Noto Sans Myanmar', sans-serif;
+}
+
+.font-press-start {
+  font-family: 'Press Start 2P', monospace;
+}
+
+.font-logo {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  letter-spacing: -0.01em;
+}
+
+.font-headline {
+  font-family: 'Anton', 'Oswald', 'Noto Sans Myanmar', sans-serif;
+  letter-spacing: -0.01em;
+}
+
 .font-myanmar {
-  font-family: 'Noto Sans Myanmar', sans-serif;
+  font-family: 'Noto Sans Myanmar', 'Google Sans', sans-serif !important;
+}
+
+/* 🇲🇲 Global Myanmar Language Typography Override */
+html[lang="my"],
+html.lang-my,
+body.lang-my,
+.lang-my,
+[lang="my"] {
+  font-family: 'Noto Sans Myanmar', 'Google Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+html[lang="my"] h1,
+html[lang="my"] h2,
+html[lang="my"] h3,
+html[lang="my"] h4,
+html[lang="my"] h5,
+html[lang="my"] h6,
+.lang-my h1,
+.lang-my h2,
+.lang-my h3 {
+  font-family: 'Noto Sans Myanmar', 'Google Sans', sans-serif !important;
+  line-height: 1.25;
 }
 
 .font-retro {
-  font-family: 'Press Start 2P', monospace;
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
 }
 
 /* Miro Canvas Subtle Dot Pattern */
@@ -238,4 +367,21 @@ img, video, canvas, svg {
   box-shadow: 
     inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.15),
     0 14px 34px rgba(0, 0, 0, 0.75);
+}
+
+/* Announcement Top Laser Scan Animation */
+@keyframes beam-scan {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-beam-scan {
+  animation: beam-scan 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }

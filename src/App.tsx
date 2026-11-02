@@ -27,6 +27,11 @@ import { MasterLandingPage } from './components/MasterLandingPage';
 import { AuthPage } from './components/auth/AuthPage';
 import { AuthMode } from './components/auth/types';
 import { AdminPanelHub } from './components/admin/AdminPanelHub';
+import { AnnouncementSystem } from './components/announcements/AnnouncementSystem';
+import { MaintenanceScreen } from './components/MaintenanceScreen';
+import { MaintenanceSettings } from './components/admin/types';
+import { Scenes550Explorer } from './components/scenes/Scenes550Explorer';
+import { TopupCreditModal } from './components/pricing/TopupCreditModal';
 
 const DEFAULT_SELECTION: MatrixSelection = {
   subject: 'woman',
@@ -123,11 +128,60 @@ export default function App() {
   const [photoStudioInitialRatio, setPhotoStudioInitialRatio] = useState<string | undefined>(undefined);
   const [photoStudioInitialRefPhoto, setPhotoStudioInitialRefPhoto] = useState<string | null>(null);
   const [photoStudioInitialRefPhotos, setPhotoStudioInitialRefPhotos] = useState<
-    (string | { url: string; name?: string; id?: string })[]
+    (string | { url: string; name?: string; id?: string; role?: 'character' | 'garment' | 'style' | 'background' })[]
   >([]);
   const [photoStudioChosenOptions, setPhotoStudioChosenOptions] = useState<
     { label: string; value: string; emoji?: string }[]
   >([]);
+  const [maintenance, setMaintenance] = useState<MaintenanceSettings | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [isGlobalTopupOpen, setIsGlobalTopupOpen] = useState<boolean>(false);
+  const [globalTopupPkgId, setGlobalTopupPkgId] = useState<'starter' | 'creator' | 'master'>('creator');
+
+  // Global top-up modal event listener
+  useEffect(() => {
+    const handler = (e: any) => {
+      if (e?.detail?.packageId) setGlobalTopupPkgId(e.detail.packageId);
+      setIsGlobalTopupOpen(true);
+    };
+    window.addEventListener('open-topup-pricing', handler);
+    return () => window.removeEventListener('open-topup-pricing', handler);
+  }, []);
+
+  // 🇲🇲 Sync HTML language attribute and class for Noto Sans Myanmar typography
+  useEffect(() => {
+    document.documentElement.lang = language;
+    if (language === 'my') {
+      document.documentElement.classList.add('lang-my');
+      document.body.classList.add('lang-my');
+    } else {
+      document.documentElement.classList.remove('lang-my');
+      document.body.classList.remove('lang-my');
+    }
+  }, [language]);
+
+  // Check Maintenance mode & Admin status
+  useEffect(() => {
+    const checkSystemStatus = async () => {
+      try {
+        const [adminStatus, maintSettings] = await Promise.all([
+          SupabaseService.checkIsAdmin(),
+          SupabaseService.fetchAppSettings('maintenance')
+        ]);
+        setIsAdmin(adminStatus);
+        if (maintSettings && typeof maintSettings === 'object') {
+          setMaintenance(maintSettings);
+        }
+      } catch {}
+    };
+    checkSystemStatus();
+
+    const handleAuthChange = () => {
+      checkSystemStatus();
+    };
+    window.addEventListener('supabase-cloud-refresh', handleAuthChange);
+    return () => window.removeEventListener('supabase-cloud-refresh', handleAuthChange);
+  }, []);
 
   // Listen for open-user-profile event
   useEffect(() => {
@@ -232,7 +286,7 @@ export default function App() {
     options?: {
       ratio?: string;
       referencePhoto?: string | null;
-      referencePhotos?: (string | { url: string; name?: string; id?: string })[];
+      referencePhotos?: (string | { url: string; name?: string; id?: string; role?: 'character' | 'garment' | 'style' | 'background' })[];
       chosenOptions?: { label: string; value: string; emoji?: string }[];
     }
   ) => {
@@ -247,7 +301,11 @@ export default function App() {
     if (options?.referencePhotos && options.referencePhotos.length > 0) {
       setPhotoStudioInitialRefPhotos(options.referencePhotos);
     } else if (options?.referencePhoto) {
-      setPhotoStudioInitialRefPhotos([options.referencePhoto]);
+      setPhotoStudioInitialRefPhotos([{
+        url: options.referencePhoto,
+        name: 'Scene Location Plate',
+        role: 'background'
+      }]);
     } else {
       setPhotoStudioInitialRefPhotos([]);
     }
@@ -260,7 +318,12 @@ export default function App() {
     setActiveView('photo-prompt-studio');
   };
 
-  const handleSelectMainSection = (sec: 'portal' | 'video-prompt' | 'photo-prompt' | 'detail-burmese' | 'community') => {
+  const handleSelectMainSection = (sec: MainSectionType | 'portal') => {
+    if (sec === 'scenes-550') {
+      setActiveMainSection('community');
+      setActiveView('community' as any);
+      return;
+    }
     if (sec !== 'portal') {
       const session = SupabaseService.getSession();
       if (!session) {
@@ -299,6 +362,9 @@ export default function App() {
       setActiveMainSection('video-prompt');
     } else if (view === 'photo-prompt-studio') {
       setActiveMainSection('photo-prompt');
+    } else if (view === 'scenes-550') {
+      setActiveMainSection('community');
+      setActiveView('community' as any);
     } else if (view === 'presentation-slides') {
       // Presentation slides overlay
     } else {
@@ -456,6 +522,23 @@ export default function App() {
       }}
     >
       <div className="min-h-screen bg-[#090a0f] text-[#1c1c1e] font-sans antialiased selection:bg-[#ffd02f] selection:text-[#1c1c1e]">
+        {/* Realtime Announcement Banner / Modal / Toast System */}
+        <AnnouncementSystem
+          language={language}
+          isLoggedIn={!!SupabaseService.getSession()?.user?.id}
+        />
+
+        {/* Global Maintenance Mode Gate (Admins & Admin panel bypass) */}
+        {maintenance?.active && !isAdmin && activeMainSection !== 'admin' ? (
+          <MaintenanceScreen
+            settings={maintenance}
+            language={language}
+            onOpenLogin={() => {
+              setAuthModalMode('signin');
+              setIsAuthModalOpen(true);
+            }}
+          />
+        ) : (
         <AnimatePresence mode="wait">
           {isLandingPage ? (
             <motion.div
@@ -471,6 +554,11 @@ export default function App() {
                 language={language}
                 onLanguageChange={setLanguage}
                 isLoggedIn={!!SupabaseService.getSession()?.user?.id}
+                onOpenScenes={() => {
+                  setIsLandingPage(false);
+                  setActiveMainSection('community');
+                  setActiveView('community' as any);
+                }}
               />
             </motion.div>
           ) : (
@@ -512,11 +600,15 @@ export default function App() {
                       currentUser={currentUser}
                       onOpenProfile={() => setIsUserDashboardOpen(true)}
                       onOpenLanding={() => setIsLandingPage(true)}
+                      onOpenScenes={() => {
+                        setActiveMainSection('community');
+                        setActiveView('community' as any);
+                      }}
                     />
                   )}
 
             {/* SECTION 1: Video Prompt Studio */}
-            {activeView !== 'presentation-slides' && activeMainSection === 'video-prompt' && (
+            {activeView !== 'presentation-slides' && activeView !== 'scenes-550' && activeMainSection === 'video-prompt' && (
               <VideoPromptStudio
                 onBackToMatrix={() => {
                   setActiveMainSection('detail-burmese');
@@ -531,7 +623,7 @@ export default function App() {
             )}
 
             {/* SECTION 2: Photo Prompt Studio */}
-            {activeView !== 'presentation-slides' && activeMainSection === 'photo-prompt' && (
+            {activeView !== 'presentation-slides' && activeView !== 'scenes-550' && activeMainSection === 'photo-prompt' && (
               <PhotoPromptStudio
                 initialPrompt={photoStudioInitialPrompt}
                 initialRatio={photoStudioInitialRatio}
@@ -556,7 +648,7 @@ export default function App() {
             )}
 
             {/* SECTION 3: Detail Burmese (8-Room Studio Suite & Prompt Utilities) */}
-            {activeView !== 'presentation-slides' && activeMainSection === 'detail-burmese' && (
+            {activeView !== 'presentation-slides' && activeView !== 'scenes-550' && activeMainSection === 'detail-burmese' && (
               <DetailBurmeseHub
                 language={language}
                 engine={engine}
@@ -581,16 +673,24 @@ export default function App() {
               />
             )}
 
-            {/* SECTION 4: Community Showcase & 1-Click Prompt Remix */}
+            {/* SECTION 4: Community Showcase & 1-Click Prompt Remix & 550+ Scenes */}
             {activeView !== 'presentation-slides' && activeMainSection === 'community' && (
               <CommunityShowcaseHub
                 language={language}
+                initialTab="scenes-550"
                 onBackToPortal={() => {
                   setActiveMainSection('portal');
                   setActiveView('portal');
                 }}
-                onRemixToPhotoStudio={(prompt, ratio) => {
-                  handleSendToPhotoPromptStudio(prompt, { ratio: ratio || '4:5' });
+                onRemixToPhotoStudio={(prompt, ratio, bgImage, extraOptions) => {
+                  handleSendToPhotoPromptStudio(prompt, {
+                    ratio: ratio || '16:9',
+                    referencePhoto: bgImage || null,
+                    referencePhotos: extraOptions?.referencePhotos || (bgImage ? [{ url: bgImage, name: 'Scene Location Plate', role: 'background' }] : []),
+                    chosenOptions: extraOptions?.chosenOptions || []
+                  });
+                  setActiveMainSection('photo-prompt');
+                  setActiveView('photo-prompt-studio');
                 }}
                 onRemixToMatrix={(prompt) => {
                   handleLoadPromptToMatrix(prompt);
@@ -622,6 +722,7 @@ export default function App() {
       </motion.div>
     )}
   </AnimatePresence>
+)}
 
         {/* User Dashboard Modal */}
         {isUserDashboardOpen && (
@@ -644,6 +745,16 @@ export default function App() {
           language={language}
           onLanguageChange={setLanguage}
           onAuthSuccess={handleAuthSuccess}
+        />
+
+        {/* User Credit Top-Up & Payment Processing Modal */}
+        <TopupCreditModal
+          isOpen={isGlobalTopupOpen}
+          onClose={() => setIsGlobalTopupOpen(false)}
+          language={language}
+          currentUser={currentUser}
+          onUserUpdate={setCurrentUser}
+          initialPackageId={globalTopupPkgId}
         />
 
         {/* PWA Mobile Native Installation Prompt */}

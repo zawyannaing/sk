@@ -1,10 +1,16 @@
 import React, { useState } from 'react';
 import { AdminRouteGuard } from './AdminRouteGuard';
 import { AdminLayout } from './AdminLayout';
+import { DashboardModule } from './modules/DashboardModule';
 import { UsersModule } from './modules/UsersModule';
+import { AnnouncementsModule } from './modules/AnnouncementsModule';
+import { SettingsModule } from './modules/SettingsModule';
+import { BundlesModule } from './modules/BundlesModule';
+import { PromoTopupModule } from './modules/PromoTopupModule';
+import { ApiKeysModule } from './modules/ApiKeysModule';
+import { AuditLogModule } from './modules/AuditLogModule';
 import { AdminModuleId } from './types';
 import { Language, UserProfile } from '../../types';
-import { Sparkles, Construction } from 'lucide-react';
 
 interface AdminPanelHubProps {
   language: Language;
@@ -19,7 +25,7 @@ export const AdminPanelHub: React.FC<AdminPanelHubProps> = ({
   onBackToApp,
   currentUser
 }) => {
-  const [currentModule, setCurrentModule] = useState<AdminModuleId>('users');
+  const [currentModule, setCurrentModule] = useState<AdminModuleId>('dashboard');
 
   return (
     <AdminRouteGuard language={language} onBackToApp={onBackToApp}>
@@ -31,30 +37,18 @@ export const AdminPanelHub: React.FC<AdminPanelHubProps> = ({
         onBackToApp={onBackToApp}
         currentUser={currentUser}
       >
-        {currentModule === 'users' && <UsersModule language={language} />}
-
-        {currentModule !== 'users' && (
-          <div className="py-20 flex flex-col items-center justify-center text-center space-y-4">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-              <Construction className="w-7 h-7" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-lg font-bold text-white capitalize">
-                {currentModule.replace('_', ' ')} Module
-              </h3>
-              <p className="text-xs text-zinc-400 max-w-sm">
-                This administrative module is scheduled for implementation in the next phase of the security deployment plan.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setCurrentModule('users')}
-              className="px-4 py-2 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-semibold hover:bg-emerald-500/30 transition-colors"
-            >
-              Go to Users & Balances Module
-            </button>
-          </div>
+        {currentModule === 'dashboard' && (
+          <DashboardModule language={language} onNavigate={(mod) => setCurrentModule(mod)} />
         )}
+        {currentModule === 'users' && <UsersModule language={language} />}
+        {currentModule === 'announcements' && <AnnouncementsModule language={language} />}
+        {currentModule === 'settings' && <SettingsModule language={language} initialTab="socials" />}
+        {currentModule === 'flags' && <SettingsModule language={language} initialTab="flags" />}
+        {currentModule === 'credits' && <SettingsModule language={language} initialTab="credits" />}
+        {currentModule === 'bundles' && <BundlesModule language={language} />}
+        {currentModule === 'promo_topup' && <PromoTopupModule language={language} />}
+        {currentModule === 'providers' && <ApiKeysModule language={language} />}
+        {currentModule === 'audit' && <AuditLogModule language={language} />}
       </AdminLayout>
     </AdminRouteGuard>
   );
