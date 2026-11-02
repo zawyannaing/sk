@@ -5517,7 +5517,7 @@ async function startServer() {
   app.use(express.static(publicPath));
   const server = http.createServer(app);
 
-  const currentFile = typeof __filename !== "undefined" ? __filename : (typeof import.meta !== "undefined" && import.meta.url ? import.meta.url : "");
+  const currentFile = typeof __filename !== "undefined" ? __filename : "";
   const isDev = process.env.NODE_ENV === "development" || (process.env.NODE_ENV !== "production" && !currentFile.includes("dist"));
 
   if (isDev) {

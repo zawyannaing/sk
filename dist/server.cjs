@@ -2019,7 +2019,6 @@ async function handleHairTransform(req, res) {
 }
 
 // server.ts
-var import_meta = {};
 import_node_dns.default.setDefaultResultOrder("ipv4first");
 import_dotenv.default.config();
 var app = (0, import_express.default)();
@@ -6778,7 +6777,7 @@ async function startServer() {
   const publicPath = import_path.default.join(process.cwd(), "public");
   app.use(import_express.default.static(publicPath));
   const server = import_http.default.createServer(app);
-  const currentFile = typeof __filename !== "undefined" ? __filename : typeof import_meta !== "undefined" && import_meta.url ? import_meta.url : "";
+  const currentFile = typeof __filename !== "undefined" ? __filename : "";
   const isDev = process.env.NODE_ENV === "development" || process.env.NODE_ENV !== "production" && !currentFile.includes("dist");
   if (isDev) {
     const vite = await (0, import_vite.createServer)({
