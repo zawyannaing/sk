@@ -10,6 +10,10 @@ import {
 } from '../../types';
 import { StorageService } from '../../utils/storageService';
 import { SupabaseService } from '../../utils/supabaseClient';
+import { PublicCreatorProfileModal } from './PublicCreatorProfileModal';
+import { ShareToCommunityModal } from './ShareToCommunityModal';
+import { SocialExportModal } from '../SocialExportModal';
+import { COMMUNITY_CREATIONS, CommunityCreation } from '../../data/communityData';
 import {
   User,
   Camera,
@@ -21,6 +25,8 @@ import {
   Calendar,
   MapPin,
   Globe,
+  Share2,
+  Wand2,
   Copy,
   Check,
   Trash2,
@@ -165,6 +171,19 @@ export const UserDashboardModal: React.FC<UserDashboardModalProps> = ({
   const [editAvatar, setEditAvatar] = useState(currentUser?.avatar || '');
   const [editPlan, setEditPlan] = useState<UserPlanTier>(currentUser?.plan || 'creator_pro');
   const [editLocation, setEditLocation] = useState(currentUser?.location || 'Yangon, Myanmar');
+  const [editTitle, setEditTitle] = useState(currentUser?.title || 'Burmese Royal Heritage & AI Prompt Artist');
+  const [editCoverImage, setEditCoverImage] = useState(currentUser?.coverImage || 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200&auto=format&fit=crop&q=80');
+  const [editFacebook, setEditFacebook] = useState(currentUser?.socialLinks?.facebook || '');
+  const [editTelegram, setEditTelegram] = useState(currentUser?.socialLinks?.telegram || '');
+  const [editTiktok, setEditTiktok] = useState(currentUser?.socialLinks?.tiktok || '');
+  const [editInstagram, setEditInstagram] = useState(currentUser?.socialLinks?.instagram || '');
+  const [editWebsite, setEditWebsite] = useState(currentUser?.website || currentUser?.socialLinks?.website || '');
+
+  // Modals for Public Profile & Sharing
+  const [isPublicProfileModalOpen, setIsPublicProfileModalOpen] = useState(false);
+  const [shareCommunityPhoto, setShareCommunityPhoto] = useState<UserPhotoItem | null>(null);
+  const [socialExportPhoto, setSocialExportPhoto] = useState<UserPhotoItem | null>(null);
+  const [profileLinkCopied, setProfileLinkCopied] = useState(false);
 
   // API Key Vault State
   const [apiKeySeedream, setApiKeySeedream] = useState(() => localStorage.getItem('seedream_api_key') || '');
@@ -350,7 +369,17 @@ export const UserDashboardModal: React.FC<UserDashboardModalProps> = ({
       bio: editBio.trim() || currentUser?.bio || '',
       avatar: editAvatar.trim() || currentUser?.avatar || '',
       plan: editPlan || currentUser?.plan || 'creator_pro',
-      location: editLocation.trim() || currentUser?.location || 'Yangon, Myanmar'
+      location: editLocation.trim() || currentUser?.location || 'Yangon, Myanmar',
+      title: editTitle.trim() || currentUser?.title || 'Burmese Royal Heritage & AI Prompt Artist',
+      coverImage: editCoverImage.trim() || currentUser?.coverImage,
+      website: editWebsite.trim() || currentUser?.website,
+      socialLinks: {
+        facebook: editFacebook.trim() || undefined,
+        telegram: editTelegram.trim() || undefined,
+        tiktok: editTiktok.trim() || undefined,
+        instagram: editInstagram.trim() || undefined,
+        website: editWebsite.trim() || undefined
+      }
     };
     StorageService.setCurrentUser(updated);
     onUserUpdate(updated);
@@ -583,6 +612,49 @@ export const UserDashboardModal: React.FC<UserDashboardModalProps> = ({
                   <span>{currentUser?.email || 'creator@showai.studio'}</span>
                   <span>•</span>
                   <span>{currentUser?.location || 'Yangon, Myanmar'}</span>
+                </div>
+
+                {/* Creator Public Portfolio & Share Actions */}
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setIsPublicProfileModalOpen(true)}
+                    className="px-3 py-1 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 text-white text-[11px] font-bold flex items-center gap-1.5 transition cursor-pointer hover:border-emerald-500/50"
+                  >
+                    <Globe className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>{isMyanmar ? 'အများမြင် Portfolio ကြည့်မည်' : 'View Public Portfolio'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const shareUrl = `${window.location.origin}/@${currentUser?.username || 'creator'}`;
+                      if (navigator.share) {
+                        navigator.share({
+                          title: `${currentUser?.name || 'Creator'} - ShowAI Studio Profile`,
+                          text: currentUser?.bio || 'Check out my ShowAI AI art creations and prompt recipes!',
+                          url: shareUrl
+                        }).catch(() => {});
+                      } else {
+                        navigator.clipboard.writeText(shareUrl);
+                        setProfileLinkCopied(true);
+                        setTimeout(() => setProfileLinkCopied(false), 2000);
+                      }
+                    }}
+                    className="px-2.5 py-1 rounded-xl bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white text-[11px] font-medium flex items-center gap-1 transition cursor-pointer"
+                  >
+                    {profileLinkCopied ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        <span className="text-emerald-400">{isMyanmar ? 'လင့်ခ် ကူးပြီး' : 'Link Copied!'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Share2 className="w-3.5 h-3.5 text-zinc-400" />
+                        <span>{isMyanmar ? 'ပရိုဖိုင်မျှဝေရန်' : 'Share Profile'}</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             </div>
@@ -933,34 +1005,58 @@ export const UserDashboardModal: React.FC<UserDashboardModalProps> = ({
                         {photo.prompt}
                       </p>
 
-                      <div className="flex items-center justify-between pt-1 border-t border-zinc-900">
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(photo.id, photo.prompt)}
-                          className="text-[10px] font-mono text-zinc-400 hover:text-white flex items-center gap-1 cursor-pointer"
-                        >
-                          {copiedId === photo.id ? <Check className="w-3 h-3 text-white" /> : <Copy className="w-3 h-3" />}
-                          <span>{copiedId === photo.id ? 'Copied' : 'Prompt'}</span>
-                        </button>
+                      <div className="flex items-center justify-between pt-1 border-t border-zinc-900 gap-1">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(photo.id, photo.prompt)}
+                            className="text-[10px] font-mono text-zinc-400 hover:text-white flex items-center gap-1 cursor-pointer"
+                            title="Copy Prompt"
+                          >
+                            {copiedId === photo.id ? <Check className="w-3 h-3 text-white" /> : <Copy className="w-3 h-3" />}
+                            <span className="hidden sm:inline">{copiedId === photo.id ? 'Copied' : 'Prompt'}</span>
+                          </button>
 
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onClose();
-                            if (onSelectPromptToUse) onSelectPromptToUse(photo.prompt);
-                            window.dispatchEvent(new CustomEvent('open-main-section', {
-                              detail: {
-                                section: 'photo-prompt',
-                                prompt: photo.prompt,
-                                ratio: photo.aspectRatio
-                              }
-                            }));
-                          }}
-                          className="px-2 py-0.5 rounded-lg bg-white text-black text-[10px] font-extrabold hover:bg-zinc-200 transition cursor-pointer flex items-center gap-0.5"
-                        >
-                          <Sparkles className="w-2.5 h-2.5" />
-                          <span>Remix</span>
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => setSocialExportPhoto(photo)}
+                            className="p-1 rounded-md text-zinc-400 hover:text-cyan-400 hover:bg-zinc-900 transition cursor-pointer"
+                            title="Export Branded Social Card"
+                          >
+                            <Download className="w-3 h-3" />
+                          </button>
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setShareCommunityPhoto(photo)}
+                            className="px-2 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold hover:bg-emerald-500/25 transition cursor-pointer flex items-center gap-1"
+                            title="Share to Community Feed (+25 Bonus Credits)"
+                          >
+                            <Share2 className="w-2.5 h-2.5" />
+                            <span>+25 Cr</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onClose();
+                              if (onSelectPromptToUse) onSelectPromptToUse(photo.prompt);
+                              window.dispatchEvent(new CustomEvent('open-main-section', {
+                                detail: {
+                                  section: 'photo-prompt',
+                                  prompt: photo.prompt,
+                                  ratio: photo.aspectRatio
+                                }
+                              }));
+                            }}
+                            className="px-2 py-0.5 rounded-lg bg-white text-black text-[10px] font-extrabold hover:bg-zinc-200 transition cursor-pointer flex items-center gap-0.5"
+                          >
+                            <Sparkles className="w-2.5 h-2.5" />
+                            <span>Remix</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1142,6 +1238,18 @@ export const UserDashboardModal: React.FC<UserDashboardModalProps> = ({
                 />
               </div>
 
+              {/* Creator Headline & Title */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-white">Creator Title / Specialty:</label>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={e => setEditTitle(e.target.value)}
+                  placeholder="e.g. Royal Burmese Heritage & Prompt Architect"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-zinc-600"
+                />
+              </div>
+
               {/* Location */}
               <div className="space-y-1">
                 <label className="text-xs font-bold text-white">Location:</label>
@@ -1151,6 +1259,90 @@ export const UserDashboardModal: React.FC<UserDashboardModalProps> = ({
                   onChange={e => setEditLocation(e.target.value)}
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-zinc-600"
                 />
+              </div>
+
+              {/* Cover Banner Image */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-white">Portfolio Cover Banner:</label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { id: 'bagan', label: 'Bagan Dawn', url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200&auto=format&fit=crop&q=80' },
+                    { id: 'emerald', label: 'Emerald Jade Silk', url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=1200&auto=format&fit=crop&q=80' },
+                    { id: 'gold', label: 'Imperial Gold', url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80' },
+                    { id: 'dark', label: 'Obsidian Velvet', url: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=1200&auto=format&fit=crop&q=80' }
+                  ].map(c => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setEditCoverImage(c.url)}
+                      className={`h-14 rounded-xl overflow-hidden border-2 relative transition cursor-pointer ${
+                        editCoverImage === c.url ? 'border-emerald-400 ring-2 ring-emerald-400/30' : 'border-zinc-800 opacity-60 hover:opacity-100'
+                      }`}
+                    >
+                      <img src={c.url} alt={c.label} className="w-full h-full object-cover" />
+                      <span className="absolute inset-x-0 bottom-0 bg-black/70 text-[9px] text-zinc-300 py-0.5 text-center font-mono truncate px-1">
+                        {c.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Social Channels */}
+              <div className="space-y-2 pt-1 border-t border-zinc-900">
+                <label className="text-xs font-bold text-white block">Social Profiles & Portfolio Links:</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-zinc-400 font-medium">Facebook:</span>
+                    <input
+                      type="text"
+                      placeholder="https://facebook.com/username"
+                      value={editFacebook}
+                      onChange={e => setEditFacebook(e.target.value)}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-zinc-600"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-zinc-400 font-medium">Telegram:</span>
+                    <input
+                      type="text"
+                      placeholder="https://t.me/username"
+                      value={editTelegram}
+                      onChange={e => setEditTelegram(e.target.value)}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-zinc-600"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-zinc-400 font-medium">TikTok:</span>
+                    <input
+                      type="text"
+                      placeholder="https://tiktok.com/@username"
+                      value={editTiktok}
+                      onChange={e => setEditTiktok(e.target.value)}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-zinc-600"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-zinc-400 font-medium">Instagram:</span>
+                    <input
+                      type="text"
+                      placeholder="https://instagram.com/username"
+                      value={editInstagram}
+                      onChange={e => setEditInstagram(e.target.value)}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-zinc-600"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1 pt-1">
+                  <span className="text-[10px] text-zinc-400 font-medium">Portfolio / Personal Website:</span>
+                  <input
+                    type="text"
+                    placeholder="https://yourportfolio.com"
+                    value={editWebsite}
+                    onChange={e => setEditWebsite(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-zinc-600"
+                  />
+                </div>
               </div>
 
               {/* Preset Avatars */}
@@ -1237,12 +1429,34 @@ export const UserDashboardModal: React.FC<UserDashboardModalProps> = ({
                 <div className="space-y-2 pt-2">
                   <button
                     type="button"
-                    onClick={() => handleCopy('lb', activeLightboxPhoto.prompt)}
-                    className="w-full py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-white text-xs font-bold transition flex items-center justify-center gap-1.5"
+                    onClick={() => {
+                      setShareCommunityPhoto(activeLightboxPhoto);
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black text-xs font-black transition flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-500/20 cursor-pointer"
                   >
-                    <Copy className="w-3.5 h-3.5" />
-                    <span>{copiedId === 'lb' ? 'Copied!' : 'Copy Prompt'}</span>
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>{isMyanmar ? 'ကွန်မြူနတီသို့ မျှဝေမည် (+25 Credits ရယူပါ)' : 'Share to Community (+25 Bonus Credits)'}</span>
                   </button>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleCopy('lb', activeLightboxPhoto.prompt)}
+                      className="py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>{copiedId === 'lb' ? 'Copied!' : 'Copy Prompt'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setSocialExportPhoto(activeLightboxPhoto)}
+                      className="py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-cyan-300 hover:text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Social Export</span>
+                    </button>
+                  </div>
 
                   <button
                     type="button"
@@ -1258,7 +1472,7 @@ export const UserDashboardModal: React.FC<UserDashboardModalProps> = ({
                         }
                       }));
                     }}
-                    className="w-full py-3 rounded-xl bg-white text-black font-extrabold text-xs hover:bg-zinc-200 transition flex items-center justify-center gap-1.5 shadow"
+                    className="w-full py-3 rounded-xl bg-white text-black font-extrabold text-xs hover:bg-zinc-200 transition flex items-center justify-center gap-1.5 shadow cursor-pointer"
                   >
                     <Sparkles className="w-3.5 h-3.5" />
                     <span>Remix in Studio</span>
@@ -1267,6 +1481,56 @@ export const UserDashboardModal: React.FC<UserDashboardModalProps> = ({
               </div>
             </div>
           </div>
+        )}
+
+        {/* Public Creator Profile Portfolio Modal */}
+        {isPublicProfileModalOpen && (
+          <PublicCreatorProfileModal
+            isOpen={isPublicProfileModalOpen}
+            onClose={() => setIsPublicProfileModalOpen(false)}
+            creator={currentUser}
+            language={language}
+            onSelectPrompt={prompt => {
+              setIsPublicProfileModalOpen(false);
+              onClose();
+              if (onSelectPromptToUse) onSelectPromptToUse(prompt);
+              window.dispatchEvent(new CustomEvent('open-main-section', {
+                detail: { section: 'photo-prompt', prompt }
+              }));
+            }}
+          />
+        )}
+
+        {/* Share to Community Modal (+25 Bonus Credits) */}
+        {shareCommunityPhoto && (
+          <ShareToCommunityModal
+            isOpen={!!shareCommunityPhoto}
+            onClose={() => setShareCommunityPhoto(null)}
+            imageUrl={shareCommunityPhoto.url}
+            prompt={shareCommunityPhoto.prompt}
+            title={shareCommunityPhoto.title || 'Masterpiece Creation'}
+            currentUser={currentUser}
+            language={language}
+            onShareSuccess={() => {
+              const currentU = StorageService.getCurrentUser() || currentUser;
+              onUserUpdate(currentU);
+              loadUserData();
+            }}
+          />
+        )}
+
+        {/* Social Export Modal (Multi-ratio Branded Card) */}
+        {socialExportPhoto && (
+          <SocialExportModal
+            isOpen={!!socialExportPhoto}
+            onClose={() => setSocialExportPhoto(null)}
+            imageUrl={socialExportPhoto.url}
+            prompt={socialExportPhoto.prompt}
+            title={socialExportPhoto.title || 'ShowAI Creation'}
+            authorName={currentUser?.name || 'Creator'}
+            authorHandle={currentUser?.username || 'creator'}
+            language={language}
+          />
         )}
 
       </div>

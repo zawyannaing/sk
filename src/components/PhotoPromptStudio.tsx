@@ -15,6 +15,7 @@ import { SupabaseService } from '../utils/supabaseClient';
 import { StorageService } from '../utils/storageService';
 import { BeforeAfterSliderModal } from './BeforeAfterSliderModal';
 import { SocialExportModal } from './SocialExportModal';
+import { ShareToCommunityModal } from './dashboard/ShareToCommunityModal';
 import { useAreaEdit } from '../hooks/useAreaEdit';
 import { LOCATION_REFERENCE_MAP } from '../data/presetData';
 import { SCENES_550_COLLECTION } from '../data/scenes550Data';
@@ -590,6 +591,7 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
   onBackToPortal,
   onBackToMatrix,
   onSendToMatrix,
+  language = 'en',
   initialPrompt,
   initialRatio,
   initialRefPhoto,
@@ -943,7 +945,17 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
     isOpen: boolean;
     imageUrl: string;
     prompt?: string;
+    title?: string;
+    authorName?: string;
+    authorHandle?: string;
   }>({ isOpen: false, imageUrl: '' });
+
+  const [shareCommunityData, setShareCommunityData] = useState<{
+    isOpen: boolean;
+    imageUrl: string;
+    prompt: string;
+    title: string;
+  }>({ isOpen: false, imageUrl: '', prompt: '', title: '' });
 
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -8602,6 +8614,22 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
 
                   {/* Face Lock Slider & Social Export */}
                   <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShareCommunityData({
+                          isOpen: true,
+                          imageUrl: lightboxItem.url,
+                          prompt: lightboxItem.prompt,
+                          title: 'Studio Creation'
+                        });
+                      }}
+                      className="col-span-2 p-2.5 rounded-xl bg-gradient-to-r from-emerald-500/20 to-teal-500/20 hover:from-emerald-500/30 hover:to-teal-500/30 border border-emerald-500/40 text-emerald-300 font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                      <span>{language === 'my' ? 'ကွန်မြူနတီသို့ မျှဝေမည် (+25 Credits ရယူပါ)' : 'Share to Community (+25 Bonus Credits)'}</span>
+                    </button>
+
                     {uploadedRefImages.length > 0 && (
                       <button
                         type="button"
@@ -8620,11 +8648,16 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
 
                     <button
                       type="button"
-                      onClick={() => setSocialExportData({
-                        isOpen: true,
-                        imageUrl: lightboxItem.url,
-                        prompt: lightboxItem.prompt
-                      })}
+                      onClick={() => {
+                        const curUser = StorageService.getCurrentUser();
+                        setSocialExportData({
+                          isOpen: true,
+                          imageUrl: lightboxItem.url,
+                          prompt: lightboxItem.prompt,
+                          authorName: curUser?.name || 'Creator',
+                          authorHandle: curUser?.username || 'creator'
+                        });
+                      }}
                       className={`p-2.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-cyan-300 font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                         uploadedRefImages.length === 0 ? 'col-span-2' : ''
                       }`}
@@ -8905,10 +8938,32 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
       {/* Social Media 1-Click Multi-Ratio Export Modal */}
       <SocialExportModal
         isOpen={socialExportData.isOpen}
-        onClose={() => setSocialExportData({ isOpen: false, imageUrl: '', prompt: '' })}
+        onClose={() => setSocialExportData({ isOpen: false, imageUrl: '', prompt: '', title: '', authorName: '', authorHandle: '' })}
         imageUrl={socialExportData.imageUrl}
         prompt={socialExportData.prompt}
+        title={socialExportData.title}
+        authorName={socialExportData.authorName}
+        authorHandle={socialExportData.authorHandle}
+        language={language}
       />
+
+      {/* Share to Community Modal (+25 Bonus Credits) */}
+      {shareCommunityData.isOpen && (
+        <ShareToCommunityModal
+          isOpen={shareCommunityData.isOpen}
+          onClose={() => setShareCommunityData({ isOpen: false, imageUrl: '', prompt: '', title: '' })}
+          imageUrl={shareCommunityData.imageUrl}
+          prompt={shareCommunityData.prompt}
+          title={shareCommunityData.title}
+          currentUser={StorageService.getCurrentUser()}
+          language={language}
+          onShareSuccess={() => {
+            const currentU = StorageService.getCurrentUser();
+            setUserCredits(currentU.credits || 0);
+            flash('info', language === 'my' ? '🎉 ကွန်မြူနတီသို့ မျှဝေပြီးပါပြီ! +25 Bonus Credits ရရှိပါသည်' : '🎉 Shared to Community Feed! +25 Bonus Credits awarded!');
+          }}
+        />
+      )}
           {/* ========== IMAGE TOOLS MODAL / DRAWER (MATCHING SCREENSHOT 2) ========== */}
       {toolsModalOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-md p-0 sm:p-4 animate-in fade-in duration-200" onClick={() => setToolsModalOpen(false)}>

@@ -291,12 +291,21 @@ export type UserRole = 'user' | 'admin';
 
 export type UserPlanTier = 'free' | 'starter' | 'creator_pro' | 'master' | 'vip';
 
+export interface UserSocialLinks {
+  facebook?: string;
+  telegram?: string;
+  tiktok?: string;
+  instagram?: string;
+  website?: string;
+}
+
 export interface UserProfile {
   id: string;
   name: string;
   username?: string;
   email: string;
   avatar?: string;
+  coverImage?: string;
   role: UserRole;
   createdAt: string;
   bio?: string;
@@ -304,6 +313,12 @@ export interface UserProfile {
   plan?: UserPlanTier;
   website?: string;
   location?: string;
+  title?: string;
+  badges?: string[];
+  socialLinks?: UserSocialLinks;
+  totalLikesReceived?: number;
+  totalRemixesCount?: number;
+  totalCreationsCount?: number;
 }
 
 export interface PromptHistoryItem {

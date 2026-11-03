@@ -3,18 +3,22 @@ export interface CommunityCreation {
   title: string;
   titleMm?: string;
   author: string;
+  authorHandle?: string;
   authorAvatar: string;
+  authorBio?: string;
   imageUrl: string;
   masterPrompt: string;
   negativePrompt?: string;
   model: string;
   aspectRatio: string;
-  category: 'Royal Heritage' | 'Wedding Studio' | 'Hairstyle' | 'Modern Editorial' | 'Cinematic Studio';
+  category: 'Royal Heritage' | 'Wedding Studio' | 'Hairstyle' | 'Modern Editorial' | 'Cinematic Studio' | 'General';
   tags: string[];
   likesCount: number;
   viewsCount: number;
+  remixesCount?: number;
   createdAt: string;
   isVerifiedCreator?: boolean;
+  allowRemix?: boolean;
 }
 
 export const COMMUNITY_CREATIONS: CommunityCreation[] = [

@@ -19,6 +19,8 @@ interface SocialExportModalProps {
   onClose: () => void;
   imageUrl: string;
   prompt?: string;
+  authorName?: string;
+  authorHandle?: string;
 }
 
 interface RatioPreset {
@@ -43,7 +45,9 @@ export const SocialExportModal: React.FC<SocialExportModalProps> = ({
   isOpen,
   onClose,
   imageUrl,
-  prompt
+  prompt,
+  authorName,
+  authorHandle
 }) => {
   const [selectedPreset, setSelectedPreset] = useState<RatioPreset>(SOCIAL_PRESETS[0]);
   const [fitMode, setFitMode] = useState<'blur-fill' | 'cover-crop' | 'solid-black'>('blur-fill');
@@ -114,10 +118,11 @@ export const SocialExportModal: React.FC<SocialExportModalProps> = ({
         ctx.restore();
       }
 
-      // 3. Optional Watermark Badge
+      // 3. Optional Watermark Badge with Creator Attribution
       if (includeWatermark) {
         ctx.save();
-        const badgeText = 'SHOW AI STUDIO';
+        const cleanHandle = authorHandle ? authorHandle.replace('@', '') : '';
+        const badgeText = cleanHandle ? `✨ ShowAI • @${cleanHandle}` : '✨ ShowAI Studio';
         const fontSize = Math.round(targetW * 0.022);
         ctx.font = `bold ${fontSize}px sans-serif`;
 
@@ -130,12 +135,12 @@ export const SocialExportModal: React.FC<SocialExportModalProps> = ({
         const posY = targetH - badgeH - 32;
 
         // Rounded pill background
-        ctx.fillStyle = 'rgba(7, 9, 13, 0.78)';
+        ctx.fillStyle = 'rgba(7, 9, 13, 0.82)';
         ctx.beginPath();
         ctx.roundRect(posX, posY, badgeW, badgeH, 12);
         ctx.fill();
 
-        ctx.strokeStyle = 'rgba(52, 211, 153, 0.5)';
+        ctx.strokeStyle = 'rgba(52, 211, 153, 0.6)';
         ctx.lineWidth = 1.5;
         ctx.stroke();
 
@@ -146,7 +151,39 @@ export const SocialExportModal: React.FC<SocialExportModalProps> = ({
       }
     };
     img.src = imageUrl;
-  }, [isOpen, imageUrl, selectedPreset, fitMode, includeWatermark]);
+  }, [isOpen, imageUrl, selectedPreset, fitMode, includeWatermark, authorHandle]);
+
+  // Native Web Share API
+  const handleNativeShare = async () => {
+    const canvas = previewCanvasRef.current;
+    if (!canvas) return;
+
+    if (navigator.share) {
+      try {
+        canvas.toBlob(async (blob) => {
+          if (!blob) return;
+          const file = new File([blob], `showai-${selectedPreset.id}-${Date.now()}.png`, { type: 'image/png' });
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              title: 'Created with ShowAI Studio',
+              text: prompt || 'Check out my AI creation on ShowAI Studio!',
+              files: [file]
+            });
+          } else {
+            await navigator.share({
+              title: 'Created with ShowAI Studio',
+              text: prompt || 'Check out my AI creation on ShowAI Studio!',
+              url: window.location.origin
+            });
+          }
+        });
+      } catch {
+        handleCopyToClipboard();
+      }
+    } else {
+      handleCopyToClipboard();
+    }
+  };
 
   // Download high-resolution canvas
   const handleDownload = () => {
@@ -348,6 +385,16 @@ export const SocialExportModal: React.FC<SocialExportModalProps> = ({
           </span>
 
           <div className="flex items-center gap-2.5 w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={handleNativeShare}
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 transition-all cursor-pointer"
+              title="Share to Social Apps"
+            >
+              <Share2 className="w-4 h-4 text-cyan-400" />
+              <span>Share</span>
+            </button>
+
             <button
               type="button"
               onClick={handleCopyToClipboard}

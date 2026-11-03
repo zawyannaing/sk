@@ -29,6 +29,9 @@ import {
 } from 'lucide-react';
 import { BeforeAfterSliderModal } from './BeforeAfterSliderModal';
 import { SocialExportModal } from './SocialExportModal';
+import { PublicCreatorProfileModal } from './dashboard/PublicCreatorProfileModal';
+import { UserProfile } from '../types';
+import { StorageService } from '../utils/storageService';
 import { SupabaseService } from '../utils/supabaseClient';
 import { Scenes550Explorer } from './scenes/Scenes550Explorer';
 import { mapSceneToStudioContext } from '../utils/promptBuilder';
@@ -117,11 +120,47 @@ export const CommunityShowcaseHub: React.FC<CommunityShowcaseHubProps> = ({
     isOpen: boolean;
     imageUrl: string;
     prompt: string;
+    title?: string;
+    authorName?: string;
+    authorHandle?: string;
   }>({
     isOpen: false,
     imageUrl: '',
-    prompt: ''
+    prompt: '',
+    title: '',
+    authorName: '',
+    authorHandle: ''
   });
+
+  // Selected Creator Profile Modal State
+  const [selectedCreator, setSelectedCreator] = useState<UserProfile | null>(null);
+
+  const handleOpenCreator = (item: CommunityCreation) => {
+    const handle = item.authorHandle ? item.authorHandle.replace(/^@/, '') : item.author.toLowerCase().replace(/\s+/g, '_');
+    const creatorUser: UserProfile = {
+      id: handle,
+      name: item.author,
+      username: handle,
+      email: `${handle}@showai.studio`,
+      role: 'user',
+      createdAt: '2026-01-01',
+      avatar: item.authorAvatar,
+      bio: item.authorBio || `${item.author} is a verified SHOW AI Heritage Creator specializing in ${item.category}.`,
+      title: `${item.category} Master Creator`,
+      location: 'Myanmar',
+      plan: 'creator_pro',
+      totalLikesReceived: item.likesCount * 3 + 45,
+      totalRemixesCount: (item.remixesCount || 12) + 8,
+      totalCreationsCount: 16,
+      badges: item.isVerifiedCreator ? ['Verified Master', 'Acheik Maestro', 'Community Pioneer'] : ['Creative Contributor'],
+      socialLinks: {
+        facebook: 'https://facebook.com',
+        telegram: 'https://t.me',
+        website: 'https://showai.studio'
+      }
+    };
+    setSelectedCreator(creatorUser);
+  };
 
   // Share Modal State
   const [isShareModalOpen, setIsShareModalOpen] = useState<boolean>(false);
@@ -239,6 +278,14 @@ export const CommunityShowcaseHub: React.FC<CommunityShowcaseHubProps> = ({
       const stored = localStorage.getItem('show_ai_user_shared_creations');
       const userList: CommunityCreation[] = stored ? JSON.parse(stored) : [];
       localStorage.setItem('show_ai_user_shared_creations', JSON.stringify([newCreation, ...userList]));
+
+      // Award +25 Bonus Credits for sharing
+      const user = StorageService.getCurrentUser();
+      user.credits = (user.credits || 0) + 25;
+      user.totalCreationsCount = (user.totalCreationsCount || 0) + 1;
+      StorageService.setCurrentUser(user);
+      window.dispatchEvent(new CustomEvent('showai-credits-updated', { detail: { credits: user.credits } }));
+      window.dispatchEvent(new CustomEvent('user-profile-updated', { detail: user }));
     } catch {}
 
     setIsShareModalOpen(false);
@@ -475,17 +522,22 @@ export const CommunityShowcaseHub: React.FC<CommunityShowcaseHubProps> = ({
                 <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
                   {/* Author Header */}
                   <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenCreator(item)}
+                      className="flex items-center gap-2 hover:opacity-85 transition cursor-pointer text-left group/author"
+                      title="View Creator Portfolio"
+                    >
                       <img
                         src={item.authorAvatar}
                         alt={item.author}
-                        className="w-6 h-6 rounded-full object-cover border border-zinc-700"
+                        className="w-6 h-6 rounded-full object-cover border border-zinc-700 group-hover/author:border-emerald-500"
                       />
-                      <span className="font-semibold text-zinc-300">{item.author}</span>
+                      <span className="font-semibold text-zinc-300 group-hover/author:text-white">{item.author}</span>
                       {item.isVerifiedCreator && (
                         <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
                       )}
-                    </div>
+                    </button>
                     <span className="text-[10px] text-zinc-500">{item.createdAt}</span>
                   </div>
 
@@ -550,7 +602,10 @@ export const CommunityShowcaseHub: React.FC<CommunityShowcaseHubProps> = ({
                         onClick={() => setSocialExportData({
                           isOpen: true,
                           imageUrl: item.imageUrl,
-                          prompt: item.masterPrompt
+                          prompt: item.masterPrompt,
+                          title: item.title,
+                          authorName: item.author,
+                          authorHandle: item.authorHandle || item.author.toLowerCase().replace(/\s+/g, '_')
                         })}
                         className="py-2 px-3 rounded-xl bg-zinc-800/80 hover:bg-zinc-800 text-zinc-300 hover:text-white text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-zinc-700/60"
                         title="Export for Story, Reels & Feed"
@@ -581,10 +636,28 @@ export const CommunityShowcaseHub: React.FC<CommunityShowcaseHubProps> = ({
       {/* Social Media 1-Click Multi-Ratio Export Modal */}
       <SocialExportModal
         isOpen={socialExportData.isOpen}
-        onClose={() => setSocialExportData({ isOpen: false, imageUrl: '', prompt: '' })}
+        onClose={() => setSocialExportData({ isOpen: false, imageUrl: '', prompt: '', title: '', authorName: '', authorHandle: '' })}
         imageUrl={socialExportData.imageUrl}
         prompt={socialExportData.prompt}
+        title={socialExportData.title}
+        authorName={socialExportData.authorName}
+        authorHandle={socialExportData.authorHandle}
+        language={language}
       />
+
+      {/* Public Creator Profile Portfolio Modal */}
+      {selectedCreator && (
+        <PublicCreatorProfileModal
+          isOpen={!!selectedCreator}
+          onClose={() => setSelectedCreator(null)}
+          creator={selectedCreator}
+          language={language}
+          onSelectPrompt={(prompt) => {
+            setSelectedCreator(null);
+            onRemixToPhotoStudio(prompt);
+          }}
+        />
+      )}
 
       {/* Share Creation Modal */}
       {isShareModalOpen && (
