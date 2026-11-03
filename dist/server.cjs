@@ -3582,6 +3582,7 @@ async function postOpenRouterWithFallback(endpoint, apiKey, bodyObj, timeoutMs =
     }
     return { ok: true, status: r.status, data: d };
   } catch (fetchErr) {
+    console.warn(`[OpenRouter Fetch Notice] Direct fetch:`, fetchErr?.message || fetchErr);
     try {
       const { spawn } = await import("node:child_process");
       const child = spawn("curl", [
@@ -5762,12 +5763,12 @@ async function generateByProvider(modelId, prompt, ar, count, referenceImage, re
   }
   if (def.provider === "openrouter-gpt") {
     const promptText = `${prompt}${resSuffix}, OpenAI DALL-E 3 HD masterwork composition, hyper-detailed, dramatic studio lighting`;
-    let orImgs = await generateWithOpenRouter(promptText, ar, count, "openrouter/auto", referenceImage, refList, referenceImagesWithRoles, void 0, explicitTime, explicitMood);
+    let orImgs = await generateWithOpenRouter(promptText, ar, count, "google/gemini-2.5-flash-image", referenceImage, refList, referenceImagesWithRoles, void 0, explicitTime, explicitMood);
     if (!orImgs || orImgs.length === 0) {
-      console.log("[GPT Image 2] Falling back to Gemini 2.5 flash image...");
-      orImgs = await generateWithOpenRouter(promptText, ar, count, "google/gemini-2.5-flash-image", referenceImage, refList, referenceImagesWithRoles, void 0, explicitTime, explicitMood);
+      console.log("[GPT Image 2] Falling back to GPT-5-Image...");
+      orImgs = await generateWithOpenRouter(promptText, ar, count, "openai/gpt-5-image", referenceImage, refList, referenceImagesWithRoles, void 0, explicitTime, explicitMood);
     }
-    if (orImgs && orImgs.length > 0) return { images: orImgs, provider: "GPT Image 2 (OpenRouter Auto)" };
+    if (orImgs && orImgs.length > 0) return { images: orImgs, provider: "GPT Image 2 (OpenRouter)" };
   }
   if (def.provider === "pollinations") {
     return { images: pollinationsImages(`${prompt}${resSuffix}`, ar, count, "flux", resolutionTier), provider: "FLUX.1 Schnell (Free)" };
