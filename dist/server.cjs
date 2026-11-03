@@ -5458,12 +5458,39 @@ var SUBJECT_WEATHER_INTERACTION_MAP = {
 };
 function buildRoleCompositingPrompt(roles, basePrompt, ar, explicitTime, explicitMood) {
   const characters = roles.filter((r) => r.role === "character");
+  const products = roles.filter((r) => r.role === "product" || r.role === "object" || r.role === "vehicle");
   const backgrounds = roles.filter((r) => r.role === "background");
   const styles = roles.filter((r) => r.role === "style");
   const outfits = roles.filter((r) => r.role === "outfit" || r.role === "garment");
   const timeSpec = detectTimeFromPrompt(basePrompt, explicitTime);
   const moodSpec = detectMoodFromPrompt(basePrompt, explicitMood);
   const zonedPhysics = SUBJECT_WEATHER_INTERACTION_MAP[moodSpec.id] || SUBJECT_WEATHER_INTERACTION_MAP.serene_spiritual;
+  if (products.length > 0 && characters.length === 0) {
+    const productNames = roles.map((r, i) => r.role === "product" || r.role === "object" || r.role === "vehicle" ? `Image #${i + 1}${r.name ? ` (${r.name})` : ""}` : null).filter(Boolean).join(", ");
+    const bgNames = backgrounds.length > 0 ? roles.map((r, i) => r.role === "background" ? `Image #${i + 1}${r.name ? ` (${r.name})` : ""}` : null).filter(Boolean).join(", ") : null;
+    if (bgNames) {
+      return `[MASTER COMPOSITING SYNTHESIS DIRECTIVE - PRODUCT/VEHICLE IN SCENE]:
+Composite the exact physical product, vehicle, car, or object from ${productNames} as the primary HERO SUBJECT into the real-world environment of ${bgNames}.
+1. 100% PRODUCT / VEHICLE IDENTITY & GEOMETRY LOCK:
+- Preserve 100% of the exact physical product, vehicle, car, device, industrial design, proportions, brand shape, headlights, body curves, materials, surface finishes, textures, colors, and craftsmanship shown in ${productNames}.
+- This product/vehicle from the reference image is the primary HERO SUBJECT.
+2. ABSOLUTELY NO RANDOM HUMANS / PEOPLE:
+- STRICT NEGATIVE: Do NOT add any random women, men, people, models, or pedestrians into or around the vehicle unless explicitly asked in the prompt.
+3. GROUND CONTACT & REFLECTIONS:
+- Seamlessly position the vehicle/product onto the ground plane of ${bgNames} with realistic wheel contact shadows, ground reflections, and perspective scale matching the camera angle.
+- Relight the vehicle with the scene's environmental lighting: ${timeSpec.label} (${timeSpec.relightingInstruction}).
+4. Framing Aspect Ratio: STRICT ${ar} aspect ratio composition. Scene Details: ${basePrompt}.`;
+    }
+    return `[SYNTHESIS DIRECTIVE - PRODUCT & OBJECT HERO PRESERVATION]:
+Generate a commercial-grade, photorealistic master shot showcasing the exact product, car, vehicle, or object from ${productNames} as the primary HERO SUBJECT.
+1. 100% PRODUCT / VEHICLE IDENTITY & GEOMETRY LOCK:
+- Lock 100% onto the physical design, proportions, headlights, curves, rims, materials, paint finish, and reflections of the product/vehicle in ${productNames}.
+2. STRICT NEGATIVE FOR UNWANTED HUMANS:
+- Do NOT generate any women, men, faces, or human figures. The focus is 100% on the vehicle/product itself.
+3. COMMERCIAL STUDIO LIGHTING:
+- Master advertising cinematography, crisp reflections, authentic shadow placement, 8k resolution.
+4. Framing Aspect Ratio: STRICT ${ar} aspect ratio composition. Scene Details: ${basePrompt}.`;
+  }
   if (characters.length > 0 && backgrounds.length > 0) {
     const charNames = roles.map((r, i) => r.role === "character" ? `Image #${i + 1}${r.name ? ` (${r.name})` : ""}` : null).filter(Boolean).join(", ");
     const bgNames = roles.map((r, i) => r.role === "background" ? `Image #${i + 1}${r.name ? ` (${r.name})` : ""}` : null).filter(Boolean).join(", ");
@@ -5612,13 +5639,21 @@ async function generateWithOpenRouter(prompt, ar, count, model = "google/gemini-
       } else if (validRoleImages.length > 0) {
         promptDirective = buildRoleCompositingPrompt(validRoleImages, prompt, ar, explicitTime, explicitMood);
       } else if (refList.length > 0) {
-        promptDirective = `[SYNTHESIS DIRECTIVE - REAL-WORLD PHOTO REPRODUCTION]:
+        const isProductQuery = /(car|auto|vehicle|truck|bike|motorcycle|product|bottle|shoe|sneaker|watch|phone|bag|gadget|perfume|chair|furniture|toy|jewel|drink|coffee|box|pack|device|merchandise|ကား|ပစ္စည်း|နာရီ|ဖိနပ်|ဖုန်း)/i.test(prompt);
+        if (isProductQuery) {
+          promptDirective = `[SYNTHESIS DIRECTIVE - PRODUCT & OBJECT HERO REPRODUCTION]:
+Generate an ultra-photorealistic image showcasing the exact product/vehicle/object from the reference image as the primary hero subject with STRICT ${ar} aspect ratio composition (width-to-height ratio ${ar}). Preserve the exact physical design, body curves, headlights, materials, surface finishes, and colors.
+STRICT NEGATIVE: Do NOT add random human people, women, models, or faces unless explicitly requested in the prompt.
+Scene details: ${prompt}. Aspect ratio: ${ar}. Strictly output in ${ar} framing, do NOT output 21:9.`;
+        } else {
+          promptDirective = `[SYNTHESIS DIRECTIVE - REAL-WORLD PHOTO REPRODUCTION]:
 Generate an ultra-photorealistic image in its authentic real-world environment strictly matching the reference image with STRICT ${ar} aspect ratio composition (width-to-height ratio ${ar}). Preserve the subject's exact facial identity, features, and aesthetics.
 - ZONED WEATHER & FACIAL SHIELD:
   * Zone 1 (Face Shield): ${zonedPhysics.zone1FaceShield}
   * Zone 2 (Hair & Props): ${zonedPhysics.zone2HairAndProps}
   * Zone 3 (Burmese Garment Physics): ${zonedPhysics.zone3BurmeseGarmentPhysics}
 Scene details: ${prompt}. Aspect ratio: ${ar}. Strictly output in ${ar} framing, do NOT output 21:9.`;
+        }
       } else {
         promptDirective = `[SYNTHESIS DIRECTIVE - REAL-WORLD PHOTO GENERATION]:
 Generate an ultra-photorealistic image in its authentic real-world environment with STRICT ${ar} aspect ratio composition (width-to-height ratio ${ar}): ${prompt}.
@@ -5657,6 +5692,12 @@ Extract ONLY the clothing design, cut, embroidery motifs, and woven fabric textu
           } else if (role === "style") {
             isolationText = `[REFERENCE IMAGE #${idx + 1} - ROLE: CINEMATIC COLOR & STYLE - ${img.name || "Style Aesthetic"}]:
 Extract ONLY the cinematic color palette, tone curve, lighting mood, and film stock aesthetics. Do NOT alter facial identity or background geometry.`;
+          } else if (role === "product" || role === "object" || role === "vehicle") {
+            isolationText = `[REFERENCE IMAGE #${idx + 1} - ROLE: PRODUCT & OBJECT HERO PRESERVATION - ${img.name || "Product/Vehicle Photo"}]:
+1. PRODUCT/VEHICLE FIDELITY & IDENTITY LOCK (100% Exact Mechanical & Surface Preservation):
+- Extract and preserve 100% of the physical design, body contours, proportions, headlights, curves, rims, materials, paint finish, and reflections of the vehicle/product/object shown in this photo.
+- This object is the primary HERO SUBJECT.
+- STRICT NEGATIVE: Do NOT add random human people, women, models, or faces unless explicitly requested in the prompt.`;
           } else {
             isolationText = `[REFERENCE IMAGE #${idx + 1} - ROLE: GENERAL REFERENCE - ${img.name || "Visual Asset"}]:
 Use as visual contextual reference for the scene composition.`;

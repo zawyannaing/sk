@@ -101,7 +101,7 @@ interface ModelInfo {
   available: boolean;
 }
 
-export type PhotoRole = 'character' | 'background' | 'style' | 'outfit' | 'general';
+export type PhotoRole = 'character' | 'product' | 'background' | 'style' | 'outfit' | 'general';
 
 export type StudioToolId =
   | 'create-image'
@@ -1382,27 +1382,35 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
 
     const loaded = (await Promise.all(readPromises)).filter(Boolean) as UploadedRefPhoto[];
     if (loaded.length > 0) {
+      let hasProductItem = false;
       setUploadedRefImages(prev => {
         const next = [...prev];
         loaded.forEach((item, idx) => {
           const lowerName = (item.name || '').toLowerCase();
+          const isExplicitProduct = /(car|auto|vehicle|truck|bike|motorcycle|product|bottle|shoe|sneaker|watch|phone|bag|gadget|perfume|chair|furniture|toy|jewel|drink|coffee|box|pack|device|merchandise|ကား|ပစ္စည်း|နာရီ|ဖိနပ်|ဖုန်း)/i.test(lowerName + ' ' + prompt);
           const isExplicitBg = lowerName.includes('scene') || lowerName.includes('plate') || lowerName.includes('background') || lowerName.includes('backdrop') || lowerName.includes('location');
           const isExplicitGarment = lowerName.includes('dress') || lowerName.includes('suit') || lowerName.includes('longyi') || lowerName.includes('outfit');
           const isExplicitStyle = lowerName.includes('style') || lowerName.includes('lighting') || lowerName.includes('mood');
-          const defaultRole: PhotoRole = isExplicitBg ? 'background' : isExplicitGarment ? 'outfit' : isExplicitStyle ? 'style' : 'character';
+          const defaultRole: PhotoRole = isExplicitProduct ? 'product' : isExplicitBg ? 'background' : isExplicitGarment ? 'outfit' : isExplicitStyle ? 'style' : 'character';
+          if (defaultRole === 'product') hasProductItem = true;
           next.push({ ...item, role: item.role || defaultRole });
         });
         return next;
       });
+      if (hasProductItem) {
+        setPreserveFace100(false);
+      }
       setActiveRefId(loaded[loaded.length - 1].id);
       flash(
         'info',
-        `Added ${loaded.length} photo${loaded.length > 1 ? 's' : ''}. Total attached: ${uploadedRefImages.length + loaded.length}. Roles assigned for master compositing.`,
+        hasProductItem
+          ? `🚗 Product/Vehicle detected! Attached in Product Mode (No unwanted people/faces).`
+          : `Added ${loaded.length} photo${loaded.length > 1 ? 's' : ''}. Total attached: ${uploadedRefImages.length + loaded.length}. Roles assigned for master compositing.`,
         4000
       );
 
-      // Auto-detect character face and lock identity into prompt
-      if (loaded[0]?.url && preserveFace100) {
+      // Auto-detect character face only if NOT a product or vehicle
+      if (loaded[0]?.url && preserveFace100 && !hasProductItem) {
         handleAutoDetectCharacter(loaded[0].url);
       }
     }
@@ -1410,6 +1418,10 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
 
   // ---- Auto-detect Character & Lock 100% Face ----
   const handleAutoDetectCharacter = async (specificPhotoUrl?: string) => {
+    const isProduct = /(car|auto|vehicle|truck|bike|motorcycle|product|bottle|shoe|sneaker|watch|phone|bag|gadget|perfume|chair|furniture|toy|jewel|drink|coffee|box|pack|device|merchandise|ကား|ပစ္စည်း|နာရီ|ဖိနပ်|ဖုန်း)/i.test(prompt + ' ' + (activeRefPhoto?.name || ''));
+    if (isProduct || activeRefPhoto?.role === 'product') {
+      return; // Do not inject human face likeness for products/cars
+    }
     const targetUrl = specificPhotoUrl || activeRefPhoto?.url || uploadedRefImages[0]?.url;
     if (!targetUrl || isAutoDetectingFace) return;
     setIsAutoDetectingFace(true);
@@ -1696,7 +1708,10 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
         let assignedRole = x.role;
         if (!assignedRole) {
           const lowerName = (x.name || '').toLowerCase();
-          if (
+          const isExplicitProduct = /(car|auto|vehicle|truck|bike|motorcycle|product|bottle|shoe|sneaker|watch|phone|bag|gadget|perfume|chair|furniture|toy|jewel|drink|coffee|box|pack|device|merchandise|ကား|ပစ္စည်း|နာရီ|ဖိနပ်|ဖုန်း)/i.test(lowerName + ' ' + finalPrompt);
+          if (isExplicitProduct) {
+            assignedRole = 'product';
+          } else if (
             lowerName.includes('scene') ||
             lowerName.includes('plate') ||
             lowerName.includes('background') ||
@@ -4084,7 +4099,14 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
                 {uploadedRefImages.length > 0 && (
                   <div className="space-y-1.5 pt-1 border-t border-zinc-800/60">
                     <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-emerald-400 font-semibold">Attached ({uploadedRefImages.length})</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-emerald-400 font-semibold">Attached ({uploadedRefImages.length})</span>
+                        {uploadedRefImages.some(img => img.role === 'product') && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 font-bold">
+                            🚗 Product / Object Mode
+                          </span>
+                        )}
+                      </div>
                       <button
                         type="button"
                         onClick={() => setPreserveFace100(!preserveFace100)}
@@ -4098,19 +4120,55 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
                       </button>
                     </div>
 
-                    <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
-                      {uploadedRefImages.map(img => (
-                        <div key={img.id} className="relative group shrink-0">
-                          <img src={img.url} alt="" className="w-12 h-12 rounded-lg object-cover border border-zinc-700" />
-                          <button
-                            type="button"
-                            onClick={(e) => handleRemoveRefPhoto(img.id, e)}
-                            className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center text-[10px] cursor-pointer"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
+                    <div className="flex items-center gap-2 overflow-x-auto pb-1.5 scrollbar-thin">
+                      {uploadedRefImages.map(img => {
+                        const currentRole = img.role || 'character';
+                        const roleMeta: Record<PhotoRole, { label: string; icon: string; color: string }> = {
+                          product: { label: 'Product/Car', icon: '🚗', color: 'border-cyan-500/50 bg-cyan-950/80 text-cyan-300' },
+                          character: { label: 'Person', icon: '👤', color: 'border-emerald-500/50 bg-emerald-950/80 text-emerald-300' },
+                          background: { label: 'Scene', icon: '🏞️', color: 'border-amber-500/50 bg-amber-950/80 text-amber-300' },
+                          outfit: { label: 'Outfit', icon: '👗', color: 'border-purple-500/50 bg-purple-950/80 text-purple-300' },
+                          style: { label: 'Style', icon: '🎨', color: 'border-blue-500/50 bg-blue-950/80 text-blue-300' },
+                          general: { label: 'Ref', icon: '📎', color: 'border-zinc-500/50 bg-zinc-900 text-zinc-300' }
+                        };
+                        const meta = roleMeta[currentRole] || roleMeta.character;
+
+                        return (
+                          <div key={img.id} className="relative group shrink-0 flex flex-col items-center">
+                            <div className="relative">
+                              <img src={img.url} alt="" className="w-14 h-14 rounded-xl object-cover border border-zinc-700 group-hover:border-emerald-500 transition-colors" />
+                              <button
+                                type="button"
+                                onClick={(e) => handleRemoveRefPhoto(img.id, e)}
+                                className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center text-[10px] cursor-pointer shadow-sm z-10"
+                              >
+                                ×
+                              </button>
+                            </div>
+
+                            {/* 1-Click Role Switcher */}
+                            <select
+                              value={currentRole}
+                              onChange={(e) => {
+                                const newR = e.target.value as PhotoRole;
+                                handleUpdateRefPhotoRole(img.id, newR);
+                                if (newR === 'product') {
+                                  setPreserveFace100(false);
+                                  flash('info', '🚗 Switched to Product/Car Mode: AI will preserve vehicle design and disable human distortion', 3500);
+                                }
+                              }}
+                              className={`mt-1 text-[9px] px-1 py-0.5 rounded-md border font-bold cursor-pointer outline-none ${meta.color}`}
+                              title="Select AI Interpretation Role"
+                            >
+                              <option value="product">🚗 Product/Car</option>
+                              <option value="character">👤 Person/Face</option>
+                              <option value="background">🏞️ Scene Plate</option>
+                              <option value="outfit">👗 Clothing</option>
+                              <option value="style">🎨 Style Tone</option>
+                            </select>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
