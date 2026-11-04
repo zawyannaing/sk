@@ -20,49 +20,33 @@ import { useAreaEdit } from '../hooks/useAreaEdit';
 import { LOCATION_REFERENCE_MAP } from '../data/presetData';
 import { SCENES_550_COLLECTION } from '../data/scenes550Data';
 
-// Helper to find curated location reference background plate from presetData or scenes550Data
+// Helper to find curated location reference background plate ONLY when explicitly requested in prompt
 function findBackgroundPlateForPrompt(
   promptText: string,
   chosenOptions?: { label: string; value: string; emoji?: string }[]
 ): { url: string; name: string } | null {
   const pLower = (promptText || '').toLowerCase();
+  const isExplicitProduct = /(car|auto|vehicle|truck|bike|motorcycle|product|bottle|shoe|sneaker|watch|phone|bag|gadget|perfume|chair|furniture|toy|jewel|drink|coffee|box|pack|device|merchandise|ကား|ပစ္စည်း|နာရီ|ဖိနပ်|ဖုန်း)/i.test(promptText);
 
-  // 1. Check chosenOptions for location or scene
-  if (chosenOptions && chosenOptions.length > 0) {
-    for (const opt of chosenOptions) {
-      const val = (opt.value || '').toLowerCase().replace(/[\s-]+/g, '_');
-      if (LOCATION_REFERENCE_MAP[val]) {
-        return LOCATION_REFERENCE_MAP[val];
-      }
-      const sceneMatch = SCENES_550_COLLECTION.find(s => s.id === val || s.id === opt.value);
-      if (sceneMatch && sceneMatch.previewImage) {
-        return { url: sceneMatch.previewImage, name: sceneMatch.titleEn || sceneMatch.titleMm };
-      }
-    }
+  // If prompt is for a product or vehicle, NEVER auto-attach heritage background plates!
+  if (isExplicitProduct) {
+    return null;
   }
 
-  // 2. Check preset keys in LOCATION_REFERENCE_MAP against prompt text
-  for (const [key, plate] of Object.entries(LOCATION_REFERENCE_MAP)) {
-    const keyWords = key.replace(/_/g, ' ');
-    if (pLower.includes(key) || pLower.includes(keyWords)) {
-      return plate;
-    }
-  }
-
-  // 3. Check popular location names in prompt
-  if (pLower.includes('shwedagon')) return LOCATION_REFERENCE_MAP.shwedagon_pagoda;
-  if (pLower.includes('bagan') || pLower.includes('ananda')) return LOCATION_REFERENCE_MAP.bagan_temples;
-  if (pLower.includes('inle') || pLower.includes('phaung daw oo')) return LOCATION_REFERENCE_MAP.inle_lake;
-  if (pLower.includes('mandalay moat') || pLower.includes('palace moat')) return LOCATION_REFERENCE_MAP.mandalay_moat;
-  if (pLower.includes('mandalay palace') || pLower.includes('konbaung')) return LOCATION_REFERENCE_MAP.konbaung_palace_interior;
-  if (pLower.includes('sagaing')) return LOCATION_REFERENCE_MAP.sagaing_hill;
-  if (pLower.includes('u bein') || pLower.includes('amarapura')) return LOCATION_REFERENCE_MAP.ubein_bridge;
-  if (pLower.includes('kyaiktiyo') || pLower.includes('golden rock')) return LOCATION_REFERENCE_MAP.kyaiktiyo_golden_rock;
-  if (pLower.includes('mrauk-u') || pLower.includes('mrauk u') || pLower.includes('shittaung')) return LOCATION_REFERENCE_MAP.mrauk_u_temples;
-  if (pLower.includes('pindaya')) return LOCATION_REFERENCE_MAP.kalaw_pindaya;
-  if (pLower.includes('ngapali')) return LOCATION_REFERENCE_MAP.ngapali_beach;
-  if (pLower.includes('pyin oo lwin') || pLower.includes('kandawgyi')) return LOCATION_REFERENCE_MAP.pyinoolwin_garden;
-  if (pLower.includes('myeik') || pLower.includes('mergui')) return LOCATION_REFERENCE_MAP.myeik_islands;
+  // 1. Explicit popular location keywords in prompt (English + Burmese)
+  if (pLower.includes('shwedagon') || pLower.includes('ရွှေတိဂုံ')) return LOCATION_REFERENCE_MAP.shwedagon_pagoda;
+  if (pLower.includes('bagan') || pLower.includes('ananda') || pLower.includes('ပုဂံ')) return LOCATION_REFERENCE_MAP.bagan_temples;
+  if (pLower.includes('inle') || pLower.includes('phaung daw oo') || pLower.includes('အင်းလေး')) return LOCATION_REFERENCE_MAP.inle_lake;
+  if (pLower.includes('mandalay moat') || pLower.includes('palace moat') || pLower.includes('နန်းတော်ကျုံး')) return LOCATION_REFERENCE_MAP.mandalay_moat;
+  if (pLower.includes('mandalay palace') || pLower.includes('konbaung') || pLower.includes('မန္တလေးနန်းတော်')) return LOCATION_REFERENCE_MAP.konbaung_palace_interior;
+  if (pLower.includes('sagaing') || pLower.includes('စစ်ကိုင်း')) return LOCATION_REFERENCE_MAP.sagaing_hill;
+  if (pLower.includes('u bein') || pLower.includes('amarapura') || pLower.includes('ဦးပိန်တံတား')) return LOCATION_REFERENCE_MAP.ubein_bridge;
+  if (pLower.includes('kyaiktiyo') || pLower.includes('golden rock') || pLower.includes('ကျိုက်ထီးရိုး')) return LOCATION_REFERENCE_MAP.kyaiktiyo_golden_rock;
+  if (pLower.includes('mrauk-u') || pLower.includes('mrauk u') || pLower.includes('shittaung') || pLower.includes('မြောက်ဦး')) return LOCATION_REFERENCE_MAP.mrauk_u_temples;
+  if (pLower.includes('pindaya') || pLower.includes('ပင်းတယ') || pLower.includes('ကလော')) return LOCATION_REFERENCE_MAP.kalaw_pindaya;
+  if (pLower.includes('ngapali') || pLower.includes('ငပလီ')) return LOCATION_REFERENCE_MAP.ngapali_beach;
+  if (pLower.includes('pyin oo lwin') || pLower.includes('kandawgyi') || pLower.includes('ပြင်ဦးလွင်')) return LOCATION_REFERENCE_MAP.pyinoolwin_garden;
+  if (pLower.includes('myeik') || pLower.includes('mergui') || pLower.includes('မြိတ်')) return LOCATION_REFERENCE_MAP.myeik_islands;
   if (pLower.includes('paris') || pLower.includes('eiffel')) return LOCATION_REFERENCE_MAP.paris_eiffel_tower;
   if (pLower.includes('santorini')) return LOCATION_REFERENCE_MAP.santorini_greece;
   if (pLower.includes('kyoto') || pLower.includes('torii') || pLower.includes('arashiyama')) return LOCATION_REFERENCE_MAP.kyoto_bamboo_torii;
@@ -74,6 +58,15 @@ function findBackgroundPlateForPrompt(
   if (pLower.includes('cappadocia')) return LOCATION_REFERENCE_MAP.cappadocia_balloons;
   if (pLower.includes('central park')) return LOCATION_REFERENCE_MAP.ny_central_park;
 
+  // 2. Check preset keys in LOCATION_REFERENCE_MAP ONLY if explicitly mentioned in the prompt text
+  for (const [key, plate] of Object.entries(LOCATION_REFERENCE_MAP)) {
+    const keyWords = key.replace(/_/g, ' ');
+    if (pLower.includes(key) || pLower.includes(keyWords)) {
+      return plate;
+    }
+  }
+
+  // 3. DO NOT auto-attach any background plate from stale options if prompt does not mention it
   return null;
 }
 
@@ -1085,9 +1078,9 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
           lowerPrompt.includes('backdrop') ||
           lowerPrompt.includes('scene');
         const newRef: UploadedRefPhoto = {
-          id: `burmese-ref-${Date.now()}`,
+          id: `ref-${Date.now()}`,
           url: initialRefPhoto,
-          name: isBgScene ? 'Scene Reference Plate' : 'Detail Burmese Reference',
+          name: isBgScene ? 'Scene Reference Plate' : 'Reference Photo',
           role: isBgScene ? 'background' : (prev.length === 0 ? 'background' : 'character')
         };
         setActiveRefId(newRef.id);
@@ -1104,7 +1097,7 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
         let hasNew = false;
         initialRefPhotos.forEach((item, idx) => {
           const url = typeof item === 'string' ? item : item.url;
-          const name = typeof item === 'string' ? `Burmese Reference #${idx + 1}` : (item.name || `Burmese Reference #${idx + 1}`);
+          const name = typeof item === 'string' ? `Reference Photo #${idx + 1}` : (item.name || `Reference Photo #${idx + 1}`);
           const id = typeof item === 'object' && item.id ? item.id : `burmese-ref-${Date.now()}-${idx}`;
           let role = typeof item === 'object' ? item.role : undefined;
           if (!role) {
@@ -1730,12 +1723,11 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
         };
       });
 
-      // Auto-Attach Background Reference Plate when available and no background is attached
+      // Auto-Attach Background Reference Plate ONLY when explicitly requested in prompt and no background is attached
       if (!finalRolesList.some(r => r.role === 'background')) {
-        const activeOpts = (chosenBurmeseOptions && chosenBurmeseOptions.length > 0) ? chosenBurmeseOptions : initialChosenOptions;
-        const plate = findBackgroundPlateForPrompt(finalPrompt, activeOpts);
+        const plate = findBackgroundPlateForPrompt(finalPrompt);
         if (plate && plate.url && !finalRolesList.some(r => r.url === plate.url)) {
-          console.log(`[PhotoPromptStudio] Auto-attaching Background Reference Plate: ${plate.name} (${plate.url})`);
+          console.log(`[PhotoPromptStudio] Auto-attaching Requested Background Reference Plate: ${plate.name} (${plate.url})`);
           finalRolesList.push({
             url: plate.url,
             name: `${plate.name} (Location Reference Plate)`,
@@ -1748,7 +1740,10 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
       }
 
       const activeOpts = (chosenBurmeseOptions && chosenBurmeseOptions.length > 0) ? chosenBurmeseOptions : (initialChosenOptions || []);
-      const detectedLocation = activeOpts.find(o => o.label?.toLowerCase().includes('location') || o.label?.includes('နေရာ'))?.value || null;
+      const rawLocation = activeOpts.find(o => o.label?.toLowerCase().includes('location') || o.label?.includes('နေရာ'))?.value || null;
+      const isProductOrVehicle = /(car|auto|vehicle|truck|bike|motorcycle|product|bottle|shoe|sneaker|watch|phone|bag|gadget|perfume|chair|furniture|toy|jewel|drink|coffee|box|pack|device|merchandise|ကား|ပစ္စည်း|နာရီ|ဖိနပ်|ဖုန်း)/i.test(finalPrompt);
+      // Guard: Never pass heritage location metadata if generating a product/car or if prompt doesn't mention the location
+      const detectedLocation = (!isProductOrVehicle && rawLocation && (finalPrompt.toLowerCase().includes(rawLocation.toLowerCase().replace(/[\s-_]+/g, ' ')) || /(bagan|shwedagon|inle|mandalay|sagaing|temple|pagoda|ဘုရား|စေတီ|ကျောင်း)/i.test(finalPrompt))) ? rawLocation : null;
       const detectedTime = activeOpts.find(o => o.label?.toLowerCase().includes('time') || o.label?.includes('အချိန်'))?.value || null;
       const detectedLighting = activeOpts.find(o => o.label?.toLowerCase().includes('light') || o.label?.includes('အလင်း'))?.value || null;
       const detectedMood = activeOpts.find(o => o.label?.toLowerCase().includes('mood') || o.label?.includes('ခံစားမှု') || o.label?.toLowerCase().includes('atmosphere'))?.value || null;

@@ -3647,7 +3647,7 @@ export const TIME_LIGHTING_OVERRIDE_MAP: Record<string, TimeLightingSpec> = {
     label: "Night / Midnight",
     sunAngle: "Pitch dark nocturnal sky with celestial/artificial illumination",
     kelvin: "2200K–2700K warm architectural floodlights and lanterns contrasted against 8500K moonlight",
-    relightingInstruction: "Nighttime nocturnal lighting: dark deep midnight sky, architectural floodlights illuminating stupas/buildings, warm hanging lanterns or oil lamps, gentle specular reflections, and moonlit rim highlights."
+    relightingInstruction: "Nighttime nocturnal lighting: dark deep midnight sky, architectural floodlights and ambient city/environmental practical lights, warm lanterns, gentle specular reflections, and crisp moonlit rim highlights."
   }
 };
 
@@ -3704,11 +3704,19 @@ export interface MoodAtmosphereSpec {
 }
 
 export const MOOD_ATMOSPHERE_OVERRIDE_MAP: Record<string, MoodAtmosphereSpec> = {
+  neutral_natural: {
+    id: "neutral_natural",
+    label: "Natural Photographic & Studio Lighting",
+    weatherEffect: "Crisp atmospheric clarity, balanced natural illumination, authentic realistic depth.",
+    surfaceDecoupling: "Natural environmental surfaces accurately matching described setting without artificial bias.",
+    subjectInteraction: "Natural comfortable posture, balanced key and fill lighting seamlessly matching the scene.",
+    promptDirective: "Authentic realistic environment with balanced natural lighting, crisp optical textures, and photographic depth of field."
+  },
   monsoon_rain: {
     id: "monsoon_rain",
     label: "Monsoon Rain & Wet Reflections",
     weatherEffect: "Dramatic tropical monsoon rainfall, cascading rain streaks, dark dense storm clouds, heavy atmospheric humidity and rain mist.",
-    surfaceDecoupling: "DECOUPLE DRY SURFACES: Transform all dry ground, courtyards, and stone terraces into wet rain-slicked mirrors with glistening puddle reflections; soaked dark masonry textures, streaming water rivulets across temple tiers, and glossy wet teakwood.",
+    surfaceDecoupling: "DECOUPLE DRY SURFACES: Transform all dry ground, courtyards, and stone terraces into wet rain-slicked mirrors with glistening puddle reflections; soaked masonry textures, streaming water rivulets across architectural tiers and pavement, and glossy wet reflective surfaces.",
     subjectInteraction: "Realistic fine moisture and translucent rain droplets clinging to subject's skin and eyelashes, delicate wet sheen across fabrics, authentic damp fabric weight and cling with no dry artificial stiffness.",
     promptDirective: "Render heavy tropical monsoon rainfall with rain-slicked reflective ground, puddle reflections, soaked dark masonry, and fine moisture sheen on the subject."
   },
@@ -3716,7 +3724,7 @@ export const MOOD_ATMOSPHERE_OVERRIDE_MAP: Record<string, MoodAtmosphereSpec> = 
     id: "misty_morning",
     label: "Misty Morning & Volumetric Ground Fog",
     weatherEffect: "Dense low-lying volumetric ground fog, soft aerial perspective depth haze, and Tyndall light rays (god rays) piercing through the morning vapor.",
-    surfaceDecoupling: "DECOUPLE HARSH CLEAR AIR: Soften distant architecture with milky morning fog layers; stone terraces drenched in fresh morning dew drops, gentle atmospheric diffusion wrapping stupas.",
+    surfaceDecoupling: "DECOUPLE HARSH CLEAR AIR: Soften distant architecture and landscapes with milky morning fog layers; ground terraces drenched in fresh morning dew drops, gentle atmospheric diffusion wrapping distant structures.",
     subjectInteraction: "Soft atmospheric rim lighting through morning mist illuminating subject's hair silhouette, subtle fresh dew sheen on cheeks, gentle cool ambient skin fill.",
     promptDirective: "Inject volumetric ground mist, aerial perspective depth fog, sunbeams cutting through haze, and soft dew sheen on subject's skin."
   },
@@ -3730,32 +3738,32 @@ export const MOOD_ATMOSPHERE_OVERRIDE_MAP: Record<string, MoodAtmosphereSpec> = 
   },
   candlelit_intimate: {
     id: "candlelit_intimate",
-    label: "Warm Candlelit & Sacred Lantern Glow",
-    weatherEffect: "Sacred sheltered evening ambience illuminated by hundreds of flickering oil lamps (hsi-mee) and golden beeswax candles.",
-    surfaceDecoupling: "DECOUPLE FLAT DAYLIGHT: Warm flickering golden-orange specular bounce across teakwood columns, gilded stupa bases reflecting dancing flame points, deep velvety amber shadows.",
-    subjectInteraction: "Warm 2200K candlelight rim and key illumination hugging subject's jawline and cheekbones, dancing golden catchlights in the eyes, warm glow across silk embroidery.",
-    promptDirective: "Intimate sacred candlelight with hundreds of glowing oil lamps, golden specular reflections on teakwood/gold leaf, and warm amber flickering key light on subject's face."
+    label: "Warm Candlelit & Ambient Lantern Glow",
+    weatherEffect: "Warm intimate evening ambience illuminated by glowing lanterns and golden candlelight.",
+    surfaceDecoupling: "DECOUPLE FLAT DAYLIGHT: Warm flickering golden-orange specular bounce across surrounding architectural surfaces, ambient reflections of dancing flame points, deep velvety amber shadows.",
+    subjectInteraction: "Warm 2200K candlelight rim and key illumination hugging subject's jawline and cheekbones, dancing golden catchlights in the eyes, warm glow across wardrobe embroidery.",
+    promptDirective: "Intimate warm candlelight with glowing ambient lanterns, golden specular reflections on surroundings, and warm amber flickering key light on subject's face."
   },
   breezy_windswept: {
     id: "breezy_windswept",
     label: "Breezy & Windswept",
-    weatherEffect: "Dynamic high-altitude hillside gusts, swirling dust motes, crisp clear kinetic atmosphere.",
-    surfaceDecoupling: "DECOUPLE STATIC ENVIRONMENT: Background temple banners, hanging prayer cloths, and temple umbrella (hti) wind bells swaying with directional motion, leaves rustling.",
-    subjectInteraction: "Hair strands and silk scarves/shawls (Sabai/Pha-so) caught in elegant wind motion, billowing garment folds showing authentic fluid dynamics and fabric weight.",
-    promptDirective: "Dynamic hillside wind with swaying temple banners, windblown hair strands, and fluttering silk garments capturing kinetic energy."
+    weatherEffect: "Dynamic hillside and outdoor gusts, swirling dust motes, crisp clear kinetic atmosphere.",
+    surfaceDecoupling: "DECOUPLE STATIC ENVIRONMENT: Background foliage, fabric banners, and trees swaying with natural directional wind motion, leaves rustling.",
+    subjectInteraction: "Hair strands and garments caught in elegant wind motion, billowing folds showing authentic fluid dynamics and fabric weight.",
+    promptDirective: "Dynamic natural wind with swaying foliage and banners, windblown hair strands, and fluttering garments capturing kinetic energy."
   },
   vintage_nostalgic: {
     id: "vintage_nostalgic",
     label: "Vintage Nostalgic & Sepia Film Grain",
     weatherEffect: "Timeless golden-era 1940s–1950s haze, subtle archival film grain, warm nostalgic atmospheric halation around light sources.",
-    surfaceDecoupling: "DECOUPLE MODERN DIGITAL CLEANLINESS: Aged patina on teakwood shutters, weathered antique lacquer textures, gentle Kodak Portra warm color grading.",
-    subjectInteraction: "Classic Hollywood / Mid-century Rangoon portraiture glow, subtle soft-focus skin roll-off, vintage filmic texture on wardrobe.",
+    surfaceDecoupling: "DECOUPLE MODERN DIGITAL CLEANLINESS: Aged patina on vintage architecture, weathered antique textures, gentle Kodak Portra warm color grading.",
+    subjectInteraction: "Classic Hollywood / Mid-century portraiture glow, subtle soft-focus skin roll-off, vintage filmic texture on wardrobe.",
     promptDirective: "Vintage nostalgic 1950s atmospheric halation, warm archival film grain, rich patina on architecture, and classic mid-century cinematic portrait lighting."
   },
   festive_vibrant: {
     id: "festive_vibrant",
     label: "Festive Vibrant & Celebration Haze",
-    weatherEffect: "Joyous festival atmosphere, festive lanterns, drifting celebratory water spray (Thingyan) or festive spark bokeh (Thadingyut).",
+    weatherEffect: "Joyous festival atmosphere, festive lanterns, drifting celebratory water spray or festive spark bokeh.",
     surfaceDecoupling: "DECOUPLE PLAIN ARCHITECTURE: Illuminated festival garlands, vibrant decorative fabrics hung across architecture, lively festive color bounce.",
     subjectInteraction: "Radiant glowing smile, vivid micro-contrast in eyes, joyful animated energy, dynamic colored rim lights bouncing from festival lanterns.",
     promptDirective: "Exuberant festive festival atmosphere with colorful lantern lights, shimmering bokeh, celebration water/spark particles, and joyful radiant subject lighting."
@@ -3764,7 +3772,7 @@ export const MOOD_ATMOSPHERE_OVERRIDE_MAP: Record<string, MoodAtmosphereSpec> = 
     id: "serene_spiritual",
     label: "Serene Spiritual & Sacred Tranquility",
     weatherEffect: "Pristine temple stillness, faint drifting incense smoke curls catching sunbeams, sacred ethereal purity.",
-    surfaceDecoupling: "DECOUPLE BUSY CLUTTER: Polished gleaming white marble terraces reflecting stupas, pristine quiet courtyard, soft transcendental morning light.",
+    surfaceDecoupling: "DECOUPLE BUSY CLUTTER: Polished quiet reflective surfaces, pristine tranquil courtyard or landscape, soft transcendental morning light.",
     subjectInteraction: "Composed peaceful meditative posture, gentle reverent gaze, harmonious balanced illumination with pure spiritual warmth.",
     promptDirective: "Sacred tranquil serenity with delicate incense smoke tendrils catching golden rays, immaculate reflective marble, and tranquil peaceful facial serenity."
   },
@@ -3772,7 +3780,7 @@ export const MOOD_ATMOSPHERE_OVERRIDE_MAP: Record<string, MoodAtmosphereSpec> = 
     id: "royal_majestic",
     label: "Royal Majestic & Palace Grandeur",
     weatherEffect: "Imperial ceremonial grandeur, dramatic high-contrast golden sunlight reflecting off royal gold leaf and throne room spires.",
-    surfaceDecoupling: "DECOUPLE HUMBLE TEXTURES: Lacquered vermilion and gilded teakwood columns, ornate Mandalay royal palace carvings, pristine royal court elevation.",
+    surfaceDecoupling: "DECOUPLE HUMBLE TEXTURES: Lacquered vermilion and gilded columns, ornate royal palace carvings, pristine royal court elevation.",
     subjectInteraction: "Regal dignified posture, stately royal aura, commanding gaze, dramatic volumetric key lighting accentuating jewelry and royal gold thread embroidery.",
     promptDirective: "Imperial court majesty with shimmering gold leaf architectural highlights, rich crimson and gold palace interiors, and dramatic regal portrait lighting."
   },
@@ -3780,7 +3788,7 @@ export const MOOD_ATMOSPHERE_OVERRIDE_MAP: Record<string, MoodAtmosphereSpec> = 
     id: "dreamy_ethereal",
     label: "Dreamy Ethereal & Mystical Glow",
     weatherEffect: "Mystical poetic atmosphere, soft bloom halation, floating luminescence, twilight starlight shimmering in air.",
-    surfaceDecoupling: "DECOUPLE RIGID CONTRAST: Soft ethereal glow radiating from stupa spires, gentle pastel dream tones, creamy dissolved depth of field.",
+    surfaceDecoupling: "DECOUPLE RIGID CONTRAST: Soft ethereal glow radiating from distant architectural spires and contours, gentle pastel dream tones, creamy dissolved depth of field.",
     subjectInteraction: "Ethereal angelic rim glow separating subject from background, soft porcelain skin texture with luminous catchlights.",
     promptDirective: "Dreamy ethereal fairy tale atmosphere with soft luminous light bloom, floating dust motes, and celestial rim lighting."
   },
@@ -3796,9 +3804,9 @@ export const MOOD_ATMOSPHERE_OVERRIDE_MAP: Record<string, MoodAtmosphereSpec> = 
     id: "mysterious_enigmatic",
     label: "Mysterious Enigmatic & Chiaroscuro",
     weatherEffect: "Ancient enigmatic aura, deep shadows with selective light beams cutting through darkness, ancient dust particles.",
-    surfaceDecoupling: "DECOUPLE FLAT BRIGHTNESS: Centuries-old weathered stone reliefs with deep shadow crevices, mysterious temple corridors fading into obsidian dark.",
+    surfaceDecoupling: "DECOUPLE FLAT BRIGHTNESS: Weathered stone reliefs with deep shadow crevices, mysterious corridors fading into obsidian dark.",
     subjectInteraction: "Intriguing half-lit Rembrandt shadow pattern on face, piercing focused eyes emerging from shadow, dramatic rim separation.",
-    promptDirective: "Mysterious chiaroscuro atmosphere with deep dramatic shadows, ancient weathered stone textures, and striking Rembrandt facial lighting."
+    promptDirective: "Mysterious chiaroscuro atmosphere with deep dramatic shadows, textured architectural surfaces, and striking Rembrandt facial lighting."
   },
   autumn_golden_glow: {
     id: "autumn_golden_glow",
@@ -3838,7 +3846,7 @@ export function detectMoodFromPrompt(prompt: string, explicitMood?: string | nul
     if (norm.includes("mysterious") || norm.includes("enigmatic") || norm.includes("dark_moody") || norm.includes("ဆန်းကြယ်")) return MOOD_ATMOSPHERE_OVERRIDE_MAP.mysterious_enigmatic;
     if (norm.includes("autumn") || norm.includes("melancholic") || norm.includes("သစ်ရွက်")) return MOOD_ATMOSPHERE_OVERRIDE_MAP.autumn_golden_glow;
     if (norm.includes("neon") || norm.includes("cyberpunk") || norm.includes("နီယွန်")) return MOOD_ATMOSPHERE_OVERRIDE_MAP.neon_cyberpunk;
-    if (norm.includes("spiritual") || norm.includes("zen") || norm.includes("calm") || norm.includes("peaceful") || norm.includes("ငြိမ်းချမ်း")) return MOOD_ATMOSPHERE_OVERRIDE_MAP.serene_spiritual;
+    if (norm.includes("spiritual") || norm.includes("zen") || norm.includes("temple") || norm.includes("ဘုရား") || norm.includes("စေတီ")) return MOOD_ATMOSPHERE_OVERRIDE_MAP.serene_spiritual;
   }
 
   const p = (prompt || "").toLowerCase();
@@ -3881,11 +3889,12 @@ export function detectMoodFromPrompt(prompt: string, explicitMood?: string | nul
   if (/\b(neon|cyberpunk|electric|fluorescent|synthwave)\b/.test(p) || /နီယွန်/.test(p)) {
     return MOOD_ATMOSPHERE_OVERRIDE_MAP.neon_cyberpunk;
   }
-  if (/\b(spiritual|sacred|serene|peaceful|zen|buddhist|temple stillness|tranquil)\b/.test(p) || /ငြိမ်းချမ်း|တည်ငြိမ်/.test(p)) {
+  if (/\b(spiritual|sacred|zen|monastery|buddhist|temple stillness)\b/.test(p) || /ဘုရား|စေတီ|ကျောင်းတိုက်|ဝတ်ပြု/.test(p)) {
     return MOOD_ATMOSPHERE_OVERRIDE_MAP.serene_spiritual;
   }
 
-  return MOOD_ATMOSPHERE_OVERRIDE_MAP.serene_spiritual;
+  // Default neutral photographic & natural studio lighting fallback
+  return MOOD_ATMOSPHERE_OVERRIDE_MAP.neutral_natural;
 }
 
 export interface ZonedWeatherInteraction {
@@ -3964,8 +3973,21 @@ export const SUBJECT_WEATHER_INTERACTION_MAP: Record<string, ZonedWeatherInterac
     zone1FaceShield: "FACIAL SHIELD ACTIVATED: Crisp dual-tone cyan/magenta rim lighting tracing jawline and temples. Face remains completely unobstructed, 100% identity preservation.",
     zone2HairAndProps: "Sleek contemporary hair styling catching colorful reflections, modern hairpins.",
     zone3BurmeseGarmentPhysics: "Modernized avant-garde Burmese htamein cut preserving authentic cylindrical columnar drape with high-tech silk sheen."
+  },
+  neutral_natural: {
+    zone1FaceShield: "FACIAL SHIELD ACTIVATED: Unobstructed facial clarity. Balanced natural lighting accentuates authentic facial bone structure, natural epidermal skin micro-pores, and clear eyes with zero occluding artifacts.",
+    zone2HairAndProps: "Natural hair styling matching described setting, clean separation from background.",
+    zone3BurmeseGarmentPhysics: "Natural garment drape matching described wardrobe with realistic gravitational fabric weight and authentic textile folds."
   }
 };
+
+function getEffectiveGarmentPhysics(promptText: string, defaultPhysics: string): string {
+  const isBurmeseAttire = /\b(htamein|longyi|acheik|yinzi|yinbon|burmese\s*dress|myanmar\s*dress|traditional\s*dress|silk\s*wrap|ပုဆိုး|လုံချည်|ထဘီ|အင်္ကျီ|ရင်စေ့|ရင်ဖုံး|ချိတ်)\b/i.test(promptText);
+  if (isBurmeseAttire) {
+    return defaultPhysics;
+  }
+  return "WARDROBE FIDELITY: Maintain the authentic drape and realistic fabric physics for the subject's wardrobe as described in the prompt (modern casual, streetwear, business suit, dress, jacket, or activewear) with realistic gravitational drape, textile weave, and natural folds without imposing traditional ethnic garments.";
+}
 
 function buildRoleCompositingPrompt(roles: ImageWithRole[], basePrompt: string, ar: string, explicitTime?: string | null, explicitMood?: string | null): string {
   const characters = roles.filter(r => r.role === 'character');
@@ -3975,7 +3997,8 @@ function buildRoleCompositingPrompt(roles: ImageWithRole[], basePrompt: string, 
   const outfits = roles.filter(r => r.role === 'outfit' || r.role === 'garment');
   const timeSpec = detectTimeFromPrompt(basePrompt, explicitTime);
   const moodSpec = detectMoodFromPrompt(basePrompt, explicitMood);
-  const zonedPhysics = SUBJECT_WEATHER_INTERACTION_MAP[moodSpec.id] || SUBJECT_WEATHER_INTERACTION_MAP.serene_spiritual;
+  const zonedPhysics = SUBJECT_WEATHER_INTERACTION_MAP[moodSpec.id] || SUBJECT_WEATHER_INTERACTION_MAP.neutral_natural;
+  const effectiveGarmentPhysics = getEffectiveGarmentPhysics(basePrompt, zonedPhysics.zone3BurmeseGarmentPhysics);
 
   // 1. PRODUCT / VEHICLE / OBJECT AS HERO SUBJECT (Without Human Character)
   if (products.length > 0 && characters.length === 0) {
@@ -4034,7 +4057,7 @@ Composite the subject(s) from ${charNames} (whether single individual, couple, o
   * Interaction Physics: ${moodSpec.subjectInteraction}
   * ZONE 1 (FACE SHIELD - 100% IDENTITY & FEATURE PRESERVATION): ${zonedPhysics.zone1FaceShield}
   * ZONE 2 (HAIR & ACCESSORY DYNAMICS): ${zonedPhysics.zone2HairAndProps}
-  * ZONE 3 (TRADITIONAL BURMESE GARMENT PHYSICS): ${zonedPhysics.zone3BurmeseGarmentPhysics}
+  * ZONE 3 (WARDROBE & FABRIC PHYSICS): ${effectiveGarmentPhysics}
   * Environmental Light Wrap: Seamlessly wrap directional key/rim lighting, ambient bounce color, and ground surface reflections onto the subject.
 - Blend the silhouette boundary mask smoothly to eliminate cut-and-paste edge halos or artificial borders.
 
@@ -4065,7 +4088,7 @@ Generate an ultra-photorealistic image in its authentic real-world environment s
 - ZONED WEATHER & FACIAL SHIELD:
   * ZONE 1 (Face Shield): ${zonedPhysics.zone1FaceShield}
   * ZONE 2 (Hair & Props): ${zonedPhysics.zone2HairAndProps}
-  * ZONE 3 (Burmese Garment Physics): ${zonedPhysics.zone3BurmeseGarmentPhysics}
+  * ZONE 3 (Wardrobe & Fabric Physics): ${effectiveGarmentPhysics}
 - Framing Aspect Ratio: STRICT ${ar} aspect ratio composition (width-to-height ratio ${ar}), do NOT output 21:9.
 - Subject Details: ${basePrompt}.`;
   }
@@ -4088,7 +4111,7 @@ Generate an ultra-photorealistic image in its authentic real-world environment s
 - ZONED WEATHER & FACIAL SHIELD:
   * ZONE 1 (Face Shield): ${zonedPhysics.zone1FaceShield}
   * ZONE 2 (Hair & Props): ${zonedPhysics.zone2HairAndProps}
-  * ZONE 3 (Burmese Garment Physics): ${zonedPhysics.zone3BurmeseGarmentPhysics}
+  * ZONE 3 (Wardrobe & Fabric Physics): ${effectiveGarmentPhysics}
 - Framing Aspect Ratio: STRICT ${ar} aspect ratio composition (width-to-height ratio ${ar}), do NOT output 21:9.
 - Subject Details: ${basePrompt}.`;
 }
@@ -4183,7 +4206,8 @@ async function generateWithOpenRouter(
 
   const timeSpec = detectTimeFromPrompt(prompt, explicitTime);
   const moodSpec = detectMoodFromPrompt(prompt, explicitMood);
-  const zonedPhysics = SUBJECT_WEATHER_INTERACTION_MAP[moodSpec.id] || SUBJECT_WEATHER_INTERACTION_MAP.serene_spiritual;
+  const zonedPhysics = SUBJECT_WEATHER_INTERACTION_MAP[moodSpec.id] || SUBJECT_WEATHER_INTERACTION_MAP.neutral_natural;
+  const effectiveGarmentPhysics = getEffectiveGarmentPhysics(prompt, zonedPhysics.zone3BurmeseGarmentPhysics);
 
   console.log(`[OpenRouter Image] Generating ${count} image(s) using model: ${model} (References: ${refList.length}, Tagged roles: ${validRoleImages.length}, Lighting: ${timeSpec.label}, Mood/Weather: ${moodSpec.label})`);
   try {
@@ -4210,10 +4234,10 @@ async function generateWithOpenRouter(
         if (isProductQuery) {
           promptDirective = `[SYNTHESIS DIRECTIVE - PRODUCT & OBJECT HERO REPRODUCTION]:\nGenerate an ultra-photorealistic image showcasing the exact product/vehicle/object from the reference image as the primary hero subject with STRICT ${ar} aspect ratio composition (width-to-height ratio ${ar}). Preserve the exact physical design, body curves, headlights, materials, surface finishes, and colors.\nSTRICT NEGATIVE: Do NOT add random human people, women, models, or faces unless explicitly requested in the prompt.\nScene details: ${prompt}. Aspect ratio: ${ar}. Strictly output in ${ar} framing, do NOT output 21:9.`;
         } else {
-          promptDirective = `[SYNTHESIS DIRECTIVE - REAL-WORLD PHOTO REPRODUCTION]:\nGenerate an ultra-photorealistic image in its authentic real-world environment strictly matching the reference image with STRICT ${ar} aspect ratio composition (width-to-height ratio ${ar}). Preserve the subject's exact facial identity, features, and aesthetics.\n- ZONED WEATHER & FACIAL SHIELD:\n  * Zone 1 (Face Shield): ${zonedPhysics.zone1FaceShield}\n  * Zone 2 (Hair & Props): ${zonedPhysics.zone2HairAndProps}\n  * Zone 3 (Burmese Garment Physics): ${zonedPhysics.zone3BurmeseGarmentPhysics}\nScene details: ${prompt}. Aspect ratio: ${ar}. Strictly output in ${ar} framing, do NOT output 21:9.`;
+          promptDirective = `[SYNTHESIS DIRECTIVE - REAL-WORLD PHOTO REPRODUCTION]:\nGenerate an ultra-photorealistic image in its authentic real-world environment strictly matching the reference image with STRICT ${ar} aspect ratio composition (width-to-height ratio ${ar}). Preserve the subject's exact facial identity, features, and aesthetics.\n- ZONED WEATHER & FACIAL SHIELD:\n  * Zone 1 (Face Shield): ${zonedPhysics.zone1FaceShield}\n  * Zone 2 (Hair & Props): ${zonedPhysics.zone2HairAndProps}\n  * Zone 3 (Wardrobe & Fabric Physics): ${effectiveGarmentPhysics}\nScene details: ${prompt}. Aspect ratio: ${ar}. Strictly output in ${ar} framing, do NOT output 21:9.`;
         }
       } else {
-        promptDirective = `[SYNTHESIS DIRECTIVE - REAL-WORLD PHOTO GENERATION]:\nGenerate an ultra-photorealistic image in its authentic real-world environment with STRICT ${ar} aspect ratio composition (width-to-height ratio ${ar}): ${prompt}.\n- ZONED WEATHER & FACIAL SHIELD:\n  * Zone 1 (Face Shield): ${zonedPhysics.zone1FaceShield}\n  * Zone 2 (Hair & Props): ${zonedPhysics.zone2HairAndProps}\n  * Zone 3 (Burmese Garment Physics): ${zonedPhysics.zone3BurmeseGarmentPhysics}\nAspect ratio: ${ar}. Strictly output in ${ar} framing, do NOT output 21:9.`;
+        promptDirective = `[SYNTHESIS DIRECTIVE - REAL-WORLD PHOTO GENERATION]:\nGenerate an ultra-photorealistic image in its authentic real-world environment with STRICT ${ar} aspect ratio composition (width-to-height ratio ${ar}): ${prompt}.\n- ZONED WEATHER & FACIAL SHIELD:\n  * Zone 1 (Face Shield): ${zonedPhysics.zone1FaceShield}\n  * Zone 2 (Hair & Props): ${zonedPhysics.zone2HairAndProps}\n  * Zone 3 (Wardrobe & Fabric Physics): ${effectiveGarmentPhysics}\nAspect ratio: ${ar}. Strictly output in ${ar} framing, do NOT output 21:9.`;
       }
 
       const userContent: any =
@@ -4228,7 +4252,7 @@ async function generateWithOpenRouter(
 2. ZONED FACIAL SHIELD & CULTURAL DYNAMICS:
 - Zone 1 (Face Shield): ${zonedPhysics.zone1FaceShield} (Guaranteed protection for every individual face in the photo)
 - Zone 2 (Hair & Props): ${zonedPhysics.zone2HairAndProps}
-- Zone 3 (Burmese Garment Physics): ${zonedPhysics.zone3BurmeseGarmentPhysics}`;
+- Zone 3 (Wardrobe & Fabric Physics): ${effectiveGarmentPhysics}`;
                 } else if (role === "background") {
                   isolationText = `[REFERENCE IMAGE #${idx + 1} - ROLE: BACKGROUND SCENE & ARCHITECTURAL PLATE - ${img.name || "Location Photo"}]:
 1. GEOMETRY LOCK (100% Structural Fidelity):
@@ -4534,13 +4558,13 @@ Your task: Enrich and expand ONLY the environmental, architectural, geographic, 
 
 STRICT INSTRUCTIONS:
 1. STRICT SUBJECT & WARDROBE LOCK:
-   - You MUST preserve all [Subject] directives, character facial likeness instructions, ethnic traits, actions, and cultural garments (e.g., Luntaya Acheik handwoven silk, royal court attire, specific Myanmar jewelry) 100% UNCHANGED. Never alter, omit, or replace the character, face, or wardrobe tags.
-2. HYPER-REALISTIC AUTHENTIC ARCHITECTURE & ENVIRONMENT:
-   - For Myanmar heritage sites, specify exact structural elements: multi-tiered wooden Pyatthat spires, bell-shaped terracotta stupas (Bagan), gilded hti umbrellas with diamond buds, lacquered teakwood columns, white marble terraces with oil lamp reflections, and avoid Thai wat or Cambodian Angkor architectural hallmarks.
-   - If a background reference image is provided, analyze its exact real-world spatial geometry, materials, horizon line, and depth planes.
-   - For named locations (Bagan, Inle Lake, Shwedagon Pagoda, Mandalay Palace Moat, U Bein Bridge, Paris, Kyoto, etc.), expand with specific authentic physical landmarks, indigenous flora, structural topography, and tactile historical textures.
+   - You MUST preserve all [Subject] directives, character facial likeness instructions, ethnic traits, actions, and wardrobe tags 100% UNCHANGED. Never alter, omit, or replace the character, face, or wardrobe tags.
+2. CONTEXT-ACCURATE ARCHITECTURE & ENVIRONMENT (DO NOT ASSUME OR FORCE RELIGIOUS/HERITAGE SITES):
+   - CRITICAL CONSTRAINT: ONLY describe pagodas, stupas, temples, Buddha statues, Pyatthat spires, or monastery terraces if the prompt explicitly requests a Buddhist or Myanmar heritage site (e.g. Bagan, Shwedagon, temple, pagoda, ဘုရား, စေတီ).
+   - If the prompt is for modern subjects, products, vehicles, cars, city streets, modern studio, nature, living room, cafe, modern lifestyle, or non-religious themes: STRICTLY DO NOT add pagodas, stupas, temples, monks, or religious shrines! Match the exact modern, natural, or studio setting requested.
+   - For explicitly requested Myanmar heritage sites (e.g., Bagan, Shwedagon, Mandalay Palace), specify authentic architectural elements (Bagan terracotta stupas, Shwedagon gilded platform) while strictly avoiding Thai wat or Cambodian Angkor styles.
 3. PHYSICAL LIGHTING & ATMOSPHERE FIDELITY:
-   - Anchor illumination in optical physics: calculate precise sun elevation angle, shadow orientation, Kelvin color temperature, atmospheric humidity/mist, volumetric light rays (Tyndall effect), Rayleigh scattering, ambient bounce light, and ambient occlusion contact shadows.
+   - Anchor illumination in optical physics: calculate precise sun elevation angle, shadow orientation, Kelvin color temperature, atmospheric humidity/mist, volumetric light rays (Tyndall effect), Rayleigh scattering, ambient bounce light, and ambient occlusion contact shadows matching the scene.
 4. OUTPUT FORMAT:
    - Return ONLY the final enhanced prompt text.
    - Strictly preserve structural tags if present: [Subject]: ..., [Action]: ..., [Environment]: ..., [Cinematography]: ..., [Lighting/Style]: ..., [Technical]: ...
@@ -4589,9 +4613,12 @@ async function enrichLocationAndContextPrompt(
   if (contextMeta?.weather) contextCue += ` | Weather: ${contextMeta.weather}`;
   if (contextMeta?.environment) contextCue += ` | Environment Type: ${contextMeta.environment}`;
 
+  const mentionsHeritage = /(bagan|shwedagon|pagoda|stupa|temple|monastery|buddhis|pyatthat|mrauk|kyaiktiyo|ဘုရား|စေတီ|ကျောင်းတိုက်|ဝတ်ပြု)/i.test(rawPrompt + ' ' + (contextMeta?.location || ''));
+  const negativeGuard = !mentionsHeritage ? "\nIMPORTANT: Do NOT add pagodas, stupas, temples, or religious shrines to this scene." : "";
+
   const userInstruction = bgImg
-    ? `Analyze the architecture, spatial geometry, and lighting from the provided background reference image and dynamically expand the [Environment] and [Lighting/Style] sections of this prompt with authentic real-world materials and physical lighting while strictly preserving the [Subject] and garments${contextCue}:\n\n${rawPrompt}`
-    : `Dynamically expand any location names, architectural settings, and time/weather cues in this prompt into rich, realistic geographic, structural, and atmospheric descriptions (authentic materials, physics-based lighting, tangible textures) while strictly preserving the [Subject] and garments${contextCue}:\n\n${rawPrompt}`;
+    ? `Analyze the architecture, spatial geometry, and lighting from the provided background reference image and dynamically expand the [Environment] and [Lighting/Style] sections of this prompt with authentic real-world materials and physical lighting while strictly preserving the [Subject] and garments${contextCue}:${negativeGuard}\n\n${rawPrompt}`
+    : `Dynamically expand any location names, architectural settings, and time/weather cues in this prompt into rich, realistic geographic, structural, and atmospheric descriptions (authentic materials, physics-based lighting, tangible textures) while strictly preserving the [Subject] and garments${contextCue}:${negativeGuard}\n\n${rawPrompt}`;
 
   // 8-second safety timeout so image generation pipeline never hangs
   const timeoutPromise = new Promise<string>((resolve) => {
@@ -4689,8 +4716,9 @@ app.post("/api/photo-studio/generate-image", async (req, res) => {
 
   let cleanPrompt = prompt.replace(/--ar\s+[0-9:]+/gi, "").trim() || prompt;
 
-  // 100% Face Lock Directive: when character reference photo is provided, guarantee face preservation
-  const hasCharRef = (Array.isArray(referenceImagesWithRoles) && referenceImagesWithRoles.some(r => r.role === 'character')) || !!referenceImage;
+  // 100% Face Lock Directive: when character reference photo is provided, guarantee face preservation (strictly for human portraits, not products/vehicles)
+  const isProductOrVehicle = /(car|auto|vehicle|truck|bike|motorcycle|product|bottle|shoe|sneaker|watch|phone|bag|gadget|perfume|chair|furniture|toy|jewel|drink|coffee|box|pack|device|merchandise|ကား|ပစ္စည်း|နာရီ|ဖိနပ်|ဖုန်း)/i.test(cleanPrompt);
+  const hasCharRef = !isProductOrVehicle && ((Array.isArray(referenceImagesWithRoles) && referenceImagesWithRoles.some(r => r.role === 'character')) || (!!referenceImage && (!Array.isArray(referenceImagesWithRoles) || referenceImagesWithRoles.length === 0)));
   const isFamilyPrompt = /\b(family|parents|father|mother|daughter|son|children|kids|baby|toddler|grandparents|family\s*portrait|group\s*photo|group\s*portrait|multiple\s*people|three\s*people|four\s*people|five\s*people|six\s*people|မိသားစု|သားသမီး|မိဘ|မိဘသားသမီး|မိသားစုလိုက်)\b/i.test(cleanPrompt);
   const isCouplePrompt = (/\b(couple|two\s*people|two\s*persons|bride\s*and\s*groom|groom\s*and\s*bride|husband\s*and\s*wife|man\s*and\s*woman|two\s*subjects|စုံတွဲ|ဇနီးမောင်နှံ|မောင်နှံ)\b/i.test(cleanPrompt)) && !isFamilyPrompt;
 
