@@ -1593,6 +1593,7 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
     setIsEnhancing(true);
     try {
       const sanitizedCurrentPrompt = cleanForImage(prompt.trim());
+      const hadMyanmar = /[\u1000-\u109F\uAA60-\uAA7F\uA9E0-\uA9FF]/.test(sanitizedCurrentPrompt);
       const res = await fetch('/api/generate-photo-prompt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1603,7 +1604,7 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
         let enhanced = cleanForImage(data.resultText);
         enhanced = `${enhanced.replace(/--ar\s+[0-9:]+/gi, '').trim()} --ar ${ratio}`;
         setPrompt(enhanced);
-        flash('info', data.isFallback ? 'Enhanced with built-in photography rules.' : 'Prompt enhanced with AI.', 3000);
+        flash('info', hadMyanmar ? 'မြန်မာလို ရေးထားတာကို Master AI Photography Prompt အဖြစ် အဆင့်မြှင့်တင်ပြီးပါပြီ ✨' : (data.isFallback ? 'Enhanced with built-in photography rules.' : 'Prompt enhanced with AI.'), 3500);
       }
     } catch {
       flash('error', 'Could not enhance prompt. Check your connection.');
@@ -4173,14 +4174,14 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
                   <textarea
                     value={prompt}
                     onChange={e => setPrompt(e.target.value)}
-                    placeholder="Describe what you want to see..."
+                    placeholder="Describe what you want to see... (မြန်မာလိုလည်း တိုက်ရိုက်ရေးနိုင်ပါသည်)"
                     rows={3}
                     className="w-full bg-transparent text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none resize-none leading-relaxed"
                   />
 
                   {/* Bottom toolbar inside prompt card */}
                   <div className="flex items-center justify-between pt-1 border-t border-zinc-800/40">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       {/* Photo-to-Prompt Button */}
                       <button
                         type="button"
@@ -4195,7 +4196,7 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
                         type="button"
                         onClick={handleEnhance}
                         disabled={isEnhancing}
-                        title="Enhance Prompt with Gemini AI"
+                        title="Enhance Prompt (မြန်မာလို ရေးထားတာကို Master AI Photography Prompt အဖြစ် အဆင့်မြှင့်ရန်)"
                         className="w-7 h-7 rounded-lg bg-zinc-900 hover:bg-emerald-500/20 border border-zinc-800 hover:border-emerald-500/30 text-zinc-400 hover:text-emerald-300 flex items-center justify-center transition-colors cursor-pointer shadow-xs"
                       >
                         {isEnhancing ? <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" /> : <Wand2 className="w-3.5 h-3.5" />}
@@ -4210,6 +4211,13 @@ export const PhotoPromptStudio: React.FC<PhotoPromptStudioProps> = ({
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
+                      )}
+
+                      {/[\u1000-\u109F\uAA60-\uAA7F\uA9E0-\uA9FF]/.test(prompt) && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/25">
+                          <Sparkles className="w-2.5 h-2.5 text-emerald-400 animate-pulse" />
+                          <span>မြန်မာလို Auto AI နားလည်သည်</span>
+                        </span>
                       )}
                     </div>
 

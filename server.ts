@@ -3325,6 +3325,7 @@ app.post("/api/generate-photo-prompt", async (req, res) => {
     if (format === "json") {
       const systemInstruction = `You are a world-renowned Master Photographer and AI Image Prompt Engineer specializing in state-of-the-art text-to-image models (${targetModel}, Flux.1, Midjourney v6.1, SDXL, Ideogram, Recraft).
 Your task is to transform the user's brief concept into an ultra-high-end photographic production prompt.
+MYANMAR / BURMESE SUPPORT: If the user idea is in Myanmar/Burmese script (\u1000-\u109F), understand the full scene, subject, actions, lighting, and translate all fields into high-end English photography terminology.
 
 Category style: ${category}.
 Target Model: ${targetModel}.
@@ -3417,6 +3418,7 @@ Do not include markdown backticks or commentary outside the JSON. Return only th
       // Normal plain-English photo prompt
       const systemInstruction = `You are a Master Photographer and AI Image Prompt Engineer. Expand the user's brief concept into a single, cohesive, award-winning photography prompt optimized for ${targetModel}.
 Category style: ${category}.
+MYANMAR / BURMESE SUPPORT: If the user idea is in Myanmar/Burmese script (\u1000-\u109F), understand the full scene, subject, actions, lighting, and translate/enrich it into evocative English photography terminology.
 Include: subject details, clothing/texture, composition, lens/optics (e.g. 85mm f/1.4 prime), camera (Hasselblad X2D 100C), lighting (key & rim), color grading, and film stock (Kodak Portra 400).
 Append parameter ${arSuffix} at the end of the prompt.
 Write as a continuous master prompt ready to copy-paste.
@@ -4553,6 +4555,50 @@ app.get("/api/photo-studio/models", (_req, res) => {
   });
 });
 
+// Auto Myanmar Prompt Comprehension & Translation Helper
+async function translateAndExpandMyanmarPrompt(prompt: string, apiKey?: string): Promise<string> {
+  const hasMyanmar = /[\u1000-\u109F\uAA60-\uAA7F\uA9E0-\uA9FF]/.test(prompt);
+  if (!hasMyanmar || !prompt || prompt.trim().length < 2) return prompt;
+
+  const systemInstruction = `You are an expert bilingual Myanmar-to-English AI Prompt Director and Master Cinematographer.
+The user provided an image generation prompt in Myanmar/Burmese language.
+Your task:
+1. Comprehend the exact subject, action, vehicle/product, clothing, environment, lighting, and mood described in Burmese.
+2. Translate and craft it into a master-grade English photography prompt ready for diffusion AI models (FLUX, Midjourney, SDXL, Gemini Image).
+3. Do NOT add pagodas, stupas, or temples unless the user explicitly mentioned them in Burmese (e.g. ဘုရား, စေတီ, ပုဂံ).
+4. Output ONLY the translated, descriptive English prompt text. No explanations, no markdown quotes, no greetings.`;
+
+  try {
+    const key = apiKey || process.env.OPENROUTER_API_KEY;
+    if (key) {
+      const translated = await callOpenRouter({
+        apiKey: key,
+        model: process.env.OPENROUTER_MODEL || "google/gemini-2.5-flash",
+        systemPrompt: systemInstruction,
+        userPrompt: `Translate and expand this Myanmar prompt into an English AI photography prompt:\n\n${prompt}`,
+        responseFormat: "text"
+      });
+      if (translated && typeof translated === 'string' && translated.trim().length > 10) {
+        return translated.replace(/^```[a-z]*\s*/i, '').replace(/\s*```$/i, '').trim();
+      }
+    }
+
+    const ai = getGeminiClient();
+    if (ai) {
+      const response = await generateContentWithFallback(ai, {
+        contents: [{ text: `${systemInstruction}\n\nUser prompt in Myanmar:\n${prompt}` }]
+      });
+      const textOut = typeof (response as any)?.text === 'function' ? (response as any).text() : (response as any)?.text;
+      if (textOut && textOut.trim().length > 10) {
+        return textOut.replace(/^```[a-z]*\s*/i, '').replace(/\s*```$/i, '').trim();
+      }
+    }
+  } catch (err: any) {
+    console.warn("[translateAndExpandMyanmarPrompt] Translation notice:", err?.message || err);
+  }
+  return prompt;
+}
+
 const LOCATION_CONTEXT_SYSTEM_INSTRUCTION = `You are a world-class Optical Cinematographer, Architectural Heritage Specialist, and Master Visual Prompt Engineer for photorealistic generative AI (Midjourney v6.1, FLUX.1 Pro, SDXL).
 Your task: Enrich and expand ONLY the environmental, architectural, geographic, and atmospheric context of the given prompt into hyper-realistic, tangible, and physically authentic details.
 
@@ -4565,7 +4611,9 @@ STRICT INSTRUCTIONS:
    - For explicitly requested Myanmar heritage sites (e.g., Bagan, Shwedagon, Mandalay Palace), specify authentic architectural elements (Bagan terracotta stupas, Shwedagon gilded platform) while strictly avoiding Thai wat or Cambodian Angkor styles.
 3. PHYSICAL LIGHTING & ATMOSPHERE FIDELITY:
    - Anchor illumination in optical physics: calculate precise sun elevation angle, shadow orientation, Kelvin color temperature, atmospheric humidity/mist, volumetric light rays (Tyndall effect), Rayleigh scattering, ambient bounce light, and ambient occlusion contact shadows matching the scene.
-4. OUTPUT FORMAT:
+4. BILINGUAL MYANMAR SUPPORT:
+   - If any part of the prompt is in Myanmar/Burmese script (\u1000-\u109F), understand the full instruction and translate/enrich it into English for the image generator.
+5. OUTPUT FORMAT:
    - Return ONLY the final enhanced prompt text.
    - Strictly preserve structural tags if present: [Subject]: ..., [Action]: ..., [Environment]: ..., [Cinematography]: ..., [Lighting/Style]: ..., [Technical]: ...
    - Do NOT wrap in markdown quotes or code blocks.`;
@@ -4715,6 +4763,13 @@ app.post("/api/photo-studio/generate-image", async (req, res) => {
   }
 
   let cleanPrompt = prompt.replace(/--ar\s+[0-9:]+/gi, "").trim() || prompt;
+
+  // Auto Myanmar Prompt Comprehension & English Translation for Image Generator
+  if (/[\u1000-\u109F\uAA60-\uAA7F\uA9E0-\uA9FF]/.test(cleanPrompt)) {
+    console.log("[photo-studio/generate-image] Detected Myanmar prompt, auto-translating to English photography prompt...");
+    cleanPrompt = await translateAndExpandMyanmarPrompt(cleanPrompt, req.body?.api_key || req.body?.apiKey);
+    console.log("[photo-studio/generate-image] Translated prompt:", cleanPrompt);
+  }
 
   // 100% Face Lock Directive: when character reference photo is provided, guarantee face preservation (strictly for human portraits, not products/vehicles)
   const isProductOrVehicle = /(car|auto|vehicle|truck|bike|motorcycle|product|bottle|shoe|sneaker|watch|phone|bag|gadget|perfume|chair|furniture|toy|jewel|drink|coffee|box|pack|device|merchandise|ကား|ပစ္စည်း|နာရီ|ဖိနပ်|ဖုန်း)/i.test(cleanPrompt);
